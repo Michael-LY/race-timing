@@ -254,7 +254,36 @@ def _compute_session_stats(laps: list[LapRecord]):
             "s3": min((l.sector_3 for l in cv if l.sector_3 and l.sector_3 > 0), default=None),
         }
 
-    return overall, per_car_bests, car_groups
+    # Per-stint bests (stint = consecutive laps between pit stops / driver changes)
+    stint_bests: dict[int, dict] = {}
+    for car_num, car_laps in car_groups.items():
+        stints: list[list[LapRecord]] = []
+        current: list[LapRecord] = []
+        for l in sorted(car_laps, key=lambda x: x.lap_number):
+            if l.out_lap and current:
+                stints.append(current)
+                current = []
+            current.append(l)
+        if current:
+            stints.append(current)
+
+        for stint in stints:
+            valid_stint = [l for l in stint if l.lap_time and l.lap_time > 0]
+            if not valid_stint:
+                continue
+            best_lap = min(valid_stint, key=lambda l: l.lap_time)
+            best_s1  = min((l for l in valid_stint if l.sector_1 and l.sector_1 > 0), key=lambda l: l.sector_1, default=None)
+            best_s2  = min((l for l in valid_stint if l.sector_2 and l.sector_2 > 0), key=lambda l: l.sector_2, default=None)
+            best_s3  = min((l for l in valid_stint if l.sector_3 and l.sector_3 > 0), key=lambda l: l.sector_3, default=None)
+
+            for l in valid_stint:
+                flags = stint_bests.setdefault(l.id, {})
+                flags["lap"] = l.id == best_lap.id
+                flags["s1"] = best_s1 and l.id == best_s1.id
+                flags["s2"] = best_s2 and l.id == best_s2.id
+                flags["s3"] = best_s3 and l.id == best_s3.id
+
+    return overall, per_car_bests, car_groups, stint_bests
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +295,7 @@ def session_detail(session_id):
     standings = session.standings
     laps = session.laps
 
-    overall, per_car_bests, car_groups = _compute_session_stats(laps)
+    overall, per_car_bests, car_groups, stint_bests = _compute_session_stats(laps)
 
     # Per-car summary
     car_summaries = []
@@ -275,6 +304,10 @@ def session_detail(session_id):
         best_lap = min(valid, key=lambda x: x.lap_time) if valid else None
         drivers = list(dict.fromkeys(l.driver_name for l in car_laps if l.driver_name))
         pcb = per_car_bests.get(car_num, {})
+        s1 = pcb.get("s1")
+        s2 = pcb.get("s2")
+        s3 = pcb.get("s3")
+        theoretical = (s1 + s2 + s3) if (s1 and s2 and s3) else None
         car_summaries.append({
             "car_number": car_num,
             "driver": ", ".join(drivers),
@@ -284,12 +317,16 @@ def session_detail(session_id):
             "sector_1": best_lap.sector_1 if best_lap else None,
             "sector_2": best_lap.sector_2 if best_lap else None,
             "sector_3": best_lap.sector_3 if best_lap else None,
-            "best_s1": pcb.get("s1"),
-            "best_s2": pcb.get("s2"),
-            "best_s3": pcb.get("s3"),
+            "best_s1": s1,
+            "best_s2": s2,
+            "best_s3": s3,
+            "theoretical": theoretical,
             "speed": best_lap.speed if best_lap else None,
         })
     car_summaries.sort(key=lambda x: x["best_lap"] if x["best_lap"] else 99999)
+
+    # Overall best theoretical
+    overall_best_theoretical = min((c["theoretical"] for c in car_summaries if c["theoretical"]), default=None)
 
     # Driver analysis data (same as /drivers route)
     driver_groups: dict[str, list[LapRecord]] = {}
@@ -332,7 +369,9 @@ def session_detail(session_id):
                            drivers=drivers,
                            driver_overall_s1=driver_overall_s1,
                            driver_overall_s2=driver_overall_s2,
-                           driver_overall_s3=driver_overall_s3)
+                           driver_overall_s3=driver_overall_s3,
+                           stint_bests=stint_bests,
+                           overall_best_theoretical=overall_best_theoretical)
 
 
 # ---------------------------------------------------------------------------
@@ -425,5 +464,149 @@ def api_session_laps(session_id):
             "is_best": l.is_best,
             "out_lap": l.out_lap,
             "in_lap": l.in_lap,
+            "session_time": l.session_time,
         })
     return jsonify({"session_name": session.name, "session_type": session.session_type, "laps": laps})
+
+
+# ---------------------------------------------------------------------------
+# API — analytics data for charts
+# ---------------------------------------------------------------------------
+@bp.route("/api/sessions/<int:session_id>/analytics")
+def api_session_analytics(session_id):
+    session = Session.query.get_or_404(session_id)
+    laps = session.laps
+
+    # Group by car
+    car_groups: dict[str, list[LapRecord]] = {}
+    for l in laps:
+        car_groups.setdefault(l.car_number, []).append(l)
+
+    # Per-car stats
+    per_car = []
+    for car_num, car_laps in car_groups.items():
+        valid = [l for l in car_laps if l.lap_time and l.lap_time > 0
+                 and not l.out_lap and not l.in_lap]
+        if not valid:
+            valid = [l for l in car_laps if l.lap_time and l.lap_time > 0]
+
+        best_lap = min(valid, key=lambda l: l.lap_time) if valid else None
+        best_s1 = min((l.sector_1 for l in valid if l.sector_1 and l.sector_1 > 0), default=None)
+        best_s2 = min((l.sector_2 for l in valid if l.sector_2 and l.sector_2 > 0), default=None)
+        best_s3 = min((l.sector_3 for l in valid if l.sector_3 and l.sector_3 > 0), default=None)
+        theoretical = (best_s1 + best_s2 + best_s3) if (best_s1 and best_s2 and best_s3) else None
+        top_speed = max((l.speed_trap_4 for l in car_laps if l.speed_trap_4 and l.speed_trap_4 > 0), default=None)
+
+        times = sorted([l.lap_time for l in valid])
+        lap_count = len(times)
+        if times:
+            avg_lap = sum(times) / len(times)
+            min_lap = times[0]
+            max_lap = times[-1]
+            q1 = times[int(len(times) * 0.25)] if len(times) >= 4 else min_lap
+            median = times[int(len(times) * 0.5)] if len(times) >= 2 else times[0]
+            q3 = times[int(len(times) * 0.75)] if len(times) >= 4 else max_lap
+        else:
+            avg_lap = min_lap = max_lap = q1 = median = q3 = None
+
+        drivers = list(dict.fromkeys(l.driver_name for l in car_laps if l.driver_name))
+        per_car.append({
+            "car_number": car_num,
+            "driver_name": ", ".join(drivers),
+            "category": car_laps[0].category if car_laps else "",
+            "lap_count": lap_count,
+            "best_lap": best_lap.lap_time if best_lap else None,
+            "best_s1": best_s1,
+            "best_s2": best_s2,
+            "best_s3": best_s3,
+            "theoretical": theoretical,
+            "top_speed": top_speed,
+            "avg_lap": avg_lap,
+            "min_lap": min_lap,
+            "max_lap": max_lap,
+            "q1": q1,
+            "median": median,
+            "q3": q3,
+        })
+    per_car.sort(key=lambda c: c["best_lap"] if c["best_lap"] else 99999)
+
+    # All valid lap times (for line charts)
+    lap_times = []
+    for l in laps:
+        if l.lap_time and l.lap_time > 0:
+            lap_times.append({
+                "car_number": l.car_number,
+                "driver_name": l.driver_name,
+                "lap_number": l.lap_number,
+                "lap_time": l.lap_time,
+                "sector_1": l.sector_1,
+                "sector_2": l.sector_2,
+                "sector_3": l.sector_3,
+                "speed_trap_4": l.speed_trap_4,
+                "is_best": l.is_best,
+                "out_lap": l.out_lap,
+                "in_lap": l.in_lap,
+                "session_time": l.session_time,
+            })
+
+    # Overall best lap
+    all_valid = [l for l in laps if l.lap_time and l.lap_time > 0]
+    overall_best = min((l.lap_time for l in all_valid), default=None)
+
+    # Pit stops
+    pit_stops = []
+    for car_num, car_laps in car_groups.items():
+        clean = [l.lap_time for l in car_laps
+                 if l.lap_time and l.lap_time > 0 and not l.out_lap and not l.in_lap]
+        if not clean:
+            clean = [l.lap_time for l in car_laps if l.lap_time and l.lap_time > 0]
+        if not clean:
+            continue
+        clean_sorted = sorted(clean)
+        median_clean = clean_sorted[len(clean_sorted) // 2]
+
+        sorted_laps = sorted(car_laps, key=lambda x: x.lap_number)
+        for i in range(len(sorted_laps) - 1):
+            curr = sorted_laps[i]
+            next_lap = sorted_laps[i + 1]
+            if curr.in_lap and next_lap.out_lap:
+                pit_time = (next_lap.lap_time - median_clean) if next_lap.lap_time else None
+                pit_stops.append({
+                    "car_number": car_num,
+                    "driver_name": curr.driver_name or "",
+                    "in_lap": curr.lap_number,
+                    "out_lap": next_lap.lap_number,
+                    "pit_time": pit_time,
+                })
+
+    # Position progression (Race only)
+    position_progression = None
+    if session.session_type == "Race":
+        # For each lap, determine each car's position based on cumulative time
+        # Group laps by lap_number, then rank by cumulative time
+        lap_numbers = sorted(set(l.lap_number for l in all_valid))
+        car_positions: dict[str, list] = {cn: [] for cn in car_groups}
+
+        for lap_num in lap_numbers:
+            lap_entries = [l for l in all_valid if l.lap_number == lap_num]
+            lap_entries.sort(key=lambda l: l.session_time if l.session_time else 999999)
+            for pos, l in enumerate(lap_entries, 1):
+                car_positions.setdefault(l.car_number, []).append({
+                    "lap": lap_num,
+                    "position": pos,
+                })
+
+        position_progression = {
+            "lap_numbers": lap_numbers,
+            "cars": {cn: car_positions[cn] for cn in car_positions if car_positions[cn]},
+        }
+
+    return jsonify({
+        "session_name": session.name,
+        "session_type": session.session_type,
+        "per_car": per_car,
+        "lap_times": lap_times,
+        "overall_best_lap": overall_best,
+        "pit_stops": pit_stops,
+        "position_progression": position_progression,
+    })

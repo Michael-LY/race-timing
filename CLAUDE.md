@@ -60,7 +60,8 @@ To add a new time keeper: subclass `BaseParser`, register in `parsers/__init__.p
 | `GET/POST /events/<id>/upload` | Upload CSV(s) — dual file inputs for TSL |
 | `GET /sessions/<id>` | Session detail — all 5 views rendered inline |
 | `GET /sessions/<id>/drivers` | Standalone driver analysis page |
-| `GET /api/sessions/<id>/laps` | JSON API for Chart.js |
+| `GET /api/sessions/<id>/laps` | JSON API for lap data (includes session_time) |
+| `GET /api/sessions/<id>/analytics` | Pre-computed stats: per-car (min/Q1/median/Q3/max for box plots, best sectors, top speed), all lap times, pit stops, position progression |
 
 The `session_detail` route computes via `_compute_session_stats()`:
 - **overall** — best lap time, S1, S2, S3 across all cars (for purple highlight)
@@ -76,7 +77,14 @@ Server-rendered Jinja2 with Bootstrap 5 CDN. Session detail page (`session_detai
 2. **Lap Summary** — best lap per car, sorted by lap time
 3. **Lap-by-Lap** — every lap for every car; pit-in (yellow) / pit-out (blue) row coloring; per-car filter dropdown
 4. **Drivers** — per-driver: laps, best lap, theoretical lap (best S1+S2+S3), gap to best; embedded inline (not a separate page load)
-5. **Chart** — Chart.js line graph of lap times by car
+5. **Chart** — 7 tabbed sub-views within the chart card:
+   - **Lap Times** — line chart per car, session-best dashed reference line, out/in laps excluded
+   - **Delta** — gap to session best lap per car, by lap number
+   - **Sectors** — stacked bar of best S1+S2+S3 (=theoretical) per car, line overlay of actual best
+   - **Speed** — horizontal bar of top speed trap per car
+   - **Box Plot** — manual stacked-bar: min→Q1→median→Q3→max per car, colored IQR box + gray whiskers
+   - **Pit Stops** — horizontal bar of each pit lane time (= out_lap_time − median_clean_lap_time)
+   - **Position** — lap-by-lap position progression (Race only, hidden for Practice/Qualifying)
 
 ### Visual highlighting
 
@@ -93,10 +101,28 @@ Parsers detect session type from the CSV **filename** (not full path) by matchin
 - `race` → Race
 Falls back to "Practice".
 
+### Charts & Analytics API
+
+`GET /api/sessions/<id>/analytics` returns pre-computed data for all charts in a single request:
+
+| Field | Content |
+|---|---|
+| `per_car` | Per-car stats: best_lap, best_s1/s2/s3, theoretical, top_speed, avg_lap, min_lap, q1, median, q3, max_lap |
+| `lap_times` | All valid laps with car_number, lap_number, lap_time, sectors, session_time, out_lap/in_lap flags |
+| `overall_best_lap` | Fastest lap time across all cars (for delta reference) |
+| `pit_stops` | List of `{car_number, driver_name, in_lap, out_lap, pit_time}` — pit_time = out_lap_time − car's median clean lap time |
+| `position_progression` | (Race only) Per-lap position per car, computed by sorting by session_time at each lap number |
+
+Chart JS uses a single `<canvas id="analysisChart">` element — each render function destroys the previous Chart.js instance and creates a new one. All chart data is cached client-side after the first API fetch. Consistent car color palette across all 7 chart types.
+
+Pit stop detection: pairs consecutive in_lap→out_lap transitions within a car's sorted laps.
+
 ## Key design decisions
 
 - **No pandas** — stdlib `csv` module handles all parsing, avoiding C compiler dependency on Windows
 - **Dual CSV upload** — TSL Timing requires two files. Upload page shows both file inputs when `tsl_timing` is selected; either can be empty
 - **Best lap detection** — computed per car during import: min positive `lap_time` → `is_best=True`
+- **Pit stop time** — computed as `out_lap_time − median_clean_lap_time` per car (clean = not in/out lap); referenced from median to avoid outlier skew
 - **All views inline** — all 5 session views are rendered in a single page and toggled via JS `showView()`, avoiding extra HTTP requests
+- **Chart tabs** — 7 chart sub-types share one canvas; tab switching destroys/recreates the Chart.js instance
 - **SQLite by default** — swap to PostgreSQL by changing `DATABASE_URL` env var in `config.py`
