@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Create Event - Race Timing{% endblock %}
+
+{% block content %}
+<div class="mt-3 mb-4">
+    <a href="{{ url_for('main.index') }}" class="text-decoration-none">
+        <i class="bi bi-arrow-left"></i> Back to Events
+    </a>
+</div>
+<h2>Create New Event</h2>
+<div class="card mt-3 shadow-sm">
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label for="name" class="form-label">Event Name *</label>
+                <input type="text" class="form-control" id="name" name="name" required
+                       placeholder="e.g. GTWC Asia 2025 - Suzuka">
+            </div>
+            <div class="mb-3">
+                <label for="track" class="form-label">Track</label>
+                <input type="text" class="form-control" id="track" name="track"
+                       placeholder="e.g. Suzuka Circuit">
+            </div>
+            <div class="mb-3">
+                <label for="event_date" class="form-label">Event Date</label>
+                <input type="date" class="form-control" id="event_date" name="event_date">
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg"></i> Create Event
+            </button>
+            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}{{ session.name }} - {{ session.event.name }}{% endblock %}
+
+{% block content %}
+<div class="mt-3 mb-4">
+    <a href="{{ url_for('main.event_detail', event_id=session.event.id) }}" class="text-decoration-none">
+        <i class="bi bi-arrow-left"></i> Back to {{ session.event.name }}
+    </a>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3>
+            <span class="badge session-badge-{{ session.session_type }} me-2">{{ session.session_type }}</span>
+            {{ session.name }}
+        </h3>
+        <p class="text-muted mb-0">{{ session.event.name }} &middot;
+            {{ standings|length }} entries &middot; {{ session.laps|length }} laps</p>
+    </div>
+    <div class="btn-group">
+        <button class="btn btn-outline-primary btn-sm" id="btnClassification">
+            <i class="bi bi-trophy"></i> Classification
+        </button>
+        <button class="btn btn-outline-primary btn-sm" id="btnLapSummary">
+            <i class="bi bi-table"></i> Lap Summary
+        </button>
+        <button class="btn btn-outline-primary btn-sm" id="btnLapDetail">
+            <i class="bi bi-list-ul"></i> Lap-by-Lap
+        </button>
+        <button class="btn btn-outline-info btn-sm" id="btnChart">
+            <i class="bi bi-graph-up"></i> Chart
+        </button>
+        <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
+              onsubmit="return confirm('Delete this session?');" class="ms-2">
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-trash"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- CLASSIFICATION TABLE -->
+<div class="card shadow-sm mb-4" id="classificationCard">
+    <div class="card-header">Classification</div>
+    <div class="card-body p-0">
+        {% if standings %}
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Pos</th><th>#</th><th>Team</th><th>Class</th><th>Nat</th>
+                    <th>Total Time</th><th>Gap</th><th>Diff</th><th>Laps</th>
+                    <th>Best Lap</th><th>Best #</th><th>Avg Speed</th><th>Pits</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in standings %}
+                <tr class="{% if not s.is_classified %}text-muted{% elif s.position == 1 %}table-warning{% endif %}">
+                    <td>
+                        {% if s.is_classified %}
+                        <strong>{{ s.position }}</strong>
+                        {% else %}
+                        <span class="badge bg-secondary">NC</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>#{{ s.car_number }}</strong></td>
+                    <td>{{ s.team_name }}</td>
+                    <td><small>{{ s.class_name }}</small></td>
+                    <td>{{ s.nationality }}</td>
+                    <td>{% if s.total_time %}{{ "%d:%06.3f"|format(s.total_time // 60, s.total_time % 60) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.gap is not none %}{{ "%6.3f"|format(s.gap) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.diff is not none %}{{ "%6.3f"|format(s.diff) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.laps_completed or '-' }}</td>
+                    <td class="best-lap">{% if s.fastest_lap %}{{ "%d:%06.3f"|format(s.fastest_lap // 60, s.fastest_lap % 60) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.fastest_lap_no or '-' }}</td>
+                    <td>{% if s.fastest_lap_speed %}{{ "%.1f"|format(s.fastest_lap_speed) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.pit_stops }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-3 text-muted">No classification data (upload Classification.csv)</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- LAP SUMMARY TABLE -->
+<div class="card shadow-sm mb-4 d-none" id="lapSummaryCard">
+    <div class="card-header">Lap Time Summary</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th><th>Car</th><th>Driver(s)</th><th>Category</th>
+                    <th>Laps</th><th>Best Lap</th><th>S1</th><th>S2</th><th>S3</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in car_summaries %}
+                <tr {% if loop.index == 1 %}class="table-warning"{% endif %}>
+                    <td><strong>{{ loop.index }}</strong></td>
+                    <td><strong>#{{ c.car_number }}</strong></td>
+                    <td>{{ c.driver }}</td>
+                    <td><small>{{ c.category }}</small></td>
+                    <td>{{ c.total_laps }}</td>
+                    <td class="best-lap">
+                        {% if c.best_lap %}{{ "%d:%06.3f"|format(c.best_lap // 60, c.best_lap % 60) }}{% else %}-{% endif %}
+                    </td>
+                    <td>{% if c.sector_1 %}{{ "%.3f"|format(c.sector_1) }}{% else %}-{% endif %}</td>
+                    <td>{% if c.sector_2 %}{{ "%.3f"|format(c.sector_2) }}{% else %}-{% endif %}</td>
+                    <td>{% if c.sector_3 %}{{ "%.3f"|format(c.sector_3) }}{% else %}-{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- LAP-BY-LAP DETAIL -->
+<div class="card shadow-sm d-none" id="lapDetailCard">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Lap-by-Lap Detail</span>
+        <select class="form-select form-select-sm w-auto" id="carFilter">
+            <option value="">All Cars</option>
+            {% for cn in car_groups %}
+            <option value="{{ cn }}">#{{ cn }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+        <table class="table table-sm lap-table mb-0">
+            <thead>
+                <tr><th>Car</th><th>Driver</th><th>Lap</th><th>Time</th>
+                    <th>S1</th><th>S2</th><th>S3</th><th>Speed</th><th>Pit</th><th>Best</th></tr>
+            </thead>
+            <tbody>
+                {% for car_num, car_laps in car_groups.items() %}
+                {% for l in car_laps %}
+                <tr class="lap-row" data-car="{{ l.car_number }}"
+                    {% if l.in_lap %}style="background-color: #fff3cd;"{% endif %}
+                    {% if l.out_lap %}style="background-color: #d1ecf1;"{% endif %}>
+                    <td><strong>#{{ l.car_number }}</strong></td>
+                    <td><small>{{ l.driver_name }}</small></td>
+                    <td>{{ l.lap_number }}</td>
+                    <td class="best-lap">{{ "%.3f"|format(l.lap_time) if l.lap_time else "-" }}</td>
+                    <td>{{ "%.3f"|format(l.sector_1) if l.sector_1 else "-" }}</td>
+                    <td>{{ "%.3f"|format(l.sector_2) if l.sector_2 else "-" }}</td>
+                    <td>{{ "%.3f"|format(l.sector_3) if l.sector_3 else "-" }}</td>
+                    <td>{{ "%d"|format(l.speed_trap_4 or l.speed or 0) if (l.speed_trap_4 or l.speed) else "-" }}</td>
+                    <td>
+                        {% if l.in_lap %}<span class="badge bg-warning text-dark">IN</span>{% endif %}
+                        {% if l.out_lap %}<span class="badge bg-info text-dark">OUT</span>{% endif %}
+                    </td>
+                    <td>{% if l.is_best %}<span class="text-success fw-bold">BEST</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- CHART -->
+<div class="card shadow-sm mb-4 d-none" id="chartCard">
+    <div class="card-header">Lap Time Analysis</div>
+    <div class="card-body">
+        <canvas id="lapChart" width="400" height="200"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// View toggling
+const views = {
+    classification: document.getElementById('classificationCard'),
+    lapSummary: document.getElementById('lapSummaryCard'),
+    lapDetail: document.getElementById('lapDetailCard'),
+    chart: document.getElementById('chartCard')
+};
+
+function showView(name) {
+    Object.entries(views).forEach(([k, el]) => el.classList.toggle('d-none', k !== name));
+}
+
+document.getElementById('btnClassification').addEventListener('click', () => showView('classification'));
+document.getElementById('btnLapSummary').addEventListener('click', () => showView('lapSummary'));
+document.getElementById('btnLapDetail').addEventListener('click', () => showView('lapDetail'));
+document.getElementById('btnChart').addEventListener('click', () => { showView('chart'); loadChart(); });
+
+// Car filter for lap detail
+document.getElementById('carFilter').addEventListener('change', function() {
+    const car = this.value;
+    document.querySelectorAll('.lap-row').forEach(row => {
+        row.style.display = (!car || row.dataset.car === car) ? '' : 'none';
+    });
+});
+
+// Chart
+let chartInstance = null;
+async function loadChart() {
+    const sessionId = {{ session.id }};
+    const resp = await fetch(`/api/sessions/${sessionId}/laps`);
+    const data = await resp.json();
+
+    const cars = {};
+    data.laps.forEach(l => {
+        if (!l.lap_time) return;
+        if (!cars[l.car_number]) {
+            cars[l.car_number] = { driver: l.driver_name, laps: [] };
+        }
+        cars[l.car_number].laps.push({ x: l.lap_number, y: l.lap_time });
+    });
+
+    const colors = ['#3498db','#e74c3c','#2ecc71','#f39c12','#9b59b6','#1abc9c',
+                    '#e67e22','#2980b9','#27ae60','#c0392b','#8e44ad','#16a085',
+                    '#2c3e50','#d35400','#7f8c8d','#c0392b','#8e44ad','#f1c40f',
+                    '#1abc9c','#e74c3c','#3498db','#2ecc71'];
+
+    const datasets = Object.entries(cars).map(([car, info], i) => ({
+        label: `#${car} ${info.driver}`,
+        data: info.laps,
+        borderColor: colors[i % colors.length],
+        backgroundColor: 'transparent',
+        tension: 0.1,
+        pointRadius: 3,
+    }));
+
+    const ctx = document.getElementById('lapChart').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Lap Times by Car' }
+            },
+            scales: {
+                x: { title: { display: true, text: 'Lap Number' }, type: 'linear', ticks: { stepSize: 1 } },
+                y: { title: { display: true, text: 'Lap Time (s)' }, reverse: false }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}
