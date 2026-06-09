@@ -1,6 +1,20 @@
 {% extends "base.html" %}
 {% block title %}{{ session.name }} - {{ session.event.name }}{% endblock %}
 
+{% block head %}
+<style>
+.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable:hover { background-color: rgba(0,0,0,0.05); }
+.sortable::after { content: " \2195"; opacity: 0.3; font-size: 0.75rem; }
+.sortable.asc::after  { content: " \25B2"; opacity: 1; }
+.sortable.desc::after { content: " \25BC"; opacity: 1; }
+.bg-purple { background-color: #e8d5f5 !important; font-weight: 700; }
+.text-purple { color: #7b2d8e; }
+.bg-green { background-color: #d4edda !important; font-weight: 700; }
+.text-green { color: #1a7a2e; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="mt-3 mb-4">
     <a href="{{ url_for('main.event_detail', event_id=session.event.id) }}" class="text-decoration-none">
@@ -27,6 +41,9 @@
         <button class="btn btn-outline-primary btn-sm" id="btnLapDetail">
             <i class="bi bi-list-ul"></i> Lap-by-Lap
         </button>
+        <button class="btn btn-outline-primary btn-sm" id="btnDrivers">
+            <i class="bi bi-person-badge"></i> Drivers
+        </button>
         <button class="btn btn-outline-info btn-sm" id="btnChart">
             <i class="bi bi-graph-up"></i> Chart
         </button>
@@ -44,24 +61,30 @@
     <div class="card-header">Classification</div>
     <div class="card-body p-0">
         {% if standings %}
-        <table class="table table-hover mb-0">
+        {% set classified = standings | selectattr('is_classified') | list %}
+        {% set nc = standings | rejectattr('is_classified') | list %}
+        <table class="table table-hover mb-0 sortable-table">
             <thead>
                 <tr>
-                    <th>Pos</th><th>#</th><th>Team</th><th>Class</th><th>Nat</th>
-                    <th>Total Time</th><th>Gap</th><th>Diff</th><th>Laps</th>
-                    <th>Best Lap</th><th>Best #</th><th>Avg Speed</th><th>Pits</th>
+                    <th class="sortable">Pos</th>
+                    <th class="sortable">#</th>
+                    <th class="sortable">Team</th>
+                    <th class="sortable">Class</th>
+                    <th class="sortable">Nat</th>
+                    <th class="sortable">Total Time</th>
+                    <th class="sortable">Gap</th>
+                    <th class="sortable">Diff</th>
+                    <th class="sortable">Laps</th>
+                    <th class="sortable">Best Lap</th>
+                    <th class="sortable">Best #</th>
+                    <th class="sortable">Avg Speed</th>
+                    <th class="sortable">Pits</th>
                 </tr>
             </thead>
             <tbody>
-                {% for s in standings %}
-                <tr class="{% if not s.is_classified %}text-muted{% elif s.position == 1 %}table-warning{% endif %}">
-                    <td>
-                        {% if s.is_classified %}
-                        <strong>{{ s.position }}</strong>
-                        {% else %}
-                        <span class="badge bg-secondary">NC</span>
-                        {% endif %}
-                    </td>
+                {% for s in classified %}
+                <tr class="{% if s.position == 1 %}table-warning{% endif %}">
+                    <td><strong>{{ s.position }}</strong></td>
                     <td><strong>#{{ s.car_number }}</strong></td>
                     <td>{{ s.team_name }}</td>
                     <td><small>{{ s.class_name }}</small></td>
@@ -76,6 +99,26 @@
                     <td>{{ s.pit_stops }}</td>
                 </tr>
                 {% endfor %}
+                {% if nc %}
+                <tr class="table-secondary"><td colspan="13" class="text-center"><small>-- Not Classified --</small></td></tr>
+                {% for s in nc %}
+                <tr class="text-muted">
+                    <td><span class="badge bg-secondary">NC</span></td>
+                    <td><strong>#{{ s.car_number }}</strong></td>
+                    <td>{{ s.team_name }}</td>
+                    <td><small>{{ s.class_name }}</small></td>
+                    <td>{{ s.nationality }}</td>
+                    <td>{% if s.total_time %}{{ "%d:%06.3f"|format(s.total_time // 60, s.total_time % 60) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.gap is not none %}{{ "%6.3f"|format(s.gap) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.diff is not none %}{{ "%6.3f"|format(s.diff) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.laps_completed or '-' }}</td>
+                    <td class="best-lap">{% if s.fastest_lap %}{{ "%d:%06.3f"|format(s.fastest_lap // 60, s.fastest_lap % 60) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.fastest_lap_no or '-' }}</td>
+                    <td>{% if s.fastest_lap_speed %}{{ "%.1f"|format(s.fastest_lap_speed) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.pit_stops }}</td>
+                </tr>
+                {% endfor %}
+                {% endif %}
             </tbody>
         </table>
         {% else %}
@@ -86,29 +129,44 @@
 
 <!-- LAP SUMMARY TABLE -->
 <div class="card shadow-sm mb-4 d-none" id="lapSummaryCard">
-    <div class="card-header">Lap Time Summary</div>
+    <div class="card-header">Lap Time Summary
+        <small class="ms-2"><span class="badge bg-purple" style="font-weight:400;">&nbsp;&nbsp;</span> Overall best</small>
+    </div>
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover mb-0 sortable-table">
             <thead>
                 <tr>
-                    <th>#</th><th>Car</th><th>Driver(s)</th><th>Category</th>
-                    <th>Laps</th><th>Best Lap</th><th>S1</th><th>S2</th><th>S3</th>
+                    <th class="sortable">#</th>
+                    <th class="sortable">Car</th>
+                    <th class="sortable">Driver(s)</th>
+                    <th class="sortable">Category</th>
+                    <th class="sortable">Laps</th>
+                    <th class="sortable">Best Lap</th>
+                    <th class="sortable">S1</th>
+                    <th class="sortable">S2</th>
+                    <th class="sortable">S3</th>
                 </tr>
             </thead>
             <tbody>
                 {% for c in car_summaries %}
-                <tr {% if loop.index == 1 %}class="table-warning"{% endif %}>
+                <tr>
                     <td><strong>{{ loop.index }}</strong></td>
                     <td><strong>#{{ c.car_number }}</strong></td>
                     <td>{{ c.driver }}</td>
                     <td><small>{{ c.category }}</small></td>
                     <td>{{ c.total_laps }}</td>
-                    <td class="best-lap">
+                    <td class="best-lap{% if overall.lap_car == c.car_number %} bg-purple{% endif %}">
                         {% if c.best_lap %}{{ "%d:%06.3f"|format(c.best_lap // 60, c.best_lap % 60) }}{% else %}-{% endif %}
                     </td>
-                    <td>{% if c.sector_1 %}{{ "%.3f"|format(c.sector_1) }}{% else %}-{% endif %}</td>
-                    <td>{% if c.sector_2 %}{{ "%.3f"|format(c.sector_2) }}{% else %}-{% endif %}</td>
-                    <td>{% if c.sector_3 %}{{ "%.3f"|format(c.sector_3) }}{% else %}-{% endif %}</td>
+                    <td{% if overall.s1_car == c.car_number %} class="bg-purple"{% endif %}>
+                        {% if c.sector_1 %}{{ "%.3f"|format(c.sector_1) }}{% else %}-{% endif %}
+                    </td>
+                    <td{% if overall.s2_car == c.car_number %} class="bg-purple"{% endif %}>
+                        {% if c.sector_2 %}{{ "%.3f"|format(c.sector_2) }}{% else %}-{% endif %}
+                    </td>
+                    <td{% if overall.s3_car == c.car_number %} class="bg-purple"{% endif %}>
+                        {% if c.sector_3 %}{{ "%.3f"|format(c.sector_3) }}{% else %}-{% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -119,7 +177,10 @@
 <!-- LAP-BY-LAP DETAIL -->
 <div class="card shadow-sm d-none" id="lapDetailCard">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span>Lap-by-Lap Detail</span>
+        <span>Lap-by-Lap Detail
+            <small class="ms-2"><span class="badge bg-purple" style="font-weight:400;">&nbsp;&nbsp;</span> Overall best</small>
+            <small class="ms-1"><span class="badge bg-green" style="font-weight:400;">&nbsp;&nbsp;</span> Car best</small>
+        </span>
         <select class="form-select form-select-sm w-auto" id="carFilter">
             <option value="">All Cars</option>
             {% for cn in car_groups %}
@@ -128,25 +189,52 @@
         </select>
     </div>
     <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
-        <table class="table table-sm lap-table mb-0">
+        <table class="table table-sm lap-table mb-0 sortable-table">
             <thead>
-                <tr><th>Car</th><th>Driver</th><th>Lap</th><th>Time</th>
-                    <th>S1</th><th>S2</th><th>S3</th><th>Speed</th><th>Pit</th><th>Best</th></tr>
+                <tr>
+                    <th class="sortable">Car</th>
+                    <th class="sortable">Driver</th>
+                    <th class="sortable">Lap</th>
+                    <th class="sortable">Time</th>
+                    <th class="sortable">S1</th>
+                    <th class="sortable">S2</th>
+                    <th class="sortable">S3</th>
+                    <th class="sortable">Speed</th>
+                    <th class="sortable">Pit</th>
+                    <th class="sortable">Best</th>
+                </tr>
             </thead>
             <tbody>
                 {% for car_num, car_laps in car_groups.items() %}
+                {% set pcb = per_car_bests.get(car_num, {}) %}
                 {% for l in car_laps %}
+                {% set is_overall_lap = overall.lap_car == l.car_number and overall.lap_time == l.lap_time %}
+                {% set is_overall_s1 = overall.s1_car == l.car_number and overall.s1 == l.sector_1 %}
+                {% set is_overall_s2 = overall.s2_car == l.car_number and overall.s2 == l.sector_2 %}
+                {% set is_overall_s3 = overall.s3_car == l.car_number and overall.s3 == l.sector_3 %}
+                {% set is_car_best_s1 = pcb.s1 == l.sector_1 and l.sector_1 and l.sector_1 > 0 %}
+                {% set is_car_best_s2 = pcb.s2 == l.sector_2 and l.sector_2 and l.sector_2 > 0 %}
+                {% set is_car_best_s3 = pcb.s3 == l.sector_3 and l.sector_3 and l.sector_3 > 0 %}
                 <tr class="lap-row" data-car="{{ l.car_number }}"
                     {% if l.in_lap %}style="background-color: #fff3cd;"{% endif %}
                     {% if l.out_lap %}style="background-color: #d1ecf1;"{% endif %}>
                     <td><strong>#{{ l.car_number }}</strong></td>
                     <td><small>{{ l.driver_name }}</small></td>
                     <td>{{ l.lap_number }}</td>
-                    <td class="best-lap">{{ "%.3f"|format(l.lap_time) if l.lap_time else "-" }}</td>
-                    <td>{{ "%.3f"|format(l.sector_1) if l.sector_1 else "-" }}</td>
-                    <td>{{ "%.3f"|format(l.sector_2) if l.sector_2 else "-" }}</td>
-                    <td>{{ "%.3f"|format(l.sector_3) if l.sector_3 else "-" }}</td>
-                    <td>{{ "%d"|format(l.speed_trap_4 or l.speed or 0) if (l.speed_trap_4 or l.speed) else "-" }}</td>
+                    <td class="best-lap
+                        {% if is_overall_lap %}bg-purple{% elif l.is_best %}bg-green{% endif %}">
+                        {% if l.lap_time %}{{ "%d:%06.3f"|format(l.lap_time // 60, l.lap_time % 60) }}{% else %}-{% endif %}
+                    </td>
+                    <td class="{% if is_overall_s1 %}bg-purple{% elif is_car_best_s1 %}bg-green{% endif %}">
+                        {% if l.sector_1 %}{{ "%.3f"|format(l.sector_1) }}{% else %}-{% endif %}
+                    </td>
+                    <td class="{% if is_overall_s2 %}bg-purple{% elif is_car_best_s2 %}bg-green{% endif %}">
+                        {% if l.sector_2 %}{{ "%.3f"|format(l.sector_2) }}{% else %}-{% endif %}
+                    </td>
+                    <td class="{% if is_overall_s3 %}bg-purple{% elif is_car_best_s3 %}bg-green{% endif %}">
+                        {% if l.sector_3 %}{{ "%.3f"|format(l.sector_3) }}{% else %}-{% endif %}
+                    </td>
+                    <td>{% if l.speed_trap_4 or l.speed %}{{ "%d"|format(l.speed_trap_4 or l.speed or 0) }}{% else %}-{% endif %}</td>
                     <td>
                         {% if l.in_lap %}<span class="badge bg-warning text-dark">IN</span>{% endif %}
                         {% if l.out_lap %}<span class="badge bg-info text-dark">OUT</span>{% endif %}
@@ -154,6 +242,55 @@
                     <td>{% if l.is_best %}<span class="text-success fw-bold">BEST</span>{% endif %}</td>
                 </tr>
                 {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- DRIVER ANALYSIS -->
+<div class="card shadow-sm mb-4 d-none" id="driverCard">
+    <div class="card-header">Driver Analysis
+        <small class="text-muted ms-1">(theoretical = best S1 + best S2 + best S3)</small>
+        <small class="ms-2"><span class="badge bg-purple" style="font-weight:400;">&nbsp;&nbsp;</span> Overall best sector</small>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0 sortable-table">
+            <thead>
+                <tr>
+                    <th class="sortable">#</th>
+                    <th class="sortable">Driver</th>
+                    <th class="sortable">Car</th>
+                    <th class="sortable">Laps</th>
+                    <th class="sortable">Best Lap</th>
+                    <th class="sortable">Best S1</th>
+                    <th class="sortable">Best S2</th>
+                    <th class="sortable">Best S3</th>
+                    <th class="sortable">Theoretical</th>
+                    <th class="sortable">Gap</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in drivers %}
+                {% set gap = (d.best_lap - drivers[0].best_lap) if d.best_lap and drivers[0].best_lap else None %}
+                <tr>
+                    <td><strong>{{ loop.index }}</strong></td>
+                    <td><strong>{{ d.driver_name }}</strong></td>
+                    <td>#{{ d.car_number }}</td>
+                    <td>{{ d.total_laps }}</td>
+                    <td class="best-lap">{% if d.best_lap %}{{ "%d:%06.3f"|format(d.best_lap // 60, d.best_lap % 60) }}{% else %}-{% endif %}</td>
+                    <td{% if d.best_s1 == driver_overall_s1 %} class="bg-purple"{% endif %}>
+                        {% if d.best_s1 %}{{ "%.3f"|format(d.best_s1) }}{% else %}-{% endif %}
+                    </td>
+                    <td{% if d.best_s2 == driver_overall_s2 %} class="bg-purple"{% endif %}>
+                        {% if d.best_s2 %}{{ "%.3f"|format(d.best_s2) }}{% else %}-{% endif %}
+                    </td>
+                    <td{% if d.best_s3 == driver_overall_s3 %} class="bg-purple"{% endif %}>
+                        {% if d.best_s3 %}{{ "%.3f"|format(d.best_s3) }}{% else %}-{% endif %}
+                    </td>
+                    <td>{% if d.theoretical %}{{ "%d:%06.3f"|format(d.theoretical // 60, d.theoretical % 60) }}{% else %}-{% endif %}</td>
+                    <td>{% if gap is not none and gap >= 0 %}+{{ "%.3f"|format(gap) }}{% elif gap is not none %}{{ "%.3f"|format(gap) }}{% else %}-{% endif %}</td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -171,11 +308,12 @@
 
 {% block scripts %}
 <script>
-// View toggling
+// ── View toggling ──────────────────────────────────────────────
 const views = {
     classification: document.getElementById('classificationCard'),
     lapSummary: document.getElementById('lapSummaryCard'),
     lapDetail: document.getElementById('lapDetailCard'),
+    driver: document.getElementById('driverCard'),
     chart: document.getElementById('chartCard')
 };
 
@@ -186,9 +324,10 @@ function showView(name) {
 document.getElementById('btnClassification').addEventListener('click', () => showView('classification'));
 document.getElementById('btnLapSummary').addEventListener('click', () => showView('lapSummary'));
 document.getElementById('btnLapDetail').addEventListener('click', () => showView('lapDetail'));
+document.getElementById('btnDrivers').addEventListener('click', () => showView('driver'));
 document.getElementById('btnChart').addEventListener('click', () => { showView('chart'); loadChart(); });
 
-// Car filter for lap detail
+// ── Car filter for lap detail ──────────────────────────────────
 document.getElementById('carFilter').addEventListener('change', function() {
     const car = this.value;
     document.querySelectorAll('.lap-row').forEach(row => {
@@ -196,7 +335,51 @@ document.getElementById('carFilter').addEventListener('change', function() {
     });
 });
 
-// Chart
+// ── Table sorting ──────────────────────────────────────────────
+function parseSortValue(cell) {
+    const text = cell.textContent.trim();
+    if (text === '-' || text === '') return { val: Infinity, type: 'empty' };
+    const timeMatch = text.match(/^(\d+):(\d{2})\.(\d+)/);
+    if (timeMatch) return { val: parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]) + parseInt(timeMatch[3]) / 1000, type: 'time' };
+    const floatMatch = text.match(/^-?[\d,.]+$/);
+    if (floatMatch) return { val: parseFloat(text.replace(/,/g, '')), type: 'number' };
+    const badge = cell.querySelector('.badge');
+    if (badge) return { val: badge.textContent.trim(), type: 'string' };
+    const carMatch = text.match(/^#(\d+)$/);
+    if (carMatch) return { val: parseInt(carMatch[1]), type: 'number' };
+    return { val: text.toLowerCase(), type: 'string' };
+}
+
+document.querySelectorAll('.sortable-table').forEach(table => {
+    table.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', function() {
+            const tbody = table.querySelector('tbody');
+            const colIdx = Array.from(this.parentNode.children).indexOf(this);
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            const isAsc = this.classList.contains('asc');
+            table.querySelectorAll('th.sortable').forEach(h => h.classList.remove('asc', 'desc'));
+            this.classList.add(isAsc ? 'desc' : 'asc');
+
+            rows.sort((a, b) => {
+                const aCell = a.children[colIdx];
+                const bCell = b.children[colIdx];
+                if (!aCell || !bCell) return 0;
+                const av = parseSortValue(aCell);
+                const bv = parseSortValue(bCell);
+                if (av.type === 'empty' && bv.type === 'empty') return 0;
+                if (av.type === 'empty') return 1;
+                if (bv.type === 'empty') return -1;
+                const cmp = av.val < bv.val ? -1 : av.val > bv.val ? 1 : 0;
+                return isAsc ? -cmp : cmp;
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
+});
+
+// ── Chart ──────────────────────────────────────────────────────
 let chartInstance = null;
 async function loadChart() {
     const sessionId = {{ session.id }};
