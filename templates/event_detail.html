@@ -54,22 +54,36 @@
 
 <div class="mt-4 flex items-center justify-between">
     <h4 class="font-semibold text-theme-primary">Sessions</h4>
-    {% if event.sessions %}
     <div class="flex items-center gap-1.5 text-xs">
+        {% if event.sessions %}
         <span class="text-theme-secondary">Sort:</span>
         <button onclick="sortSessions('type')" class="btn-ghost" data-sort="type">Type</button>
         <button onclick="sortSessions('name')" class="btn-ghost" data-sort="name">Name</button>
         <button onclick="sortSessions('laps')" class="btn-ghost" data-sort="laps">Laps</button>
+        {% endif %}
+        {% if current_user and current_user.is_admin %}
+        <button type="button" id="reorder-toggle" class="btn-ghost" onclick="toggleSessionReorder()">Manual sort</button>
+        <form id="reorder-form" method="POST" action="{{ url_for('main.reorder_event_sessions', event_id=event.id) }}" class="hidden">
+            <input type="hidden" name="session_ids" id="session-order-input">
+            <button type="submit" class="btn-primary-green px-3 py-1.5 rounded-md">Save order</button>
+        </form>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 {% if event.sessions %}
 <div id="sessions-list" class="mt-2 space-y-2">
     {% for session in event.sessions %}
-    <div class="stagger-item card rounded-lg px-4 py-3 flex justify-between items-center cursor-pointer"
+    <div class="session-card stagger-item card rounded-lg px-4 py-3 flex justify-between items-center cursor-pointer"
+         data-session-id="{{ session.id }}"
          data-type="{{ session.session_type }}" data-name="{{ session.name }}" data-laps="{{ session.laps|length }}"
-         onclick="window.location='{{ url_for('main.session_detail', session_id=session.id) }}'">
+         draggable="false"
+         onclick="if (!window.sessionReorderActive) { window.location='{{ url_for('main.session_detail', session_id=session.id) }}'; }">
         <div class="flex items-center gap-2">
+            {% if current_user and current_user.is_admin %}
+            <span class="reorder-handle hidden text-theme-secondary" title="Drag to reorder">
+                <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+            </span>
+            {% endif %}
             <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type }}">{{ session.session_type }}</span>
             <strong class="text-theme-primary">{{ session.name }}</strong>
             <small class="text-theme-secondary ml-2">{{ session.laps|length }} laps</small>
@@ -110,6 +124,94 @@
 const TYPE_ORDER = { 'Paid Test': 0, 'Practice': 1, 'Bronze Session': 2, 'Pre-Qualifying': 3, 'Qualifying': 4, 'Warm-up': 5, 'Race': 6 };
 let currentSort = '';
 let sortAsc = true;
+window.sessionReorderActive = false;
+let draggedSessionId = null;
+
+function updateSessionOrderInput() {
+    const container = document.getElementById('sessions-list');
+    const input = document.getElementById('session-order-input');
+    if (!container || !input) {
+        return;
+    }
+    const orderedIds = Array.from(container.querySelectorAll('.session-card')).map(card => card.dataset.sessionId);
+    input.value = orderedIds.join(',');
+}
+
+function toggleSessionReorder() {
+    const container = document.getElementById('sessions-list');
+    const toggle = document.getElementById('reorder-toggle');
+    const form = document.getElementById('reorder-form');
+    window.sessionReorderActive = !window.sessionReorderActive;
+
+    container.querySelectorAll('.session-card').forEach(card => {
+        card.classList.toggle('opacity-70', window.sessionReorderActive);
+        card.classList.toggle('ring-2', window.sessionReorderActive);
+        card.classList.toggle('ring-theme-primary', window.sessionReorderActive);
+        card.draggable = window.sessionReorderActive;
+        const handle = card.querySelector('.reorder-handle');
+        if (handle) {
+            handle.classList.toggle('hidden', !window.sessionReorderActive);
+        }
+    });
+
+    if (form) {
+        form.classList.toggle('hidden', !window.sessionReorderActive);
+    }
+    if (toggle) {
+        toggle.textContent = window.sessionReorderActive ? 'Cancel reorder' : 'Manual sort';
+        toggle.classList.toggle('btn-ghost-active', window.sessionReorderActive);
+    }
+
+    updateSessionOrderInput();
+}
+
+function attachSessionReorderHandlers() {
+    const container = document.getElementById('sessions-list');
+    if (!container) {
+        return;
+    }
+
+    container.querySelectorAll('.session-card').forEach(card => {
+        card.addEventListener('dragstart', (event) => {
+            if (!window.sessionReorderActive) {
+                return;
+            }
+            draggedSessionId = card.dataset.sessionId;
+            card.classList.add('opacity-60');
+            event.dataTransfer.effectAllowed = 'move';
+        });
+
+        card.addEventListener('dragend', () => {
+            card.classList.remove('opacity-60');
+            draggedSessionId = null;
+            updateSessionOrderInput();
+        });
+
+        card.addEventListener('dragover', (event) => {
+            if (window.sessionReorderActive) {
+                event.preventDefault();
+            }
+        });
+
+        card.addEventListener('drop', (event) => {
+            if (!window.sessionReorderActive || !draggedSessionId) {
+                return;
+            }
+            event.preventDefault();
+            const draggedCard = container.querySelector(`.session-card[data-session-id="${draggedSessionId}"]`);
+            if (!draggedCard || draggedCard === card) {
+                return;
+            }
+            const rect = card.getBoundingClientRect();
+            if (event.clientY > rect.top + rect.height / 2) {
+                card.after(draggedCard);
+            } else {
+                card.before(draggedCard);
+            }
+            updateSessionOrderInput();
+        });
+    });
+}
 
 function sortSessions(key) {
     if (currentSort === key) {
@@ -139,6 +241,7 @@ function sortSessions(key) {
     });
 
     items.forEach(el => container.appendChild(el));
+    updateSessionOrderInput();
 
     document.querySelectorAll('[data-sort]').forEach(btn => {
         btn.classList.remove('btn-ghost-active');
@@ -151,5 +254,7 @@ function sortSessions(key) {
         active.textContent = key.charAt(0).toUpperCase() + key.slice(1) + (sortAsc ? ' ▲' : ' ▼');
     }
 }
+
+attachSessionReorderHandlers();
 </script>
 {% endblock %}

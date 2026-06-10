@@ -241,6 +241,36 @@ def event_detail(event_id):
     return render_template("event_detail.html", event=event)
 
 
+@bp.route("/events/<int:event_id>/sessions/reorder", methods=["POST"])
+@admin_required
+def reorder_event_sessions(event_id):
+    event = Event.query.get_or_404(event_id)
+    raw_ids = request.form.getlist("session_ids")
+    session_ids = []
+    for value in raw_ids:
+        session_ids.extend([item.strip() for item in value.split(",") if item.strip()])
+
+    if not session_ids:
+        flash("No session order was provided", "danger")
+        return redirect(url_for("main.event_detail", event_id=event_id))
+
+    sessions = Session.query.filter(Session.event_id == event.id, Session.id.in_([int(sid) for sid in session_ids])).all()
+    session_lookup = {session.id: session for session in sessions}
+
+    if len(session_lookup) != len(session_ids):
+        flash("Unable to reorder sessions", "danger")
+        return redirect(url_for("main.event_detail", event_id=event_id))
+
+    for index, session_id in enumerate(session_ids):
+        session = session_lookup.get(int(session_id))
+        if session is not None:
+            session.sort_order = index
+
+    db.session.commit()
+    flash("Sessions reordered", "success")
+    return redirect(url_for("main.event_detail", event_id=event_id))
+
+
 # ---------------------------------------------------------------------------
 # Delete event
 # ---------------------------------------------------------------------------
@@ -377,11 +407,13 @@ def upload(event_id):
         # Create session — use custom name/type if provided, otherwise parser default
         custom_name = request.form.get("session_name", "").strip()
         custom_type = request.form.get("session_type", "").strip()
+        max_sort_order = Session.query.filter_by(event_id=event.id).with_entities(db.func.max(Session.sort_order)).scalar() or 0
         session = Session(
             event_id=event.id,
             name=custom_name if custom_name else data.get("session_name", "Untitled"),
             session_type=custom_type if custom_type else data.get("session_type", "Practice"),
             start_time=datetime.utcnow(),
+            sort_order=max_sort_order + 1,
         )
         db.session.add(session)
         db.session.flush()

@@ -49,7 +49,7 @@ class Event(db.Model):
     sessions = db.relationship(
         "Session",
         back_populates="event",
-        order_by="Session.start_time",
+        order_by="Session.sort_order, Session.created_at",
         cascade="all, delete-orphan",
     )
 
@@ -62,6 +62,7 @@ class Session(db.Model):
     name = db.Column(db.String(200), nullable=False)
     session_type = db.Column(db.String(50), nullable=False)
     start_time = db.Column(db.DateTime, nullable=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     event = db.relationship("Event", back_populates="sessions")

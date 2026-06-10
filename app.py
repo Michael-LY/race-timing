@@ -1,6 +1,8 @@
 import os
 
 from flask import Flask, session as flask_session
+from sqlalchemy import inspect, text
+
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS, UPLOAD_FOLDER
 from models import db, TimeKeeper, User
 
@@ -19,6 +21,7 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        _ensure_session_sort_order_column()
         _seed_time_keepers()
         _seed_admin()
 
@@ -35,6 +38,17 @@ def create_app():
     app.register_blueprint(bp)
 
     return app
+
+
+def _ensure_session_sort_order_column():
+    inspector = inspect(db.engine)
+    if "sessions" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("sessions")}
+    if "sort_order" not in columns:
+        with db.engine.begin() as connection:
+            connection.execute(text("ALTER TABLE sessions ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"))
 
 
 def _seed_time_keepers():
