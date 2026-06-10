@@ -3,60 +3,60 @@
 
 {% block content %}
 <div class="mt-3 mb-4">
-    <a href="{{ url_for('main.index') }}" class="text-decoration-none">
-        <i class="bi bi-arrow-left"></i> Back to Events
+    <a href="{{ url_for('main.index') }}" class="no-underline text-gray-600 hover:text-gray-900 inline-flex items-center gap-1 text-sm">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Events
     </a>
 </div>
 
-<div class="d-flex justify-content-between align-items-center">
+<div class="flex justify-between items-center">
     <div>
-        <h2>{{ event.name }}</h2>
+        <h2 class="text-xl font-bold">{{ event.name }}</h2>
         {% if event.track %}
-        <p class="text-muted"><i class="bi bi-geo-alt"></i> {{ event.track }}
-        {% if event.event_date %} &middot; {{ event.event_date }}{% endif %}
+        <p class="text-gray-500 flex items-center gap-1">
+            <i data-lucide="map-pin" class="w-4 h-4"></i> {{ event.track }}
+            {% if event.event_date %} <span class="mx-1">&middot;</span> {{ event.event_date }}{% endif %}
         </p>
         {% endif %}
     </div>
-    <div class="btn-group">
-        <a href="{{ url_for('main.upload', event_id=event.id) }}" class="btn btn-success">
-            <i class="bi bi-upload"></i> Upload CSV
+    <div class="flex gap-2 items-center">
+        <a href="{{ url_for('main.upload', event_id=event.id) }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-flex items-center gap-1.5 text-sm no-underline">
+            <i data-lucide="upload" class="w-4 h-4"></i> Upload CSV
         </a>
         <form method="POST" action="{{ url_for('main.event_delete', event_id=event.id) }}"
-              onsubmit="return confirm('Delete this event and all its sessions?');" class="ms-2">
-            <button type="submit" class="btn btn-outline-danger btn-sm">
-                <i class="bi bi-trash"></i>
+              onsubmit="return confirm('Delete this event and all its sessions?');">
+            <button type="submit" class="border border-red-500 text-red-500 p-2 rounded hover:bg-red-50 inline-flex items-center">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
         </form>
     </div>
 </div>
 
-<h4 class="mt-4">Sessions</h4>
+<h4 class="mt-4 font-semibold text-gray-700">Sessions</h4>
 {% if event.sessions %}
-<div class="list-group mt-2">
+<div class="mt-2 space-y-2">
     {% for session in event.sessions %}
-    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-         onclick="window.location='{{ url_for('main.session_detail', session_id=session.id) }}'"
-         style="cursor: pointer;">
-        <div>
-            <span class="badge session-badge-{{ session.session_type }} me-2">{{ session.session_type }}</span>
+    <div class="bg-white border border-gray-200 rounded-lg px-4 py-3 flex justify-between items-center hover:bg-gray-50 cursor-pointer"
+         onclick="window.location='{{ url_for('main.session_detail', session_id=session.id) }}'">
+        <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type }}">{{ session.session_type }}</span>
             <strong>{{ session.name }}</strong>
-            <small class="text-muted ms-2">{{ session.laps|length }} laps</small>
+            <small class="text-gray-500 ml-2">{{ session.laps|length }} laps</small>
         </div>
         <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
               onsubmit="event.stopPropagation(); return confirm('Delete this session?');">
-            <button type="submit" class="btn btn-outline-danger btn-sm">
-                <i class="bi bi-trash"></i>
+            <button type="submit" class="border border-red-500 text-red-500 p-1.5 rounded hover:bg-red-50 inline-flex items-center">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
         </form>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<div class="text-center py-4 text-muted">
-    <i class="bi bi-cloud-upload" style="font-size: 2rem;"></i>
+<div class="text-center py-8 text-gray-500">
+    <i data-lucide="cloud-upload" class="w-10 h-10 text-gray-300 mx-auto"></i>
     <p class="mt-2">No sessions yet. Upload a CSV file to get started.</p>
-    <a href="{{ url_for('main.upload', event_id=event.id) }}" class="btn btn-success">
-        <i class="bi bi-upload"></i> Upload CSV
+    <a href="{{ url_for('main.upload', event_id=event.id) }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-flex items-center gap-1.5 text-sm no-underline">
+        <i data-lucide="upload" class="w-4 h-4"></i> Upload CSV
     </a>
 </div>
 {% endif %}

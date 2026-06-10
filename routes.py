@@ -472,6 +472,10 @@ def api_session_laps(session_id):
 # ---------------------------------------------------------------------------
 # API — analytics data for charts
 # ---------------------------------------------------------------------------
+# Safety car lap detection threshold: lap_time > median_clean * SC_THRESHOLD → flagged as SC
+SC_THRESHOLD = 1.35
+
+
 @bp.route("/api/sessions/<int:session_id>/analytics")
 def api_session_analytics(session_id):
     session = Session.query.get_or_404(session_id)
@@ -482,11 +486,23 @@ def api_session_analytics(session_id):
     for l in laps:
         car_groups.setdefault(l.car_number, []).append(l)
 
+    # Pre-compute per-car median clean lap time for SC detection
+    car_median_clean: dict[str, float] = {}
+    for car_num, car_laps in car_groups.items():
+        clean = sorted([
+            l.lap_time for l in car_laps
+            if l.lap_time and l.lap_time > 0 and not l.out_lap and not l.in_lap
+        ])
+        if clean:
+            car_median_clean[car_num] = clean[len(clean) // 2]
+
     # Per-car stats
     per_car = []
     for car_num, car_laps in car_groups.items():
+        median = car_median_clean.get(car_num)
         valid = [l for l in car_laps if l.lap_time and l.lap_time > 0
-                 and not l.out_lap and not l.in_lap]
+                 and not l.out_lap and not l.in_lap
+                 and not (median and l.lap_time > median * SC_THRESHOLD)]
         if not valid:
             valid = [l for l in car_laps if l.lap_time and l.lap_time > 0]
 
@@ -534,6 +550,8 @@ def api_session_analytics(session_id):
     lap_times = []
     for l in laps:
         if l.lap_time and l.lap_time > 0:
+            median = car_median_clean.get(l.car_number)
+            sc_lap = (l.lap_time > median * SC_THRESHOLD) if (median and not l.out_lap and not l.in_lap) else False
             lap_times.append({
                 "car_number": l.car_number,
                 "driver_name": l.driver_name,
@@ -546,12 +564,22 @@ def api_session_analytics(session_id):
                 "is_best": l.is_best,
                 "out_lap": l.out_lap,
                 "in_lap": l.in_lap,
+                "sc_lap": sc_lap,
                 "session_time": l.session_time,
             })
 
-    # Overall best lap
-    all_valid = [l for l in laps if l.lap_time and l.lap_time > 0]
-    overall_best = min((l.lap_time for l in all_valid), default=None)
+    # Overall best lap (exclude pit/SC laps)
+    all_valid = [
+        l for l in laps if l.lap_time and l.lap_time > 0
+        and not l.out_lap and not l.in_lap
+    ]
+    # Further filter SC laps for overall best
+    clean_for_best = []
+    for l in all_valid:
+        median = car_median_clean.get(l.car_number)
+        if not (median and l.lap_time > median * SC_THRESHOLD):
+            clean_for_best.append(l)
+    overall_best = min((l.lap_time for l in clean_for_best), default=None)
 
     # Pit stops
     pit_stops = []
