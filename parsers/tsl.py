@@ -39,10 +39,25 @@ class TSLTimingParser(BaseParser):
         if not val or not val.strip():
             return None
         val = val.strip()
-        # m:ss.fff
-        m = re.fullmatch(r"(\d+):(\d{2})\.(\d+)", val)
-        if m:
-            return int(m.group(1)) * 60 + int(m.group(2)) + int(m.group(3)) / 1000
+
+        # hh:mm:ss.mmm or m:ss.fff
+        parts = val.split(":")
+        if len(parts) == 3:
+            try:
+                hours = int(parts[0])
+                minutes = int(parts[1])
+                seconds = float(parts[2])
+                return hours * 3600 + minutes * 60 + seconds
+            except ValueError:
+                return None
+        if len(parts) == 2:
+            try:
+                minutes = int(parts[0])
+                seconds = float(parts[1])
+                return minutes * 60 + seconds
+            except ValueError:
+                return None
+
         # ss.fff
         try:
             return float(val)
@@ -284,6 +299,8 @@ class TSLTimingParser(BaseParser):
                 "session_time": self._to_seconds(get_col(row, "session_time")),
                 "out_lap": self._parse_bool(get_col(row, "out_lap")),
                 "in_lap": self._parse_bool(get_col(row, "in_lap")),
+                "time_out_lap": self._to_seconds(get_col(row, "time_out_lap")),
+                "time_in_lap": self._to_seconds(get_col(row, "time_in_lap")),
                 "position": int(get_col(row, "pos")) if get_col(row, "pos") else None,
             })
 

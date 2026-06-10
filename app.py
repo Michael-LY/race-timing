@@ -22,6 +22,7 @@ def create_app():
     with app.app_context():
         db.create_all()
         _ensure_session_sort_order_column()
+        _ensure_lap_record_time_columns()
         _seed_time_keepers()
         _seed_admin()
 
@@ -49,6 +50,20 @@ def _ensure_session_sort_order_column():
     if "sort_order" not in columns:
         with db.engine.begin() as connection:
             connection.execute(text("ALTER TABLE sessions ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"))
+
+
+def _ensure_lap_record_time_columns():
+    inspector = inspect(db.engine)
+    if "lap_records" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("lap_records")}
+    if "time_out_lap" not in columns:
+        with db.engine.begin() as connection:
+            connection.execute(text("ALTER TABLE lap_records ADD COLUMN time_out_lap FLOAT"))
+    if "time_in_lap" not in columns:
+        with db.engine.begin() as connection:
+            connection.execute(text("ALTER TABLE lap_records ADD COLUMN time_in_lap FLOAT"))
 
 
 def _seed_time_keepers():

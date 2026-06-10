@@ -520,6 +520,22 @@ function themeTooltip() {
     };
 }
 
+function chartZoomOptions() {
+    return {
+        zoom: {
+            zoom: {
+                wheel: { enabled: true },
+                pinch: { enabled: true },
+                mode: 'y'
+            },
+            pan: {
+                enabled: true,
+                mode: 'y'
+            }
+        }
+    };
+}
+
 async function loadChart() {
     if (!cachedData) {
         const resp = await fetch(`/api/sessions/{{ session.id }}/analytics`);
@@ -621,7 +637,8 @@ const renderers = {
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
-                    tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label}: ${fmtTime(c.raw.y)}` } }
+                    tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label}: ${fmtTime(c.raw.y)}` } },
+                    ...chartZoomOptions()
                 },
                 scales: {
                     x: { ...ts.x, title: { display: true, text: 'Lap Number', color: tc.text }, type: 'linear', ticks: { ...ts.x.ticks, stepSize: 1 }, offset: false },
@@ -669,7 +686,8 @@ const renderers = {
                     tooltip: { ...tt, callbacks: { label: c => {
                         const v = c.raw.y;
                         return `${c.dataset.label}: ${v >= 0 ? '+' : ''}${v.toFixed(3)}s`;
-                    } } }
+                    } } },
+                    ...chartZoomOptions()
                 },
                 scales: {
                     x: { ...ts.x, title: { display: true, text: 'Lap Number', color: tc.text }, type: 'linear', ticks: { stepSize: 1 } },
@@ -712,7 +730,8 @@ const renderers = {
                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
                     tooltip: { ...tt, callbacks: {
                         label: c => c.dataset.label === 'Actual Best Lap' ? `Best Lap: ${fmtTime(c.raw.y)}` : `${c.dataset.label}: ${c.raw.toFixed(3)}s`
-                    } }
+                    } },
+                    ...chartZoomOptions()
                 },
                 scales: {
                     x: { ...ts.x, stacked: true, ticks: { ...ts.x.ticks, maxRotation: 45 } },
@@ -748,7 +767,8 @@ const renderers = {
                 indexAxis: 'y',
                 plugins: {
                     legend: { display: false },
-                    tooltip: { ...tt, callbacks: { label: c => `${c.raw} km/h` } }
+                    tooltip: { ...tt, callbacks: { label: c => `${c.raw} km/h` } },
+                    ...chartZoomOptions()
                 },
                 scales: {
                     x: { ...ts.x, title: { display: true, text: 'Speed (km/h)', color: tc.text }, beginAtZero: false },
@@ -809,7 +829,8 @@ const renderers = {
                                 ];
                             }
                         }
-                    }
+                    },
+                    ...chartZoomOptions()
                 },
                 scales: {
                     x: { ...ts.x, stacked: true, ticks: { ...ts.x.ticks, maxRotation: 45 } },
@@ -835,10 +856,10 @@ const renderers = {
         }
 
         const labels = data.pit_stops.map(p => {
-            const t = p.pit_time ? p.pit_time.toFixed(1) + 's' : 'N/A';
+            const t = Number.isFinite(p.pit_time) ? p.pit_time.toFixed(1) + 's' : 'N/A';
             return `#${p.car_number} L${p.in_lap}→L${p.out_lap} (${t})`;
         });
-        const pitTimes = data.pit_stops.map(p => p.pit_time || 0);
+        const pitTimes = data.pit_stops.map(p => Number.isFinite(p.pit_time) ? Math.max(0, p.pit_time) : 0);
         const barColors = data.pit_stops.map(p => getCarColor(p.car_number));
 
         chartInstances.pitStops = new Chart(ctx, {
@@ -864,10 +885,11 @@ const renderers = {
                             return [
                                 `Car: #${p.car_number} / ${p.driver_name}`,
                                 `In Lap: ${p.in_lap} → Out Lap: ${p.out_lap}`,
-                                `Pit Lane Time: ${p.pit_time ? p.pit_time.toFixed(1) + 's' : 'N/A'}`,
+                                `Pit Lane Time: ${Number.isFinite(p.pit_time) ? p.pit_time.toFixed(1) + 's' : 'N/A'}`,
                             ];
                         }
-                    } }
+                    } },
+                    ...chartZoomOptions()
                 },
                 scales: {
                     x: { ...ts.x, title: { display: true, text: 'Pit Lane Time (s)', color: tc.text }, beginAtZero: true },
@@ -907,7 +929,8 @@ const renderers = {
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
-                    tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label}: P${c.raw.y}` } }
+                    tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label}: P${c.raw.y}` } },
+                    ...chartZoomOptions()
                 },
                 scales: {
                     x: { ...ts.x, title: { display: true, text: 'Lap Number', color: tc.text }, type: 'linear', ticks: { stepSize: 1 } },

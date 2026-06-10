@@ -476,6 +476,8 @@ def upload(event_id):
                 is_best=is_best,
                 out_lap=l.get("out_lap", False),
                 in_lap=l.get("in_lap", False),
+                time_out_lap=l.get("time_out_lap"),
+                time_in_lap=l.get("time_in_lap"),
                 time_of_day=l.get("time_of_day", ""),
                 session_time=l.get("session_time"),
             )
@@ -495,6 +497,20 @@ def upload(event_id):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+def _calculate_pit_stop_time(in_lap, out_lap):
+    """Calculate pit-stop duration from TSL timing timestamps when available."""
+    in_time = getattr(in_lap, "time_in_lap", None)
+    out_time = getattr(out_lap, "time_out_lap", None)
+
+    if in_time is None or out_time is None:
+        return None
+
+    try:
+        return abs(float(out_time) - float(in_time))
+    except (TypeError, ValueError):
+        return None
+
+
 def _compute_session_stats(laps: list[LapRecord]):
     """Compute overall and per-car bests across all sectors."""
     valid = [l for l in laps if l.lap_time and l.lap_time > 0]
@@ -917,7 +933,7 @@ def api_session_analytics(session_id):
             curr = sorted_laps[i]
             next_lap = sorted_laps[i + 1]
             if curr.in_lap and next_lap.out_lap:
-                pit_time = (next_lap.lap_time - median_clean) if next_lap.lap_time else None
+                pit_time = _calculate_pit_stop_time(curr, next_lap)
                 pit_stops.append({
                     "car_number": car_num,
                     "driver_name": curr.driver_name or "",
