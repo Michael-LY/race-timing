@@ -49,8 +49,8 @@ class SwissTimingParser(BaseParser):
         "Practice": ["practice", "free practice", "fp", "p "],
         "Qualifying": ["qualifying", "qual", "q ", "qualification"],
         "Race": ["race", "r ", "_r_"],
-        "Paid Test": ["paid test", "paidtest", "paid_test"],
-        "Bronze Session": ["bronze session", "bronzesession", "bronze_session"],
+        "Paid-Test": ["paid test", "paidtest", "paid_test"],
+        "Bronze-Session": ["bronze session", "bronzesession", "bronze_session"],
         "Pre-Qualifying": [
             "pre-qualifying", "prequalifying", "pre_qualifying",
             "pre-qual", "prequal",

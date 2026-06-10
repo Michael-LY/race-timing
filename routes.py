@@ -726,7 +726,17 @@ def session_delete(session_id):
 # ---------------------------------------------------------------------------
 # Edit session
 # ---------------------------------------------------------------------------
-SESSION_TYPES = ["Paid Test", "Practice", "Bronze Session", "Pre-Qualifying", "Qualifying", "Warm-up", "Race"]
+SESSION_TYPES = ["Paid-Test", "Practice", "Bronze-Session", "Pre-Qualifying", "Qualifying", "Warm-up", "Race"]
+SESSION_TYPE_ALIASES = {
+    "Paid Test": "Paid-Test",
+    "Bronze Session": "Bronze-Session",
+}
+
+
+def normalize_session_type(session_type: str | None) -> str | None:
+    if not session_type:
+        return session_type
+    return SESSION_TYPE_ALIASES.get(session_type, session_type)
 
 
 @bp.route("/sessions/<int:session_id>/edit", methods=["GET", "POST"])
@@ -736,7 +746,7 @@ def session_edit(session_id):
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()
-        session_type = request.form.get("session_type", "").strip()
+        session_type = normalize_session_type(request.form.get("session_type", "").strip())
 
         if not name:
             flash("Session name is required", "danger")

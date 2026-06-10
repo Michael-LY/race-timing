@@ -9,7 +9,7 @@
 </div>
 
 <h3 class="text-lg font-bold flex items-center gap-2">
-    <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type }}">{{ session.session_type }}</span>
+    <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type|replace(' ', '-') }}">{{ session.session_type|replace('Paid Test', 'Paid-Test')|replace('Bronze Session', 'Bronze-Session') }}</span>
     <span class="text-theme-primary">Driver Analysis</span>
 </h3>
 <p class="text-theme-secondary text-sm">{{ session.event.name }} &middot; {{ drivers|length }} drivers</p>

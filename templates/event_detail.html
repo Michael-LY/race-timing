@@ -84,7 +84,7 @@
                 <i data-lucide="grip-vertical" class="w-4 h-4"></i>
             </span>
             {% endif %}
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type }}">{{ session.session_type }}</span>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type|replace(' ', '-') }}">{{ session.session_type|replace('Paid Test', 'Paid-Test')|replace('Bronze Session', 'Bronze-Session') }}</span>
             <strong class="text-theme-primary">{{ session.name }}</strong>
             <small class="text-theme-secondary ml-2">{{ session.laps|length }} laps</small>
         </div>
@@ -121,7 +121,7 @@
 
 {% block scripts %}
 <script>
-const TYPE_ORDER = { 'Paid Test': 0, 'Practice': 1, 'Bronze Session': 2, 'Pre-Qualifying': 3, 'Qualifying': 4, 'Warm-up': 5, 'Race': 6 };
+const TYPE_ORDER = { 'Paid-Test': 0, 'Paid Test': 0, 'Practice': 1, 'Bronze-Session': 2, 'Bronze Session': 2, 'Pre-Qualifying': 3, 'Qualifying': 4, 'Warm-up': 5, 'Race': 6 };
 let currentSort = '';
 let sortAsc = true;
 window.sessionReorderActive = false;
