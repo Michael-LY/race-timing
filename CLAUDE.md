@@ -61,10 +61,12 @@ To add a new time keeper: subclass `BaseParser`, register in `parsers/__init__.p
 | `GET /` | Event list |
 | `GET/POST /events/new` | Create event |
 | `GET /events/<id>` | Event detail with session list |
+| `GET/POST /events/<id>/edit` | Edit event name/track/date (admin only) |
 | `POST /events/<id>/delete` | Delete event (cascades to sessions) |
 | `GET/POST /events/<id>/upload` | Upload CSV(s) — dual file inputs for TSL |
 | `GET /sessions/<id>` | Session detail — all 5 views rendered inline |
 | `POST /sessions/<id>/delete` | Delete session |
+| `GET/POST /sessions/<id>/edit` | Edit session name/type (admin only) |
 | `GET /sessions/<id>/drivers` | Standalone driver analysis page |
 | `GET /api/sessions/<id>/laps` | JSON API for lap data (includes session_time) |
 | `GET /api/sessions/<id>/analytics` | Pre-computed stats: per-car (min/Q1/median/Q3/max for box plots, best sectors, top speed), all lap times, pit stops, position progression |

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ session.name }} - Race Timing{% endblock %}
+
+{% block content %}
+<div class="mt-3 mb-4">
+    <a href="{{ url_for('main.event_detail', event_id=session.event_id) }}" class="no-underline text-gray-600 hover:text-gray-900 inline-flex items-center gap-1 text-sm">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Event
+    </a>
+</div>
+<h2 class="text-xl font-bold">Edit Session</h2>
+<div class="bg-white rounded-lg shadow-sm mt-3">
+    <div class="p-5">
+        <form method="POST">
+            <div class="mb-4">
+                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Session Name *</label>
+                <input type="text" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="name" name="name" required
+                       value="{{ session.name }}">
+            </div>
+            <div class="mb-4">
+                <label for="session_type" class="block text-sm font-medium text-gray-700 mb-1">Session Type *</label>
+                <select class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="session_type" name="session_type" required>
+                    {% for st in session_types %}
+                    <option value="{{ st }}" {% if session.session_type == st %}selected{% endif %}>{{ st }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 inline-flex items-center gap-1.5 text-sm">
+                <i data-lucide="check" class="w-4 h-4"></i> Save Changes
+            </button>
+            <a href="{{ url_for('main.event_detail', event_id=session.event_id) }}" class="bg-white text-gray-700 px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50 text-sm no-underline ml-2">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

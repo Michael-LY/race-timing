@@ -170,6 +170,40 @@ def event_delete(event_id):
 
 
 # ---------------------------------------------------------------------------
+# Edit event
+# ---------------------------------------------------------------------------
+@bp.route("/events/<int:event_id>/edit", methods=["GET", "POST"])
+@admin_required
+def event_edit(event_id):
+    event = Event.query.get_or_404(event_id)
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        track = request.form.get("track", "").strip()
+        date_str = request.form.get("event_date", "").strip()
+
+        if not name:
+            flash("Event name is required", "danger")
+            return redirect(url_for("main.event_edit", event_id=event_id))
+
+        event.name = name
+        event.track = track
+        if date_str:
+            try:
+                event.event_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+        else:
+            event.event_date = None
+
+        db.session.commit()
+        flash(f'Event "{event.name}" updated', "success")
+        return redirect(url_for("main.event_detail", event_id=event.id))
+
+    return render_template("event_edit.html", event=event)
+
+
+# ---------------------------------------------------------------------------
 # Upload CSV(s)
 # ---------------------------------------------------------------------------
 @bp.route("/events/<int:event_id>/upload", methods=["GET", "POST"])
@@ -539,6 +573,37 @@ def session_delete(session_id):
     db.session.commit()
     flash(f'Session "{name}" deleted', "success")
     return redirect(url_for("main.event_detail", event_id=event_id))
+
+
+# ---------------------------------------------------------------------------
+# Edit session
+# ---------------------------------------------------------------------------
+SESSION_TYPES = ["Practice", "Qualifying", "Race"]
+
+
+@bp.route("/sessions/<int:session_id>/edit", methods=["GET", "POST"])
+@admin_required
+def session_edit(session_id):
+    session = Session.query.get_or_404(session_id)
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        session_type = request.form.get("session_type", "").strip()
+
+        if not name:
+            flash("Session name is required", "danger")
+            return redirect(url_for("main.session_edit", session_id=session_id))
+        if session_type not in SESSION_TYPES:
+            flash("Invalid session type", "danger")
+            return redirect(url_for("main.session_edit", session_id=session_id))
+
+        session.name = name
+        session.session_type = session_type
+        db.session.commit()
+        flash(f'Session "{session.name}" updated', "success")
+        return redirect(url_for("main.event_detail", event_id=session.event_id))
+
+    return render_template("session_edit.html", session=session, session_types=SESSION_TYPES)
 
 
 # ---------------------------------------------------------------------------

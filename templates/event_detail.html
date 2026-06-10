@@ -20,6 +20,9 @@
     </div>
     <div class="flex gap-2 items-center">
         {% if current_user and current_user.is_admin %}
+        <a href="{{ url_for('main.event_edit', event_id=event.id) }}" class="border border-blue-500 text-blue-500 p-2 rounded hover:bg-blue-50 inline-flex items-center" title="Edit Event">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+        </a>
         <a href="{{ url_for('main.upload', event_id=event.id) }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-flex items-center gap-1.5 text-sm no-underline">
             <i data-lucide="upload" class="w-4 h-4"></i> Upload CSV
         </a>
@@ -45,12 +48,19 @@
             <small class="text-gray-500 ml-2">{{ session.laps|length }} laps</small>
         </div>
         {% if current_user and current_user.is_admin %}
-        <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
-              onsubmit="event.stopPropagation(); return confirm('Delete this session?');">
-            <button type="submit" class="border border-red-500 text-red-500 p-1.5 rounded hover:bg-red-50 inline-flex items-center">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-            </button>
-        </form>
+        <div class="flex gap-1.5 items-center">
+            <a href="{{ url_for('main.session_edit', session_id=session.id) }}"
+               onclick="event.stopPropagation();"
+               class="border border-blue-500 text-blue-500 p-1.5 rounded hover:bg-blue-50 inline-flex items-center" title="Edit Session">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            </a>
+            <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
+                  onsubmit="event.stopPropagation(); return confirm('Delete this session?');">
+                <button type="submit" class="border border-red-500 text-red-500 p-1.5 rounded hover:bg-red-50 inline-flex items-center">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+            </form>
+        </div>
         {% endif %}
     </div>
     {% endfor %}
