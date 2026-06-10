@@ -1,0 +1,16 @@
+[Unit]
+Description=Race Timing Flask Application
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/race-timing/current
+Environment=PATH=/opt/race-timing/current/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=SECRET_KEY=change-me
+Environment=DATABASE_URL=sqlite:////opt/race-timing/shared/instance/timing.db
+ExecStart=/opt/race-timing/current/.venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 2 "app:create_app()"
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
