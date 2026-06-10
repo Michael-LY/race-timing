@@ -69,7 +69,7 @@
             </thead>
             <tbody>
                 {% for s in classified %}
-                <tr class="{% if s.position == 1 %}bg-winner{% endif %}">
+                <tr class="{% if s.position == 1 %}bg-winner{% endif %}" data-sort-group="ranked" data-sort-value="{{ s.position if s.position and s.position > 0 else 999999 }}" data-sort-laps="{{ s.laps_completed if s.laps_completed is not none else -1 }}">
                     <td><strong>{{ s.position }}</strong></td>
                     <td><strong>#{{ s.car_number }}</strong></td>
                     <td>{{ s.team_name }}</td>
@@ -86,9 +86,9 @@
                 </tr>
                 {% endfor %}
                 {% if nc %}
-                <tr class="bg-nc-separator"><td colspan="13" class="text-center text-sm py-2 text-theme-secondary">-- Not Classified --</td></tr>
+                <tr class="bg-nc-separator" data-sort-ignore="true"><td colspan="13" class="text-center text-sm py-2 text-theme-secondary">-- Not Classified --</td></tr>
                 {% for s in nc %}
-                <tr class="text-theme-secondary">
+                <tr class="text-theme-secondary" data-sort-group="nc" data-sort-value="999999" data-sort-laps="{{ s.laps_completed if s.laps_completed is not none else -1 }}">
                     <td><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-500 text-white">NC</span></td>
                     <td><strong>#{{ s.car_number }}</strong></td>
                     <td>{{ s.team_name }}</td>
@@ -371,13 +371,24 @@ document.querySelectorAll('.sortable-table, .themed-table').forEach(table => {
         th.addEventListener('click', function() {
             const tbody = table.querySelector('tbody');
             const colIdx = Array.from(this.parentNode.children).indexOf(this);
-            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const rows = Array.from(tbody.querySelectorAll('tr:not([data-sort-ignore="true"])'));
 
             const isAsc = this.classList.contains('asc');
             table.querySelectorAll('th.sortable').forEach(h => h.classList.remove('asc', 'desc'));
             this.classList.add(isAsc ? 'desc' : 'asc');
 
             rows.sort((a, b) => {
+                if (colIdx === 0 && (a.dataset.sortGroup || b.dataset.sortGroup)) {
+                    const aGroup = a.dataset.sortGroup === 'ranked' ? 0 : 1;
+                    const bGroup = b.dataset.sortGroup === 'ranked' ? 0 : 1;
+                    if (aGroup !== bGroup) return aGroup - bGroup;
+
+                    const aValue = parseInt(a.dataset.sortValue || '999999', 10);
+                    const bValue = parseInt(b.dataset.sortValue || '999999', 10);
+                    const cmp = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+                    return isAsc ? cmp : -cmp;
+                }
+
                 const aCell = a.children[colIdx];
                 const bCell = b.children[colIdx];
                 if (!aCell || !bCell) return 0;

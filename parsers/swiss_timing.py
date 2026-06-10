@@ -397,13 +397,17 @@ class SwissTimingParser(BaseParser):
                 continue
 
             is_classified = True
-            try:
-                position = int(rank_str)
-            except ValueError:
-                position = 0
-                # Some rows may have "NC" or similar
-                if rank_str:
+            position = 0
+            if rank_str:
+                try:
+                    position = int(rank_str)
+                except ValueError:
+                    position = 0
                     is_classified = False
+                else:
+                    is_classified = position > 0
+            else:
+                is_classified = False
 
             standings.append({
                 "position": position,
@@ -480,6 +484,56 @@ class SwissTimingParser(BaseParser):
 
         return pitstops
 
+    def _assign_driver_names_by_stints(self, laps: list[dict], pitstops: list[dict]) -> None:
+        """Assign each lap to the driver active for that stint.
+
+        The lap at which a pit stop occurs stays with the outgoing driver;
+        laps after that stop use the incoming driver from the pit stop row.
+        """
+        by_car: dict[str, list[dict]] = {}
+        for lap in laps:
+            by_car.setdefault(lap["car_number"], []).append(lap)
+
+        for car_num, car_laps in by_car.items():
+            car_laps.sort(key=lambda x: x["lap_number"])
+            if not car_laps:
+                continue
+
+            current_driver = str(car_laps[0].get("driver_name", "") or "").strip()
+            if not current_driver:
+                for key in ("driver1", "driver2", "driver3", "driver4"):
+                    val = str(car_laps[0].get(key, "") or "").strip()
+                    if val:
+                        current_driver = val
+                        break
+
+            car_pitstops = sorted(
+                (
+                    p for p in pitstops
+                    if str(p.get("car_number", "")) == str(car_num)
+                    and p.get("in_lap") is not None
+                ),
+                key=lambda p: int(p["in_lap"]),
+            )
+
+            pit_idx = 0
+            for lap in car_laps:
+                while pit_idx < len(car_pitstops):
+                    pit = car_pitstops[pit_idx]
+                    stop_lap = int(pit["in_lap"])
+                    if lap["lap_number"] > stop_lap:
+                        current_driver = (
+                            str(pit.get("driver_in", "") or "").strip()
+                            or str(pit.get("driver_out", "") or "").strip()
+                            or current_driver
+                        )
+                        pit_idx += 1
+                    else:
+                        break
+
+                if current_driver:
+                    lap["driver_name"] = current_driver
+
     def _apply_pitstops(
         self, laps: list[dict], pitstops: list[dict]
     ) -> None:
@@ -514,6 +568,8 @@ class SwissTimingParser(BaseParser):
                     prev_lap = cl[i - 1]["lap_number"]
                     if (str(car_num), prev_lap) in pit_in_laps:
                         l["out_lap"] = True
+
+        self._assign_driver_names_by_stints(laps, pitstops)
 
     # ── TLWlistMessage ────────────────────────────────────────────────────
 
@@ -599,18 +655,18 @@ class SwissTimingParser(BaseParser):
             car_groups.setdefault(l["car_number"], []).append(l)
 
         for car_num, car_laps in car_groups.items():
-            # Assign driver name from first lap's Driver1-4 fields
+            # Assign the initial stint driver from the first lap's Driver1 field.
             first = car_laps[0]
-            drivers = []
+            initial_driver = ""
             for dk in ["driver1", "driver2", "driver3", "driver4"]:
                 dv = first.get(dk, "").strip()
                 if dv and dv.lower() != "":
-                    drivers.append(dv)
-            composite_driver = " / ".join(drivers) if drivers else ""
+                    initial_driver = dv
+                    break
 
             for l in car_laps:
                 if not l.get("driver_name"):
-                    l["driver_name"] = composite_driver
+                    l["driver_name"] = initial_driver
 
     def _build_standings_from_laps(self, laps: list[dict]) -> list[dict]:
         """Build standings from lap data when no ResultListCSV is provided.

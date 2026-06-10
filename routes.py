@@ -13,6 +13,37 @@ bp = Blueprint("main", __name__)
 ALLOWED_EXTENSIONS = {"csv", "txt"}
 
 
+def _coerce_position(position):
+    try:
+        return int(position)
+    except (TypeError, ValueError):
+        return None
+
+
+def sort_standings_for_display(standings):
+    normalized = []
+    for standing in standings:
+        position = _coerce_position(getattr(standing, "position", None))
+        is_classified = bool(getattr(standing, "is_classified", True))
+        is_display_classified = is_classified and position is not None and position > 0
+        if hasattr(standing, "is_classified"):
+            standing.is_classified = is_display_classified
+        normalized.append(standing)
+
+    classified = [s for s in normalized if getattr(s, "is_classified", False)]
+    nc = [s for s in normalized if not getattr(s, "is_classified", False)]
+
+    classified.sort(key=lambda s: (
+        _coerce_position(getattr(s, "position", None)) or 999999,
+        str(getattr(s, "car_number", "") or ""),
+    ))
+    nc.sort(key=lambda s: (
+        -(getattr(s, "laps_completed") or 0),
+        str(getattr(s, "car_number", "") or ""),
+    ))
+    return classified + nc
+
+
 # ---------------------------------------------------------------------------
 # Auth decorators
 # ---------------------------------------------------------------------------
@@ -481,12 +512,7 @@ def _compute_session_stats(laps: list[LapRecord]):
 @bp.route("/sessions/<int:session_id>")
 def session_detail(session_id):
     session = Session.query.get_or_404(session_id)
-    standings = session.standings
-    # Sort: classified first (by position ASC), NC last (by laps_completed DESC)
-    classified_list = [s for s in standings if s.is_classified]
-    nc_list = [s for s in standings if not s.is_classified]
-    nc_list.sort(key=lambda s: s.laps_completed or 0, reverse=True)
-    standings = classified_list + nc_list
+    standings = sort_standings_for_display(session.standings)
     laps = session.laps
 
     overall, per_car_bests, car_groups, stint_bests = _compute_session_stats(laps)

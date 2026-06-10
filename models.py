@@ -46,7 +46,12 @@ class Event(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     time_keeper = db.relationship("TimeKeeper", back_populates="events")
-    sessions = db.relationship("Session", back_populates="event", order_by="Session.start_time")
+    sessions = db.relationship(
+        "Session",
+        back_populates="event",
+        order_by="Session.start_time",
+        cascade="all, delete-orphan",
+    )
 
 
 class Session(db.Model):
