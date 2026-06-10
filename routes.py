@@ -482,6 +482,11 @@ def _compute_session_stats(laps: list[LapRecord]):
 def session_detail(session_id):
     session = Session.query.get_or_404(session_id)
     standings = session.standings
+    # Sort: classified first (by position ASC), NC last (by laps_completed DESC)
+    classified_list = [s for s in standings if s.is_classified]
+    nc_list = [s for s in standings if not s.is_classified]
+    nc_list.sort(key=lambda s: s.laps_completed or 0, reverse=True)
+    standings = classified_list + nc_list
     laps = session.laps
 
     overall, per_car_bests, car_groups, stint_bests = _compute_session_stats(laps)
