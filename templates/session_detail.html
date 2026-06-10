@@ -293,18 +293,32 @@
 <div class="bg-white rounded-lg shadow-sm mb-4 hidden" id="chartCard">
     <div class="px-4 py-2 border-b border-gray-200 bg-gray-50 rounded-t-lg flex justify-between items-center">
         <span class="font-semibold">Lap Time Analysis</span>
-        <div class="chart-sub-tabs">
-            <button class="chart-sub-tab active" data-chart="lapTime">Lap Times</button>
-            <button class="chart-sub-tab" data-chart="delta">Delta</button>
-            <button class="chart-sub-tab" data-chart="sector">Sectors</button>
-            <button class="chart-sub-tab" data-chart="speed">Speed</button>
-            <button class="chart-sub-tab" data-chart="boxPlot">Box Plot</button>
-            <button class="chart-sub-tab" data-chart="pitStops">Pit Stops</button>
-            <button class="chart-sub-tab" data-chart="position" id="tabPosition">Position</button>
+        <div class="chart-checkboxes flex flex-wrap gap-3 items-center">
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="lapTime" checked> Lap Times
+            </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="delta"> Delta
+            </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="sector"> Sectors
+            </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="speed"> Speed
+            </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="boxPlot"> Box Plot
+            </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="pitStops"> Pit Stops
+            </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none chart-cb-position">
+                <input type="checkbox" class="chart-cb rounded" data-chart="position"> Position
+            </label>
         </div>
     </div>
-    <div class="p-4 chart-container">
-        <canvas id="analysisChart"></canvas>
+    <div id="chartGrid" class="p-4 grid gap-4" style="grid-template-columns: 1fr;">
+        <!-- chart panels injected by JS -->
     </div>
 </div>
 {% endblock %}
@@ -388,9 +402,18 @@ const COLORS = ['#3498db','#e74c3c','#2ecc71','#f39c12','#9b59b6','#1abc9c',
                 '#c0392b','#2c3e50','#7f8c8d','#f1c40f','#34495e','#e91e63',
                 '#00bcd4','#ff5722','#795548','#607d8b','#009688','#cddc39'];
 
-let chartInstance = null;
+const chartInstances = {};   // { chartType: Chart }
 let cachedData = null;
-let currentChartType = 'lapTime';
+
+const CHART_TITLES = {
+    lapTime: 'Lap Times',
+    delta: 'Delta to Best',
+    sector: 'Sector Breakdown',
+    speed: 'Speed Trap',
+    boxPlot: 'Lap Time Distribution',
+    pitStops: 'Pit Stops',
+    position: 'Position Progression',
+};
 
 function fmtTime(seconds) {
     if (seconds == null || isNaN(seconds)) return '-';
@@ -410,28 +433,16 @@ async function loadChart() {
         cachedData = await resp.json();
     }
     const data = cachedData;
-    const ctx = document.getElementById('analysisChart').getContext('2d');
-    if (chartInstance) chartInstance.destroy();
 
-    // Hide Position tab for non-Race sessions
-    const tabPos = document.getElementById('tabPosition');
-    if (tabPos) tabPos.style.display = data.session_type === 'Race' ? '' : 'none';
-    if (currentChartType === 'position' && data.session_type !== 'Race') {
-        currentChartType = 'lapTime';
-        document.querySelectorAll('.chart-sub-tab').forEach(b => {
-            b.classList.toggle('active', b.dataset.chart === 'lapTime');
-        });
+    // Hide Position checkbox for non-Race sessions
+    const posLabel = document.querySelector('.chart-cb-position');
+    if (posLabel) posLabel.style.display = data.session_type === 'Race' ? '' : 'none';
+    if (data.session_type !== 'Race') {
+        const posCb = document.querySelector('.chart-cb[data-chart="position"]');
+        if (posCb && posCb.checked) { posCb.checked = false; destroyChart('position'); removePanel('position'); }
     }
 
-    switch (currentChartType) {
-        case 'lapTime': renderLapTimeChart(ctx, data); break;
-        case 'delta': renderDeltaChart(ctx, data); break;
-        case 'sector': renderSectorChart(ctx, data); break;
-        case 'speed': renderSpeedChart(ctx, data); break;
-        case 'boxPlot': renderBoxPlot(ctx, data); break;
-        case 'pitStops': renderPitStopsChart(ctx, data); break;
-        case 'position': renderPositionChart(ctx, data); break;
-    }
+    renderCheckedCharts(data);
 }
 
 /** Return lap times with SC laps and pit laps filtered out. */
@@ -443,334 +454,346 @@ function cleanLapTimes(data) {
     });
 }
 
-// Tab switching
-document.querySelectorAll('.chart-sub-tab').forEach(btn => {
-    btn.addEventListener('click', function() {
-        document.querySelectorAll('.chart-sub-tab').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        currentChartType = this.dataset.chart;
-        chartInstance.destroy(); chartInstance = null;
-        loadChart();
-    });
-});
+function destroyChart(type) {
+    if (chartInstances[type]) { chartInstances[type].destroy(); delete chartInstances[type]; }
+}
 
-// ── 1. Lap Time Line Chart ──────────────────────────────────────
-function renderLapTimeChart(ctx, data) {
-    const laps = cleanLapTimes(data);
-    const cars = {};
-    laps.forEach(l => {
-        if (l.out_lap || l.in_lap) return;
-        if (!l.lap_time) return;
-        if (!cars[l.car_number]) cars[l.car_number] = { driver: l.driver_name, laps: [] };
-        cars[l.car_number].laps.push({ x: l.lap_number, y: l.lap_time });
-    });
+function removePanel(type) {
+    const panel = document.getElementById('chartPanel-' + type);
+    if (panel) panel.remove();
+}
 
-    Object.values(cars).forEach(c => c.laps.sort((a, b) => a.x - b.x));
+function ensurePanel(type) {
+    if (document.getElementById('chartPanel-' + type)) return;
+    const grid = document.getElementById('chartGrid');
+    const panel = document.createElement('div');
+    panel.id = 'chartPanel-' + type;
+    panel.className = 'bg-white border border-gray-200 rounded-lg';
+    panel.innerHTML = `<div class="px-4 py-2 border-b border-gray-100 font-medium text-sm text-gray-700">${CHART_TITLES[type] || type}</div>`
+        + `<div class="p-4 chart-container"><canvas id="chartCanvas-${type}"></canvas></div>`;
+    grid.appendChild(panel);
+}
 
-    const bestLine = data.overall_best_lap ? [{
-        label: 'Session Best',
-        data: Object.values(cars).flatMap(c => [{ x: c.laps[0]?.x, y: data.overall_best_lap },
-                                                 { x: c.laps[c.laps.length-1]?.x, y: data.overall_best_lap }]).filter(p => p.x),
-        borderColor: '#9b59b6', borderDash: [6, 3], borderWidth: 1.5, pointRadius: 0, fill: false
-    }] : [];
-
-    const datasets = Object.entries(cars).map(([car, info], i) => ({
-        label: `#${car} ${info.driver}`,
-        data: info.laps,
-        borderColor: getCarColor(car),
-        backgroundColor: 'transparent',
-        tension: 0.1, pointRadius: 2, spanGaps: false,
-    })).concat(bestLine);
-
-    chartInstance = new Chart(ctx, {
-        type: 'line',
-        data: { datasets },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${fmtTime(ctx.raw.y)}` } }
-            },
-            scales: {
-                x: { title: { display: true, text: 'Lap Number' }, type: 'linear',
-                     ticks: { stepSize: 1 }, offset: false },
-                y: { title: { display: true, text: 'Lap Time' },
-                     ticks: { callback: v => fmtTime(v) }, beginAtZero: false }
-            }
+function renderCheckedCharts(data) {
+    document.querySelectorAll('.chart-cb').forEach(cb => {
+        const type = cb.dataset.chart;
+        if (cb.checked) {
+            ensurePanel(type);
+            const canvas = document.getElementById('chartCanvas-' + type);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            destroyChart(type);
+            renderers[type](ctx, data);
+        } else {
+            destroyChart(type);
+            removePanel(type);
         }
     });
 }
 
-// ── 2. Delta to Best Chart ──────────────────────────────────────
-function renderDeltaChart(ctx, data) {
-    if (!data.overall_best_lap) { chartInstance = new Chart(ctx, { type: 'line', data: { datasets: [] } }); return; }
+const renderers = {
+    lapTime: function(ctx, data) {
+        const laps = cleanLapTimes(data);
+        const cars = {};
+        laps.forEach(l => {
+            if (l.lap_number === 1) return;
+            if (!l.lap_time) return;
+            if (!cars[l.car_number]) cars[l.car_number] = { driver: l.driver_name, laps: [] };
+            cars[l.car_number].laps.push({ x: l.lap_number, y: l.lap_time });
+        });
+        Object.values(cars).forEach(c => c.laps.sort((a, b) => a.x - b.x));
 
-    const laps = cleanLapTimes(data);
-    const cars = {};
-    laps.forEach(l => {
-        if (!l.lap_time) return;
-        if (!cars[l.car_number]) cars[l.car_number] = { driver: l.driver_name, laps: [] };
-        cars[l.car_number].laps.push({ x: l.lap_number, y: l.lap_time - data.overall_best_lap });
-    });
+        const bestLine = data.overall_best_lap ? [{
+            label: 'Session Best',
+            data: Object.values(cars).flatMap(c => [{ x: c.laps[0]?.x, y: data.overall_best_lap },
+                                                     { x: c.laps[c.laps.length-1]?.x, y: data.overall_best_lap }]).filter(p => p.x),
+            borderColor: '#9b59b6', borderDash: [6, 3], borderWidth: 1.5, pointRadius: 0, fill: false
+        }] : [];
 
-    Object.values(cars).forEach(c => c.laps.sort((a, b) => a.x - b.x));
+        const datasets = Object.entries(cars).map(([car, info]) => ({
+            label: `#${car} ${info.driver}`,
+            data: info.laps,
+            borderColor: getCarColor(car),
+            backgroundColor: 'transparent',
+            tension: 0.1, pointRadius: 2, spanGaps: false,
+        })).concat(bestLine);
 
-    const datasets = Object.entries(cars).map(([car, info]) => ({
-        label: `#${car} ${info.driver}`,
-        data: info.laps,
-        borderColor: getCarColor(car),
-        backgroundColor: 'transparent',
-        tension: 0.1, pointRadius: 2, spanGaps: false,
-    }));
-
-    chartInstance = new Chart(ctx, {
-        type: 'line',
-        data: { datasets },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                tooltip: { callbacks: { label: ctx => {
-                    const v = ctx.raw.y;
-                    return `${ctx.dataset.label}: ${v >= 0 ? '+' : ''}${v.toFixed(3)}s`;
-                } } }
-            },
-            scales: {
-                x: { title: { display: true, text: 'Lap Number' }, type: 'linear',
-                     ticks: { stepSize: 1 } },
-                y: { title: { display: true, text: 'Gap to Best (s)' },
-                     ticks: { callback: v => (v >= 0 ? '+' : '') + v.toFixed(3) }, beginAtZero: false }
+        chartInstances.lapTime = new Chart(ctx, {
+            type: 'line',
+            data: { datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmtTime(c.raw.y)}` } } },
+                scales: {
+                    x: { title: { display: true, text: 'Lap Number' }, type: 'linear', ticks: { stepSize: 1 }, offset: false },
+                    y: { title: { display: true, text: 'Lap Time' }, ticks: { callback: v => fmtTime(v) }, beginAtZero: false }
+                }
             }
+        });
+    },
+
+    delta: function(ctx, data) {
+        if (!data.overall_best_lap) {
+            chartInstances.delta = new Chart(ctx, { type: 'line', data: { datasets: [] },
+                options: { responsive: true, plugins: { title: { display: true, text: 'No best lap data' } } } });
+            return;
         }
-    });
-}
+        const laps = cleanLapTimes(data);
+        const cars = {};
+        laps.forEach(l => {
+            if (!l.lap_time) return;
+            if (!cars[l.car_number]) cars[l.car_number] = { driver: l.driver_name, laps: [] };
+            cars[l.car_number].laps.push({ x: l.lap_number, y: l.lap_time - data.overall_best_lap });
+        });
+        Object.values(cars).forEach(c => c.laps.sort((a, b) => a.x - b.x));
 
-// ── 3. Sector Breakdown Chart ───────────────────────────────────
-function renderSectorChart(ctx, data) {
-    const cars = data.per_car.filter(c => c.best_s1 || c.best_s2 || c.best_s3);
-    const labels = cars.map(c => `#${c.car_number}`);
-    const s1 = cars.map(c => c.best_s1 || 0);
-    const s2 = cars.map(c => c.best_s2 || 0);
-    const s3 = cars.map(c => c.best_s3 || 0);
-    const actualBest = cars.map((c, i) => ({ x: i, y: c.best_lap || 0 }));
+        const datasets = Object.entries(cars).map(([car, info]) => ({
+            label: `#${car} ${info.driver}`,
+            data: info.laps,
+            borderColor: getCarColor(car),
+            backgroundColor: 'transparent',
+            tension: 0.1, pointRadius: 2, spanGaps: false,
+        }));
 
-    chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [
-                { label: 'Sector 1', data: s1, backgroundColor: '#3498db', stack: 'sectors' },
-                { label: 'Sector 2', data: s2, backgroundColor: '#2ecc71', stack: 'sectors' },
-                { label: 'Sector 3', data: s3, backgroundColor: '#f39c12', stack: 'sectors' },
-                { label: 'Actual Best Lap', data: actualBest, type: 'line',
-                  borderColor: '#e74c3c', backgroundColor: 'transparent',
-                  pointRadius: 4, pointBorderColor: '#e74c3c', pointBackgroundColor: '#fff',
-                  pointBorderWidth: 2, order: 0, tension: 0 },
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                tooltip: { callbacks: {
-                    label: ctx => {
-                        if (ctx.dataset.label === 'Actual Best Lap') return `Best Lap: ${fmtTime(ctx.raw.y)}`;
-                        return `${ctx.dataset.label}: ${ctx.raw.toFixed(3)}s`;
-                    }
-                } }
-            },
-            scales: {
-                x: { stacked: true, ticks: { maxRotation: 45 } },
-                y: { stacked: true,
-                     title: { display: true, text: 'Time' },
-                     ticks: { callback: v => fmtTime(v) } }
+        chartInstances.delta = new Chart(ctx, {
+            type: 'line',
+            data: { datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { tooltip: { callbacks: { label: c => {
+                    const v = c.raw.y;
+                    return `${c.dataset.label}: ${v >= 0 ? '+' : ''}${v.toFixed(3)}s`;
+                } } } },
+                scales: {
+                    x: { title: { display: true, text: 'Lap Number' }, type: 'linear', ticks: { stepSize: 1 } },
+                    y: { title: { display: true, text: 'Gap to Best (s)' },
+                         ticks: { callback: v => (v >= 0 ? '+' : '') + v.toFixed(3) }, beginAtZero: false }
+                }
             }
-        }
-    });
-}
+        });
+    },
 
-// ── 4. Speed Trap Chart ─────────────────────────────────────────
-function renderSpeedChart(ctx, data) {
-    const cars = data.per_car.filter(c => c.top_speed);
-    const labels = cars.map(c => `#${c.car_number}`);
-    const speeds = cars.map(c => c.top_speed);
+    sector: function(ctx, data) {
+        const cars = data.per_car.filter(c => c.best_s1 || c.best_s2 || c.best_s3);
+        const labels = cars.map(c => `#${c.car_number}`);
+        const s1 = cars.map(c => c.best_s1 || 0);
+        const s2 = cars.map(c => c.best_s2 || 0);
+        const s3 = cars.map(c => c.best_s3 || 0);
+        const actualBest = cars.map((c, i) => ({ x: i, y: c.best_lap || 0 }));
 
-    chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Top Speed (km/h)',
-                data: speeds,
-                backgroundColor: cars.map(c => getCarColor(c.car_number)),
-                borderColor: cars.map(c => getCarColor(c.car_number)),
-                borderWidth: 1,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            indexAxis: 'y',
-            plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: ctx => `${ctx.raw} km/h` } }
+        chartInstances.sector = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Sector 1', data: s1, backgroundColor: '#3498db', stack: 'sectors' },
+                    { label: 'Sector 2', data: s2, backgroundColor: '#2ecc71', stack: 'sectors' },
+                    { label: 'Sector 3', data: s3, backgroundColor: '#f39c12', stack: 'sectors' },
+                    { label: 'Actual Best Lap', data: actualBest, type: 'line',
+                      borderColor: '#e74c3c', backgroundColor: 'transparent',
+                      pointRadius: 4, pointBorderColor: '#e74c3c', pointBackgroundColor: '#fff',
+                      pointBorderWidth: 2, order: 0, tension: 0 },
+                ]
             },
-            scales: {
-                x: { title: { display: true, text: 'Speed (km/h)' }, beginAtZero: false },
-                y: { title: { display: true, text: '' } }
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { tooltip: { callbacks: {
+                    label: c => c.dataset.label === 'Actual Best Lap' ? `Best Lap: ${fmtTime(c.raw.y)}` : `${c.dataset.label}: ${c.raw.toFixed(3)}s`
+                } } },
+                scales: {
+                    x: { stacked: true, ticks: { maxRotation: 45 } },
+                    y: { stacked: true, title: { display: true, text: 'Time' }, ticks: { callback: v => fmtTime(v) } }
+                }
             }
-        }
-    });
-}
+        });
+    },
 
-// ── 5. Box Plot (Lap Time Distribution) ─────────────────────────
-function renderBoxPlot(ctx, data) {
-    const cars = data.per_car.filter(c => c.min_lap != null && c.q1 != null && c.median != null
-                                          && c.q3 != null && c.max_lap != null);
-    const labels = cars.map(c => `#${c.car_number}`);
-    const carColors = cars.map(c => getCarColor(c.car_number));
+    speed: function(ctx, data) {
+        const cars = data.per_car.filter(c => c.top_speed);
+        const labels = cars.map(c => `#${c.car_number}`);
+        const speeds = cars.map(c => c.top_speed);
 
-    const minVals = cars.map(c => c.min_lap);
-    const whiskerLow = cars.map(c => c.q1 - c.min_lap);
-    const boxLow = cars.map(c => c.median - c.q1);
-    const boxHigh = cars.map(c => c.q3 - c.median);
-    const whiskerHigh = cars.map(c => c.max_lap - c.q3);
+        chartInstances.speed = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Top Speed (km/h)',
+                    data: speeds,
+                    backgroundColor: cars.map(c => getCarColor(c.car_number)),
+                    borderColor: cars.map(c => getCarColor(c.car_number)),
+                    borderWidth: 1,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: c => `${c.raw} km/h` } }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Speed (km/h)' }, beginAtZero: false },
+                    y: { title: { display: true, text: '' } }
+                }
+            }
+        });
+    },
 
-    chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [
-                { label: 'Min', data: minVals, backgroundColor: 'transparent', stack: 'box' },
-                { label: '', data: whiskerLow, backgroundColor: 'rgba(180,180,180,0.4)',
-                  stack: 'box', borderColor: '#999', borderWidth: { top: 1, right: 1, left: 1, bottom: 0 } },
-                { label: '', data: boxLow, backgroundColor: carColors.map(c => c + '99'),
-                  stack: 'box', borderColor: carColors, borderWidth: { top: 0, right: 1, left: 1, bottom: 0 } },
-                { label: '', data: boxHigh, backgroundColor: carColors.map(c => c + '66'),
-                  stack: 'box', borderColor: carColors, borderWidth: { top: 1, right: 1, left: 1, bottom: 1 } },
-                { label: '', data: whiskerHigh, backgroundColor: 'rgba(180,180,180,0.4)',
-                  stack: 'box', borderColor: '#999', borderWidth: { top: 1, right: 1, left: 1, bottom: 0 } },
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(ctx) {
-                            if (ctx.datasetIndex !== 2) return '';
-                            const car = cars[ctx.dataIndex];
-                            return [
-                                'Min: ' + fmtTime(car.min_lap),
-                                'Q1: ' + fmtTime(car.q1),
-                                'Median: ' + fmtTime(car.median),
-                                'Q3: ' + fmtTime(car.q3),
-                                'Max: ' + fmtTime(car.max_lap),
-                            ];
+    boxPlot: function(ctx, data) {
+        const cars = data.per_car.filter(c => c.min_lap != null && c.q1 != null && c.median != null
+                                              && c.q3 != null && c.max_lap != null);
+        const labels = cars.map(c => `#${c.car_number}`);
+        const carColors = cars.map(c => getCarColor(c.car_number));
+
+        const minVals = cars.map(c => c.min_lap);
+        const whiskerLow = cars.map(c => c.q1 - c.min_lap);
+        const boxLow = cars.map(c => c.median - c.q1);
+        const boxHigh = cars.map(c => c.q3 - c.median);
+        const whiskerHigh = cars.map(c => c.max_lap - c.q3);
+
+        chartInstances.boxPlot = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Min', data: minVals, backgroundColor: 'transparent', stack: 'box' },
+                    { label: '', data: whiskerLow, backgroundColor: 'rgba(180,180,180,0.4)',
+                      stack: 'box', borderColor: '#999', borderWidth: { top: 1, right: 1, left: 1, bottom: 0 } },
+                    { label: '', data: boxLow, backgroundColor: carColors.map(c => c + '99'),
+                      stack: 'box', borderColor: carColors, borderWidth: { top: 0, right: 1, left: 1, bottom: 0 } },
+                    { label: '', data: boxHigh, backgroundColor: carColors.map(c => c + '66'),
+                      stack: 'box', borderColor: carColors, borderWidth: { top: 1, right: 1, left: 1, bottom: 1 } },
+                    { label: '', data: whiskerHigh, backgroundColor: 'rgba(180,180,180,0.4)',
+                      stack: 'box', borderColor: '#999', borderWidth: { top: 1, right: 1, left: 1, bottom: 0 } },
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(c) {
+                                if (c.datasetIndex !== 2) return '';
+                                const car = cars[c.dataIndex];
+                                return [
+                                    'Min: ' + fmtTime(car.min_lap),
+                                    'Q1: ' + fmtTime(car.q1),
+                                    'Median: ' + fmtTime(car.median),
+                                    'Q3: ' + fmtTime(car.q3),
+                                    'Max: ' + fmtTime(car.max_lap),
+                                ];
+                            }
                         }
                     }
+                },
+                scales: {
+                    x: { stacked: true, ticks: { maxRotation: 45 } },
+                    y: { stacked: true, beginAtZero: false,
+                         title: { display: true, text: 'Lap Time' },
+                         ticks: { callback: v => fmtTime(v) } }
                 }
-            },
-            scales: {
-                x: { stacked: true, ticks: { maxRotation: 45 } },
-                y: { stacked: true, beginAtZero: false,
-                     title: { display: true, text: 'Lap Time' },
-                     ticks: { callback: v => fmtTime(v) } }
             }
-        }
-    });
-}
-
-// ── 6. Pit Stops ────────────────────────────────────────────────
-function renderPitStopsChart(ctx, data) {
-    if (!data.pit_stops || data.pit_stops.length === 0) {
-        chartInstance = new Chart(ctx, {
-            type: 'bar', data: { datasets: [] },
-            options: { responsive: true, plugins: { title: { display: true, text: 'No pit stops recorded' } } }
         });
-        return;
-    }
+    },
 
-    const labels = data.pit_stops.map((p, i) => {
-        const t = p.pit_time ? p.pit_time.toFixed(1) + 's' : 'N/A';
-        return `#${p.car_number} L${p.in_lap}→L${p.out_lap} (${t})`;
-    });
-
-    const pitTimes = data.pit_stops.map(p => p.pit_time || 0);
-    const barColors = data.pit_stops.map(p => getCarColor(p.car_number));
-
-    chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Pit Lane Time (s)',
-                data: pitTimes,
-                backgroundColor: barColors,
-                borderColor: barColors.map(c => c + 'cc'),
-                borderWidth: 1,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            indexAxis: 'y',
-            plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: {
-                    label: ctx => {
-                        const p = data.pit_stops[ctx.dataIndex];
-                        return [
-                            `Car: #${p.car_number} / ${p.driver_name}`,
-                            `In Lap: ${p.in_lap} → Out Lap: ${p.out_lap}`,
-                            `Pit Lane Time: ${p.pit_time ? p.pit_time.toFixed(1) + 's' : 'N/A'}`,
-                        ];
-                    }
-                } }
-            },
-            scales: {
-                x: { title: { display: true, text: 'Pit Lane Time (s)' }, beginAtZero: true },
-                y: { ticks: { font: { size: 10 } } }
-            }
+    pitStops: function(ctx, data) {
+        if (!data.pit_stops || data.pit_stops.length === 0) {
+            chartInstances.pitStops = new Chart(ctx, {
+                type: 'bar', data: { datasets: [] },
+                options: { responsive: true, plugins: { title: { display: true, text: 'No pit stops recorded' } } }
+            });
+            return;
         }
-    });
-}
 
-// ── 7. Position Progression (Race only) ─────────────────────────
-function renderPositionChart(ctx, data) {
-    if (!data.position_progression) {
-        chartInstance = new Chart(ctx, {
-            type: 'line', data: { datasets: [] },
-            options: { responsive: true, plugins: { title: { display: true, text: 'Position chart only available for Race sessions' } } }
+        const labels = data.pit_stops.map(p => {
+            const t = p.pit_time ? p.pit_time.toFixed(1) + 's' : 'N/A';
+            return `#${p.car_number} L${p.in_lap}→L${p.out_lap} (${t})`;
         });
-        return;
-    }
+        const pitTimes = data.pit_stops.map(p => p.pit_time || 0);
+        const barColors = data.pit_stops.map(p => getCarColor(p.car_number));
 
-    const pp = data.position_progression;
-    const datasets = Object.entries(pp.cars).map(([car, positions]) => ({
-        label: `#${car}`,
-        data: positions.map(p => ({ x: p.lap, y: p.position })),
-        borderColor: getCarColor(car),
-        backgroundColor: 'transparent',
-        tension: 0, pointRadius: 3,
-    }));
-
-    chartInstance = new Chart(ctx, {
-        type: 'line',
-        data: { datasets },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: P${ctx.raw.y}` } }
+        chartInstances.pitStops = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Pit Lane Time (s)',
+                    data: pitTimes,
+                    backgroundColor: barColors,
+                    borderColor: barColors.map(c => c + 'cc'),
+                    borderWidth: 1,
+                }]
             },
-            scales: {
-                x: { title: { display: true, text: 'Lap Number' }, type: 'linear',
-                     ticks: { stepSize: 1 } },
-                y: { title: { display: true, text: 'Position' }, reverse: true,
-                     ticks: { stepSize: 1 }, min: 1,
-                     grid: { color: ctx => ctx.tick.value === 1 ? 'rgba(231,76,60,0.5)' : 'rgba(0,0,0,0.1)' } }
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: {
+                        label: c => {
+                            const p = data.pit_stops[c.dataIndex];
+                            return [
+                                `Car: #${p.car_number} / ${p.driver_name}`,
+                                `In Lap: ${p.in_lap} → Out Lap: ${p.out_lap}`,
+                                `Pit Lane Time: ${p.pit_time ? p.pit_time.toFixed(1) + 's' : 'N/A'}`,
+                            ];
+                        }
+                    } }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Pit Lane Time (s)' }, beginAtZero: true },
+                    y: { ticks: { font: { size: 10 } } }
+                }
             }
+        });
+    },
+
+    position: function(ctx, data) {
+        if (!data.position_progression) {
+            chartInstances.position = new Chart(ctx, {
+                type: 'line', data: { datasets: [] },
+                options: { responsive: true, plugins: { title: { display: true, text: 'Position chart only available for Race sessions' } } }
+            });
+            return;
         }
+
+        const pp = data.position_progression;
+        const datasets = Object.entries(pp.cars).map(([car, positions]) => ({
+            label: `#${car}`,
+            data: positions.map(p => ({ x: p.lap, y: p.position })),
+            borderColor: getCarColor(car),
+            backgroundColor: 'transparent',
+            tension: 0, pointRadius: 3,
+        }));
+
+        chartInstances.position = new Chart(ctx, {
+            type: 'line',
+            data: { datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: P${c.raw.y}` } } },
+                scales: {
+                    x: { title: { display: true, text: 'Lap Number' }, type: 'linear', ticks: { stepSize: 1 } },
+                    y: { title: { display: true, text: 'Position' }, reverse: true,
+                         ticks: { stepSize: 1 }, min: 1,
+                         grid: { color: c => c.tick.value === 1 ? 'rgba(231,76,60,0.5)' : 'rgba(0,0,0,0.1)' } }
+                }
+            }
+        });
+    },
+};
+
+// Checkbox change → render/remove charts
+document.querySelectorAll('.chart-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+        if (!cachedData) { loadChart(); return; }
+        renderCheckedCharts(cachedData);
     });
-}
+});
 </script>
 {% endblock %}
