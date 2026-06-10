@@ -57,16 +57,19 @@ To add a new time keeper: subclass `BaseParser`, register in `parsers/__init__.p
 | `GET /` | Event list |
 | `GET/POST /events/new` | Create event |
 | `GET /events/<id>` | Event detail with session list |
+| `POST /events/<id>/delete` | Delete event (cascades to sessions) |
 | `GET/POST /events/<id>/upload` | Upload CSV(s) — dual file inputs for TSL |
 | `GET /sessions/<id>` | Session detail — all 5 views rendered inline |
+| `POST /sessions/<id>/delete` | Delete session |
 | `GET /sessions/<id>/drivers` | Standalone driver analysis page |
 | `GET /api/sessions/<id>/laps` | JSON API for lap data (includes session_time) |
 | `GET /api/sessions/<id>/analytics` | Pre-computed stats: per-car (min/Q1/median/Q3/max for box plots, best sectors, top speed), all lap times, pit stops, position progression |
 
-The `session_detail` route computes via `_compute_session_stats()`:
+The `session_detail` route computes via `_compute_session_stats()` returning 4 items:
 - **overall** — best lap time, S1, S2, S3 across all cars (for purple highlight)
 - **per_car_bests** — best S1, S2, S3 per car (for green highlight)
 - **car_groups** — laps grouped by car_number
+- **stint_bests** — per-stint best lap, S1, S2, S3 flags (for orange highlight); a stint is a run of consecutive laps between pit stops/driver changes
 - **drivers** — driver analysis data (same computation as `/drivers` route)
 
 ### Templates
@@ -75,7 +78,7 @@ Server-rendered Jinja2 with Bootstrap 5 CDN. Session detail page (`session_detai
 
 1. **Classification** — standings table, NC cars pushed below classified finishers with separator row
 2. **Lap Summary** — best lap per car, sorted by lap time
-3. **Lap-by-Lap** — every lap for every car; pit-in (yellow) / pit-out (blue) row coloring; per-car filter dropdown
+3. **Lap-by-Lap** — every lap for every car; pit-in (yellow) / pit-out (blue) row coloring; per-car filter dropdown; three-level highlighting (purple=overall best, green=car best, orange=stint best)
 4. **Drivers** — per-driver: laps, best lap, theoretical lap (best S1+S2+S3), gap to best; embedded inline (not a separate page load)
 5. **Chart** — 7 tabbed sub-views within the chart card:
    - **Lap Times** — line chart per car, session-best dashed reference line, out/in laps excluded
@@ -88,10 +91,12 @@ Server-rendered Jinja2 with Bootstrap 5 CDN. Session detail page (`session_detai
 
 ### Visual highlighting
 
+Three-level best highlighting in the Lap-by-Lap view:
 - **Purple background** (`bg-purple`) = overall best (fastest lap / S1 / S2 / S3 across all cars)
 - **Green background** (`bg-green`) = per-car best (car's own best S1 / S2 / S3 / lap time)
-- All best values are **bold**
-- All three tables (Classification, Lap Summary, Lap-by-Lap, Drivers) support **click-to-sort** on column headers, with ▲/▼ indicators
+- **Orange background** (`bg-orange`) = per-stint best (best within a run of consecutive laps between pit stops/driver changes)
+
+All best values are **bold**. All four tables (Classification, Lap Summary, Lap-by-Lap, Drivers) support **click-to-sort** on column headers, with ▲/▼ indicators.
 
 ### Session type auto-detection
 
@@ -123,6 +128,6 @@ Pit stop detection: pairs consecutive in_lap→out_lap transitions within a car'
 - **Dual CSV upload** — TSL Timing requires two files. Upload page shows both file inputs when `tsl_timing` is selected; either can be empty
 - **Best lap detection** — computed per car during import: min positive `lap_time` → `is_best=True`
 - **Pit stop time** — computed as `out_lap_time − median_clean_lap_time` per car (clean = not in/out lap); referenced from median to avoid outlier skew
-- **All views inline** — all 5 session views are rendered in a single page and toggled via JS `showView()`, avoiding extra HTTP requests
+- **Three-level best highlighting** — overall best (purple) > car best (green) > stint best (orange). Stint = consecutive laps between pit stops or driver changes, computed by detecting out_lap boundaries
 - **Chart tabs** — 7 chart sub-types share one canvas; tab switching destroys/recreates the Chart.js instance
 - **SQLite by default** — swap to PostgreSQL by changing `DATABASE_URL` env var in `config.py`
