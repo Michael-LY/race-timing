@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="mt-3 mb-4">
-    <a href="{{ url_for('main.event_detail', event_id=session.event.id) }}" class="no-underline text-gray-600 hover:text-gray-900 inline-flex items-center gap-1 text-sm">
+    <a href="{{ url_for('main.event_detail', event_id=session.event.id) }}" class="no-underline text-theme-secondary hover:text-theme-primary inline-flex items-center gap-1 text-sm">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to {{ session.event.name }}
     </a>
 </div>
@@ -12,30 +12,30 @@
     <div>
         <h3 class="flex items-center gap-2">
             <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type }}">{{ session.session_type }}</span>
-            {{ session.name }}
+            <span class="text-theme-primary">{{ session.name }}</span>
         </h3>
-        <p class="text-gray-500 text-sm mb-0">{{ session.event.name }} &middot;
+        <p class="text-theme-secondary text-sm mb-0">{{ session.event.name }} &middot;
             {{ standings|length }} entries &middot; {{ session.laps|length }} laps</p>
     </div>
     <div class="flex gap-1 flex-wrap items-center">
-        <button class="border border-blue-600 text-blue-600 px-3 py-1.5 text-xs rounded hover:bg-blue-50 inline-flex items-center gap-1" id="btnClassification">
+        <button class="btn-ghost" id="btnClassification">
             <i data-lucide="trophy" class="w-3.5 h-3.5"></i> Classification
         </button>
-        <button class="border border-blue-600 text-blue-600 px-3 py-1.5 text-xs rounded hover:bg-blue-50 inline-flex items-center gap-1" id="btnLapSummary">
+        <button class="btn-ghost" id="btnLapSummary">
             <i data-lucide="table-2" class="w-3.5 h-3.5"></i> Lap Summary
         </button>
-        <button class="border border-blue-600 text-blue-600 px-3 py-1.5 text-xs rounded hover:bg-blue-50 inline-flex items-center gap-1" id="btnLapDetail">
+        <button class="btn-ghost" id="btnLapDetail">
             <i data-lucide="list" class="w-3.5 h-3.5"></i> Lap-by-Lap
         </button>
-        <button class="border border-blue-600 text-blue-600 px-3 py-1.5 text-xs rounded hover:bg-blue-50 inline-flex items-center gap-1" id="btnDrivers">
+        <button class="btn-ghost" id="btnDrivers">
             <i data-lucide="user" class="w-3.5 h-3.5"></i> Drivers
         </button>
-        <button class="border border-cyan-500 text-cyan-600 px-3 py-1.5 text-xs rounded hover:bg-cyan-50 inline-flex items-center gap-1" id="btnChart">
+        <button class="btn-ghost" id="btnChart">
             <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i> Chart
         </button>
         <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
               onsubmit="return confirm('Delete this session?');" class="ml-2">
-            <button type="submit" class="border border-red-500 text-red-500 p-1.5 rounded hover:bg-red-50 inline-flex items-center">
+            <button type="submit" class="btn-danger p-1.5">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
         </form>
@@ -43,118 +43,118 @@
 </div>
 
 <!-- CLASSIFICATION TABLE -->
-<div class="bg-white rounded-lg shadow-sm mb-4" id="classificationCard">
-    <div class="px-4 py-2 border-b border-gray-200 font-semibold bg-gray-50 rounded-t-lg">Classification</div>
+<div class="card rounded-lg mb-4" id="classificationCard">
+    <div class="card-header rounded-t-lg">Classification</div>
     <div class="overflow-x-auto">
         {% if standings %}
         {% set classified = standings | selectattr('is_classified') | list %}
         {% set nc = standings | rejectattr('is_classified') | list %}
-        <table class="w-full text-sm table-hover sortable-table">
+        <table class="themed-table">
             <thead>
-                <tr class="border-b-2 border-gray-200">
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Pos</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">#</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Team</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Class</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Nat</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Total Time</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Gap</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Diff</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Laps</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best Lap</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best #</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Avg Speed</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Pits</th>
+                <tr>
+                    <th class="sortable text-left">Pos</th>
+                    <th class="sortable text-left">#</th>
+                    <th class="sortable text-left">Team</th>
+                    <th class="sortable text-left">Class</th>
+                    <th class="sortable text-left">Nat</th>
+                    <th class="sortable text-left">Total Time</th>
+                    <th class="sortable text-left">Gap</th>
+                    <th class="sortable text-left">Diff</th>
+                    <th class="sortable text-left">Laps</th>
+                    <th class="sortable text-left">Best Lap</th>
+                    <th class="sortable text-left">Best #</th>
+                    <th class="sortable text-left">Avg Speed</th>
+                    <th class="sortable text-left">Pits</th>
                 </tr>
             </thead>
             <tbody>
                 {% for s in classified %}
-                <tr class="border-b border-gray-100{% if s.position == 1 %} bg-yellow-50{% endif %}">
-                    <td class="px-4 py-2"><strong>{{ s.position }}</strong></td>
-                    <td class="px-4 py-2"><strong>#{{ s.car_number }}</strong></td>
-                    <td class="px-4 py-2">{{ s.team_name }}</td>
-                    <td class="px-4 py-2"><small>{{ s.class_name }}</small></td>
-                    <td class="px-4 py-2">{{ s.nationality }}</td>
-                    <td class="px-4 py-2">{% if s.total_time %}{{ "%d:%06.3f"|format(s.total_time // 60, s.total_time % 60) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{% if s.gap is not none %}{{ "%6.3f"|format(s.gap) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{% if s.diff is not none %}{{ "%6.3f"|format(s.diff) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{{ s.laps_completed or '-' }}</td>
-                    <td class="px-4 py-2 best-lap">{% if s.fastest_lap %}{{ "%d:%06.3f"|format(s.fastest_lap // 60, s.fastest_lap % 60) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{{ s.fastest_lap_no or '-' }}</td>
-                    <td class="px-4 py-2">{% if s.fastest_lap_speed %}{{ "%.1f"|format(s.fastest_lap_speed) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{{ s.pit_stops }}</td>
+                <tr class="{% if s.position == 1 %}bg-winner{% endif %}">
+                    <td><strong>{{ s.position }}</strong></td>
+                    <td><strong>#{{ s.car_number }}</strong></td>
+                    <td>{{ s.team_name }}</td>
+                    <td><small>{{ s.class_name }}</small></td>
+                    <td>{{ s.nationality }}</td>
+                    <td>{% if s.total_time %}{{ "%d:%06.3f"|format(s.total_time // 60, s.total_time % 60) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.gap is not none %}{{ "%6.3f"|format(s.gap) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.diff is not none %}{{ "%6.3f"|format(s.diff) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.laps_completed or '-' }}</td>
+                    <td class="best-lap">{% if s.fastest_lap %}{{ "%d:%06.3f"|format(s.fastest_lap // 60, s.fastest_lap % 60) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.fastest_lap_no or '-' }}</td>
+                    <td>{% if s.fastest_lap_speed %}{{ "%.1f"|format(s.fastest_lap_speed) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.pit_stops }}</td>
                 </tr>
                 {% endfor %}
                 {% if nc %}
-                <tr class="bg-gray-100"><td colspan="13" class="text-center text-sm py-2">-- Not Classified --</td></tr>
+                <tr class="bg-nc-separator"><td colspan="13" class="text-center text-sm py-2 text-theme-secondary">-- Not Classified --</td></tr>
                 {% for s in nc %}
-                <tr class="border-b border-gray-100 text-gray-500">
-                    <td class="px-4 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-500 text-white">NC</span></td>
-                    <td class="px-4 py-2"><strong>#{{ s.car_number }}</strong></td>
-                    <td class="px-4 py-2">{{ s.team_name }}</td>
-                    <td class="px-4 py-2"><small>{{ s.class_name }}</small></td>
-                    <td class="px-4 py-2">{{ s.nationality }}</td>
-                    <td class="px-4 py-2">{% if s.total_time %}{{ "%d:%06.3f"|format(s.total_time // 60, s.total_time % 60) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{% if s.gap is not none %}{{ "%6.3f"|format(s.gap) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{% if s.diff is not none %}{{ "%6.3f"|format(s.diff) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{{ s.laps_completed or '-' }}</td>
-                    <td class="px-4 py-2 best-lap">{% if s.fastest_lap %}{{ "%d:%06.3f"|format(s.fastest_lap // 60, s.fastest_lap % 60) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{{ s.fastest_lap_no or '-' }}</td>
-                    <td class="px-4 py-2">{% if s.fastest_lap_speed %}{{ "%.1f"|format(s.fastest_lap_speed) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{{ s.pit_stops }}</td>
+                <tr class="text-theme-secondary">
+                    <td><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-500 text-white">NC</span></td>
+                    <td><strong>#{{ s.car_number }}</strong></td>
+                    <td>{{ s.team_name }}</td>
+                    <td><small>{{ s.class_name }}</small></td>
+                    <td>{{ s.nationality }}</td>
+                    <td>{% if s.total_time %}{{ "%d:%06.3f"|format(s.total_time // 60, s.total_time % 60) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.gap is not none %}{{ "%6.3f"|format(s.gap) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.diff is not none %}{{ "%6.3f"|format(s.diff) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.laps_completed or '-' }}</td>
+                    <td class="best-lap">{% if s.fastest_lap %}{{ "%d:%06.3f"|format(s.fastest_lap // 60, s.fastest_lap % 60) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.fastest_lap_no or '-' }}</td>
+                    <td>{% if s.fastest_lap_speed %}{{ "%.1f"|format(s.fastest_lap_speed) }}{% else %}-{% endif %}</td>
+                    <td>{{ s.pit_stops }}</td>
                 </tr>
                 {% endfor %}
                 {% endif %}
             </tbody>
         </table>
         {% else %}
-        <div class="text-center py-3 text-gray-500">No classification data (upload Classification.csv)</div>
+        <div class="text-center py-3 text-theme-secondary">No classification data (upload Classification.csv)</div>
         {% endif %}
     </div>
 </div>
 
 <!-- LAP SUMMARY TABLE -->
-<div class="bg-white rounded-lg shadow-sm mb-4 hidden" id="lapSummaryCard">
-    <div class="px-4 py-2 border-b border-gray-200 font-semibold bg-gray-50 rounded-t-lg">Lap Time Summary
-        <small class="ml-2"><span class="inline-block w-3 h-3 rounded" style="background-color: #e8d5f5;"></span> Overall best</small>
+<div class="card rounded-lg mb-4 hidden" id="lapSummaryCard">
+    <div class="card-header rounded-t-lg">Lap Time Summary
+        <small class="ml-2"><span class="inline-block w-3 h-3 rounded bg-purple"></span> Overall best</small>
     </div>
     <div class="overflow-x-auto">
-        <table class="w-full text-sm table-hover sortable-table">
+        <table class="themed-table">
             <thead>
-                <tr class="border-b-2 border-gray-200">
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">#</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Car</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Driver(s)</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Category</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Laps</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best Lap</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Theoretical</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">S1</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">S2</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">S3</th>
+                <tr>
+                    <th class="sortable text-left">#</th>
+                    <th class="sortable text-left">Car</th>
+                    <th class="sortable text-left">Driver(s)</th>
+                    <th class="sortable text-left">Category</th>
+                    <th class="sortable text-left">Laps</th>
+                    <th class="sortable text-left">Best Lap</th>
+                    <th class="sortable text-left">Theoretical</th>
+                    <th class="sortable text-left">S1</th>
+                    <th class="sortable text-left">S2</th>
+                    <th class="sortable text-left">S3</th>
                 </tr>
             </thead>
             <tbody>
                 {% for c in car_summaries %}
-                <tr class="border-b border-gray-100">
-                    <td class="px-4 py-2"><strong>{{ loop.index }}</strong></td>
-                    <td class="px-4 py-2"><strong>#{{ c.car_number }}</strong></td>
-                    <td class="px-4 py-2">{{ c.driver }}</td>
-                    <td class="px-4 py-2"><small>{{ c.category }}</small></td>
-                    <td class="px-4 py-2">{{ c.total_laps }}</td>
-                    <td class="px-4 py-2 best-lap{% if overall.lap_car == c.car_number %} bg-purple{% endif %}">
+                <tr>
+                    <td><strong>{{ loop.index }}</strong></td>
+                    <td><strong>#{{ c.car_number }}</strong></td>
+                    <td>{{ c.driver }}</td>
+                    <td><small>{{ c.category }}</small></td>
+                    <td>{{ c.total_laps }}</td>
+                    <td class="best-lap{% if overall.lap_car == c.car_number %} bg-purple{% endif %}">
                         {% if c.best_lap %}{{ "%d:%06.3f"|format(c.best_lap // 60, c.best_lap % 60) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2{% if c.theoretical == overall_best_theoretical and c.theoretical %} bg-purple{% endif %}">
+                    <td class="{% if c.theoretical == overall_best_theoretical and c.theoretical %}bg-purple{% endif %}">
                         {% if c.theoretical %}{{ "%d:%06.3f"|format(c.theoretical // 60, c.theoretical % 60) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2{% if overall.s1_car == c.car_number %} bg-purple{% endif %}">
+                    <td class="{% if overall.s1_car == c.car_number %}bg-purple{% endif %}">
                         {% if c.sector_1 %}{{ "%.3f"|format(c.sector_1) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2{% if overall.s2_car == c.car_number %} bg-purple{% endif %}">
+                    <td class="{% if overall.s2_car == c.car_number %}bg-purple{% endif %}">
                         {% if c.sector_2 %}{{ "%.3f"|format(c.sector_2) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2{% if overall.s3_car == c.car_number %} bg-purple{% endif %}">
+                    <td class="{% if overall.s3_car == c.car_number %}bg-purple{% endif %}">
                         {% if c.sector_3 %}{{ "%.3f"|format(c.sector_3) }}{% else %}-{% endif %}
                     </td>
                 </tr>
@@ -165,14 +165,14 @@
 </div>
 
 <!-- LAP-BY-LAP DETAIL -->
-<div class="bg-white rounded-lg shadow-sm hidden" id="lapDetailCard">
-    <div class="px-4 py-2 border-b border-gray-200 font-semibold bg-gray-50 rounded-t-lg flex justify-between items-center">
+<div class="card rounded-lg hidden" id="lapDetailCard">
+    <div class="card-header rounded-t-lg flex justify-between items-center">
         <span>Lap-by-Lap Detail
-            <small class="ml-2"><span class="inline-block w-3 h-3 rounded" style="background-color: #e8d5f5;"></span> Overall</small>
-            <small class="ml-1"><span class="inline-block w-3 h-3 rounded" style="background-color: #d4edda;"></span> Car best</small>
-            <small class="ml-1"><span class="inline-block w-3 h-3 rounded" style="background-color: #ffe0b2;"></span> Stint best</small>
+            <small class="ml-2"><span class="inline-block w-3 h-3 rounded bg-purple"></span> Overall</small>
+            <small class="ml-1"><span class="inline-block w-3 h-3 rounded bg-green"></span> Car best</small>
+            <small class="ml-1"><span class="inline-block w-3 h-3 rounded bg-orange"></span> Stint best</small>
         </span>
-        <select class="border border-gray-300 rounded-md px-2 py-1 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-auto" id="carFilter">
+        <select class="themed-select px-2 py-1 text-xs w-auto" id="carFilter">
             <option value="">All Cars</option>
             {% for cn in car_groups %}
             <option value="{{ cn }}">#{{ cn }}</option>
@@ -180,19 +180,19 @@
         </select>
     </div>
     <div class="overflow-x-auto" style="max-height: 65vh; overflow-y: auto;">
-        <table class="w-full lap-table sortable-table">
+        <table class="themed-table lap-table">
             <thead>
-                <tr class="border-b-2 border-gray-200">
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Car</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Driver</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Lap</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Time</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">S1</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">S2</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">S3</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Speed</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Pit</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best</th>
+                <tr>
+                    <th class="sortable text-left">Car</th>
+                    <th class="sortable text-left">Driver</th>
+                    <th class="sortable text-left">Lap</th>
+                    <th class="sortable text-left">Time</th>
+                    <th class="sortable text-left">S1</th>
+                    <th class="sortable text-left">S2</th>
+                    <th class="sortable text-left">S3</th>
+                    <th class="sortable text-left">Speed</th>
+                    <th class="sortable text-left">Pit</th>
+                    <th class="sortable text-left">Best</th>
                 </tr>
             </thead>
             <tbody>
@@ -207,31 +207,31 @@
                 {% set is_car_best_s1 = pcb.s1 == l.sector_1 and l.sector_1 and l.sector_1 > 0 %}
                 {% set is_car_best_s2 = pcb.s2 == l.sector_2 and l.sector_2 and l.sector_2 > 0 %}
                 {% set is_car_best_s3 = pcb.s3 == l.sector_3 and l.sector_3 and l.sector_3 > 0 %}
-                <tr class="lap-row border-b border-gray-100" data-car="{{ l.car_number }}"
-                    {% if l.in_lap %}style="background-color: #fff3cd;"{% endif %}
-                    {% if l.out_lap %}style="background-color: #d1ecf1;"{% endif %}>
-                    <td class="px-4 py-2"><strong>#{{ l.car_number }}</strong></td>
-                    <td class="px-4 py-2"><small>{{ l.driver_name }}</small></td>
-                    <td class="px-4 py-2">{{ l.lap_number }}</td>
-                    <td class="px-4 py-2 best-lap
+                <tr class="lap-row" data-car="{{ l.car_number }}"
+                    {% if l.in_lap %}style="background-color: var(--pit-in-bg);"{% endif %}
+                    {% if l.out_lap %}style="background-color: var(--pit-out-bg);"{% endif %}>
+                    <td><strong>#{{ l.car_number }}</strong></td>
+                    <td><small>{{ l.driver_name }}</small></td>
+                    <td>{{ l.lap_number }}</td>
+                    <td class="best-lap
                         {% if is_overall_lap %}bg-purple{% elif l.is_best %}bg-green{% elif sb.lap %}bg-orange{% endif %}">
                         {% if l.lap_time %}{{ "%d:%06.3f"|format(l.lap_time // 60, l.lap_time % 60) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2 {% if is_overall_s1 %}bg-purple{% elif is_car_best_s1 %}bg-green{% elif sb.s1 %}bg-orange{% endif %}">
+                    <td class="{% if is_overall_s1 %}bg-purple{% elif is_car_best_s1 %}bg-green{% elif sb.s1 %}bg-orange{% endif %}">
                         {% if l.sector_1 %}{{ "%.3f"|format(l.sector_1) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2 {% if is_overall_s2 %}bg-purple{% elif is_car_best_s2 %}bg-green{% elif sb.s2 %}bg-orange{% endif %}">
+                    <td class="{% if is_overall_s2 %}bg-purple{% elif is_car_best_s2 %}bg-green{% elif sb.s2 %}bg-orange{% endif %}">
                         {% if l.sector_2 %}{{ "%.3f"|format(l.sector_2) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2 {% if is_overall_s3 %}bg-purple{% elif is_car_best_s3 %}bg-green{% elif sb.s3 %}bg-orange{% endif %}">
+                    <td class="{% if is_overall_s3 %}bg-purple{% elif is_car_best_s3 %}bg-green{% elif sb.s3 %}bg-orange{% endif %}">
                         {% if l.sector_3 %}{{ "%.3f"|format(l.sector_3) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2">{% if l.speed_trap_4 or l.speed %}{{ "%d"|format(l.speed_trap_4 or l.speed or 0) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">
+                    <td>{% if l.speed_trap_4 or l.speed %}{{ "%d"|format(l.speed_trap_4 or l.speed or 0) }}{% else %}-{% endif %}</td>
+                    <td>
                         {% if l.in_lap %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-400 text-gray-900">IN</span>{% endif %}
                         {% if l.out_lap %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-cyan-400 text-gray-900">OUT</span>{% endif %}
                     </td>
-                    <td class="px-4 py-2">{% if l.is_best %}<span class="text-green-600 font-bold">BEST</span>{% endif %}</td>
+                    <td>{% if l.is_best %}<span class="text-green-600 font-bold">BEST</span>{% endif %}</td>
                 </tr>
                 {% endfor %}
                 {% endfor %}
@@ -241,47 +241,47 @@
 </div>
 
 <!-- DRIVER ANALYSIS -->
-<div class="bg-white rounded-lg shadow-sm mb-4 hidden" id="driverCard">
-    <div class="px-4 py-2 border-b border-gray-200 font-semibold bg-gray-50 rounded-t-lg">Driver Analysis
-        <small class="text-gray-500 ml-1">(theoretical = best S1 + best S2 + best S3)</small>
-        <small class="ml-2"><span class="inline-block w-3 h-3 rounded" style="background-color: #e8d5f5;"></span> Overall best sector</small>
+<div class="card rounded-lg mb-4 hidden" id="driverCard">
+    <div class="card-header rounded-t-lg">Driver Analysis
+        <small class="text-theme-secondary ml-1">(theoretical = best S1 + best S2 + best S3)</small>
+        <small class="ml-2"><span class="inline-block w-3 h-3 rounded bg-purple"></span> Overall best sector</small>
     </div>
     <div class="overflow-x-auto">
-        <table class="w-full text-sm table-hover sortable-table">
+        <table class="themed-table">
             <thead>
-                <tr class="border-b-2 border-gray-200">
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">#</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Driver</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Car</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Laps</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best Lap</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best S1</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best S2</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best S3</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Theoretical</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Gap</th>
+                <tr>
+                    <th class="sortable text-left">#</th>
+                    <th class="sortable text-left">Driver</th>
+                    <th class="sortable text-left">Car</th>
+                    <th class="sortable text-left">Laps</th>
+                    <th class="sortable text-left">Best Lap</th>
+                    <th class="sortable text-left">Best S1</th>
+                    <th class="sortable text-left">Best S2</th>
+                    <th class="sortable text-left">Best S3</th>
+                    <th class="sortable text-left">Theoretical</th>
+                    <th class="sortable text-left">Gap</th>
                 </tr>
             </thead>
             <tbody>
                 {% for d in drivers %}
                 {% set gap = (d.best_lap - drivers[0].best_lap) if d.best_lap and drivers[0].best_lap else None %}
-                <tr class="border-b border-gray-100">
-                    <td class="px-4 py-2"><strong>{{ loop.index }}</strong></td>
-                    <td class="px-4 py-2"><strong>{{ d.driver_name }}</strong></td>
-                    <td class="px-4 py-2">#{{ d.car_number }}</td>
-                    <td class="px-4 py-2">{{ d.total_laps }}</td>
-                    <td class="px-4 py-2 best-lap">{% if d.best_lap %}{{ "%d:%06.3f"|format(d.best_lap // 60, d.best_lap % 60) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2{% if d.best_s1 == driver_overall_s1 %} bg-purple{% endif %}">
+                <tr>
+                    <td><strong>{{ loop.index }}</strong></td>
+                    <td><strong>{{ d.driver_name }}</strong></td>
+                    <td>#{{ d.car_number }}</td>
+                    <td>{{ d.total_laps }}</td>
+                    <td class="best-lap">{% if d.best_lap %}{{ "%d:%06.3f"|format(d.best_lap // 60, d.best_lap % 60) }}{% else %}-{% endif %}</td>
+                    <td class="{% if d.best_s1 == driver_overall_s1 %}bg-purple{% endif %}">
                         {% if d.best_s1 %}{{ "%.3f"|format(d.best_s1) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2{% if d.best_s2 == driver_overall_s2 %} bg-purple{% endif %}">
+                    <td class="{% if d.best_s2 == driver_overall_s2 %}bg-purple{% endif %}">
                         {% if d.best_s2 %}{{ "%.3f"|format(d.best_s2) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2{% if d.best_s3 == driver_overall_s3 %} bg-purple{% endif %}">
+                    <td class="{% if d.best_s3 == driver_overall_s3 %}bg-purple{% endif %}">
                         {% if d.best_s3 %}{{ "%.3f"|format(d.best_s3) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2">{% if d.theoretical %}{{ "%d:%06.3f"|format(d.theoretical // 60, d.theoretical % 60) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{% if gap is not none and gap >= 0 %}+{{ "%.3f"|format(gap) }}{% elif gap is not none %}{{ "%.3f"|format(gap) }}{% else %}-{% endif %}</td>
+                    <td>{% if d.theoretical %}{{ "%d:%06.3f"|format(d.theoretical // 60, d.theoretical % 60) }}{% else %}-{% endif %}</td>
+                    <td>{% if gap is not none and gap >= 0 %}+{{ "%.3f"|format(gap) }}{% elif gap is not none %}{{ "%.3f"|format(gap) }}{% else %}-{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -290,9 +290,9 @@
 </div>
 
 <!-- CHART -->
-<div class="bg-white rounded-lg shadow-sm mb-4 hidden" id="chartCard">
-    <div class="px-4 py-2 border-b border-gray-200 bg-gray-50 rounded-t-lg flex justify-between items-center">
-        <span class="font-semibold">Lap Time Analysis</span>
+<div class="card rounded-lg mb-4 hidden" id="chartCard">
+    <div class="card-header rounded-t-lg flex justify-between items-center">
+        <span>Lap Time Analysis</span>
         <div class="chart-checkboxes flex flex-wrap gap-3 items-center">
             <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
                 <input type="checkbox" class="chart-cb rounded" data-chart="lapTime" checked> Lap Times
@@ -318,7 +318,6 @@
         </div>
     </div>
     <div id="chartGrid" class="p-4 grid gap-4" style="grid-template-columns: 1fr;">
-        <!-- chart panels injected by JS -->
     </div>
 </div>
 {% endblock %}
@@ -367,7 +366,7 @@ function parseSortValue(cell) {
     return { val: text.toLowerCase(), type: 'string' };
 }
 
-document.querySelectorAll('.sortable-table').forEach(table => {
+document.querySelectorAll('.sortable-table, .themed-table').forEach(table => {
     table.querySelectorAll('th.sortable').forEach(th => {
         th.addEventListener('click', function() {
             const tbody = table.querySelector('tbody');
@@ -397,12 +396,12 @@ document.querySelectorAll('.sortable-table').forEach(table => {
 });
 
 // ── Chart ──────────────────────────────────────────────────────
-const COLORS = ['#3498db','#e74c3c','#2ecc71','#f39c12','#9b59b6','#1abc9c',
-                '#e67e22','#2980b9','#27ae60','#d35400','#8e44ad','#16a085',
-                '#c0392b','#2c3e50','#7f8c8d','#f1c40f','#34495e','#e91e63',
-                '#00bcd4','#ff5722','#795548','#607d8b','#009688','#cddc39'];
+const COLORS = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#06b6d4',
+                '#f97316','#6366f1','#14b8a6','#e11d48','#a855f7','#0891b2',
+                '#dc2626','#0d9488','#78716c','#eab308','#475569','#ec4899',
+                '#22d3ee','#fb923c','#78350f','#64748b','#059669','#84cc16'];
 
-const chartInstances = {};   // { chartType: Chart }
+const chartInstances = {};
 let cachedData = null;
 
 const CHART_TITLES = {
@@ -427,6 +426,36 @@ function getCarColor(carNum) {
     return COLORS[idx % COLORS.length];
 }
 
+function themeScales() {
+    const tc = window.getThemeColors ? window.getThemeColors() : { grid: 'rgba(0,0,0,0.1)', gridMajor: 'rgba(0,0,0,0.2)', text: '#64748b' };
+    return {
+        x: {
+            ticks: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } },
+            grid: { color: tc.grid, lineWidth: 1.5 },
+            border: { color: tc.gridMajor }
+        },
+        y: {
+            ticks: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } },
+            grid: { color: tc.grid, lineWidth: 1.5 },
+            border: { color: tc.gridMajor }
+        }
+    };
+}
+
+function themeTooltip() {
+    const tc = window.getThemeColors ? window.getThemeColors() : { tooltipBg: 'rgba(0,0,0,0.9)', tooltipText: '#fff', accentCyan: '#00e5ff' };
+    return {
+        backgroundColor: tc.tooltipBg,
+        titleColor: tc.tooltipText,
+        bodyColor: tc.tooltipText,
+        borderColor: tc.accentCyan,
+        borderWidth: 1,
+        titleFont: { family: 'JetBrains Mono', size: 12 },
+        bodyFont: { family: 'JetBrains Mono', size: 11 },
+        padding: 10
+    };
+}
+
 async function loadChart() {
     if (!cachedData) {
         const resp = await fetch(`/api/sessions/{{ session.id }}/analytics`);
@@ -434,7 +463,6 @@ async function loadChart() {
     }
     const data = cachedData;
 
-    // Hide Position checkbox for non-Race sessions
     const posLabel = document.querySelector('.chart-cb-position');
     if (posLabel) posLabel.style.display = data.session_type === 'Race' ? '' : 'none';
     if (data.session_type !== 'Race') {
@@ -445,7 +473,6 @@ async function loadChart() {
     renderCheckedCharts(data);
 }
 
-/** Return lap times with SC laps and pit laps filtered out. */
 function cleanLapTimes(data) {
     return data.lap_times.filter(l => {
         if (l.out_lap || l.in_lap) return false;
@@ -468,8 +495,8 @@ function ensurePanel(type) {
     const grid = document.getElementById('chartGrid');
     const panel = document.createElement('div');
     panel.id = 'chartPanel-' + type;
-    panel.className = 'bg-white border border-gray-200 rounded-lg';
-    panel.innerHTML = `<div class="px-4 py-2 border-b border-gray-100 font-medium text-sm text-gray-700">${CHART_TITLES[type] || type}</div>`
+    panel.className = 'chart-panel';
+    panel.innerHTML = `<div class="chart-panel-header">${CHART_TITLES[type] || type}</div>`
         + `<div class="p-4 chart-container"><canvas id="chartCanvas-${type}"></canvas></div>`;
     grid.appendChild(panel);
 }
@@ -493,6 +520,10 @@ function renderCheckedCharts(data) {
 
 const renderers = {
     lapTime: function(ctx, data) {
+        const ts = themeScales();
+        const tt = themeTooltip();
+        const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+
         const laps = cleanLapTimes(data);
         const cars = {};
         laps.forEach(l => {
@@ -507,7 +538,7 @@ const renderers = {
             label: 'Session Best',
             data: Object.values(cars).flatMap(c => [{ x: c.laps[0]?.x, y: data.overall_best_lap },
                                                      { x: c.laps[c.laps.length-1]?.x, y: data.overall_best_lap }]).filter(p => p.x),
-            borderColor: '#9b59b6', borderDash: [6, 3], borderWidth: 1.5, pointRadius: 0, fill: false
+            borderColor: '#a78bfa', borderDash: [6, 3], borderWidth: 2, pointRadius: 0, fill: false
         }] : [];
 
         const datasets = Object.entries(cars).map(([car, info]) => ({
@@ -524,19 +555,26 @@ const renderers = {
             options: {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
-                plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmtTime(c.raw.y)}` } } },
+                plugins: {
+                    legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
+                    tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label}: ${fmtTime(c.raw.y)}` } }
+                },
                 scales: {
-                    x: { title: { display: true, text: 'Lap Number' }, type: 'linear', ticks: { stepSize: 1 }, offset: false },
-                    y: { title: { display: true, text: 'Lap Time' }, ticks: { callback: v => fmtTime(v) }, beginAtZero: false }
+                    x: { ...ts.x, title: { display: true, text: 'Lap Number', color: tc.text }, type: 'linear', ticks: { ...ts.x.ticks, stepSize: 1 }, offset: false },
+                    y: { ...ts.y, title: { display: true, text: 'Lap Time', color: tc.text }, ticks: { ...ts.y.ticks, callback: v => fmtTime(v) }, beginAtZero: false }
                 }
             }
         });
     },
 
     delta: function(ctx, data) {
+        const ts = themeScales();
+        const tt = themeTooltip();
+        const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+
         if (!data.overall_best_lap) {
             chartInstances.delta = new Chart(ctx, { type: 'line', data: { datasets: [] },
-                options: { responsive: true, plugins: { title: { display: true, text: 'No best lap data' } } } });
+                options: { responsive: true, plugins: { title: { display: true, text: 'No best lap data', color: tc.text } } } });
             return;
         }
         const laps = cleanLapTimes(data);
@@ -562,20 +600,27 @@ const renderers = {
             options: {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
-                plugins: { tooltip: { callbacks: { label: c => {
-                    const v = c.raw.y;
-                    return `${c.dataset.label}: ${v >= 0 ? '+' : ''}${v.toFixed(3)}s`;
-                } } } },
+                plugins: {
+                    legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
+                    tooltip: { ...tt, callbacks: { label: c => {
+                        const v = c.raw.y;
+                        return `${c.dataset.label}: ${v >= 0 ? '+' : ''}${v.toFixed(3)}s`;
+                    } } }
+                },
                 scales: {
-                    x: { title: { display: true, text: 'Lap Number' }, type: 'linear', ticks: { stepSize: 1 } },
-                    y: { title: { display: true, text: 'Gap to Best (s)' },
-                         ticks: { callback: v => (v >= 0 ? '+' : '') + v.toFixed(3) }, beginAtZero: false }
+                    x: { ...ts.x, title: { display: true, text: 'Lap Number', color: tc.text }, type: 'linear', ticks: { stepSize: 1 } },
+                    y: { ...ts.y, title: { display: true, text: 'Gap to Best (s)', color: tc.text },
+                         ticks: { ...ts.y.ticks, callback: v => (v >= 0 ? '+' : '') + v.toFixed(3) }, beginAtZero: false }
                 }
             }
         });
     },
 
     sector: function(ctx, data) {
+        const ts = themeScales();
+        const tt = themeTooltip();
+        const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+
         const cars = data.per_car.filter(c => c.best_s1 || c.best_s2 || c.best_s3);
         const labels = cars.map(c => `#${c.car_number}`);
         const s1 = cars.map(c => c.best_s1 || 0);
@@ -599,18 +644,25 @@ const renderers = {
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { tooltip: { callbacks: {
-                    label: c => c.dataset.label === 'Actual Best Lap' ? `Best Lap: ${fmtTime(c.raw.y)}` : `${c.dataset.label}: ${c.raw.toFixed(3)}s`
-                } } },
+                plugins: {
+                    legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
+                    tooltip: { ...tt, callbacks: {
+                        label: c => c.dataset.label === 'Actual Best Lap' ? `Best Lap: ${fmtTime(c.raw.y)}` : `${c.dataset.label}: ${c.raw.toFixed(3)}s`
+                    } }
+                },
                 scales: {
-                    x: { stacked: true, ticks: { maxRotation: 45 } },
-                    y: { stacked: true, title: { display: true, text: 'Time' }, ticks: { callback: v => fmtTime(v) } }
+                    x: { ...ts.x, stacked: true, ticks: { ...ts.x.ticks, maxRotation: 45 } },
+                    y: { ...ts.y, stacked: true, title: { display: true, text: 'Time', color: tc.text }, ticks: { ...ts.y.ticks, callback: v => fmtTime(v) } }
                 }
             }
         });
     },
 
     speed: function(ctx, data) {
+        const ts = themeScales();
+        const tt = themeTooltip();
+        const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+
         const cars = data.per_car.filter(c => c.top_speed);
         const labels = cars.map(c => `#${c.car_number}`);
         const speeds = cars.map(c => c.top_speed);
@@ -632,17 +684,21 @@ const renderers = {
                 indexAxis: 'y',
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: c => `${c.raw} km/h` } }
+                    tooltip: { ...tt, callbacks: { label: c => `${c.raw} km/h` } }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Speed (km/h)' }, beginAtZero: false },
-                    y: { title: { display: true, text: '' } }
+                    x: { ...ts.x, title: { display: true, text: 'Speed (km/h)', color: tc.text }, beginAtZero: false },
+                    y: { ...ts.y, title: { display: false } }
                 }
             }
         });
     },
 
     boxPlot: function(ctx, data) {
+        const ts = themeScales();
+        const tt = themeTooltip();
+        const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+
         const cars = data.per_car.filter(c => c.min_lap != null && c.q1 != null && c.median != null
                                               && c.q3 != null && c.max_lap != null);
         const labels = cars.map(c => `#${c.car_number}`);
@@ -675,6 +731,7 @@ const renderers = {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        ...tt,
                         callbacks: {
                             label: function(c) {
                                 if (c.datasetIndex !== 2) return '';
@@ -691,20 +748,24 @@ const renderers = {
                     }
                 },
                 scales: {
-                    x: { stacked: true, ticks: { maxRotation: 45 } },
-                    y: { stacked: true, beginAtZero: false,
-                         title: { display: true, text: 'Lap Time' },
-                         ticks: { callback: v => fmtTime(v) } }
+                    x: { ...ts.x, stacked: true, ticks: { ...ts.x.ticks, maxRotation: 45 } },
+                    y: { ...ts.y, stacked: true, beginAtZero: false,
+                         title: { display: true, text: 'Lap Time', color: tc.text },
+                         ticks: { ...ts.y.ticks, callback: v => fmtTime(v) } }
                 }
             }
         });
     },
 
     pitStops: function(ctx, data) {
+        const ts = themeScales();
+        const tt = themeTooltip();
+        const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+
         if (!data.pit_stops || data.pit_stops.length === 0) {
             chartInstances.pitStops = new Chart(ctx, {
                 type: 'bar', data: { datasets: [] },
-                options: { responsive: true, plugins: { title: { display: true, text: 'No pit stops recorded' } } }
+                options: { responsive: true, plugins: { title: { display: true, text: 'No pit stops recorded', color: tc.text } } }
             });
             return;
         }
@@ -733,7 +794,7 @@ const renderers = {
                 indexAxis: 'y',
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: {
+                    tooltip: { ...tt, callbacks: {
                         label: c => {
                             const p = data.pit_stops[c.dataIndex];
                             return [
@@ -745,18 +806,22 @@ const renderers = {
                     } }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Pit Lane Time (s)' }, beginAtZero: true },
-                    y: { ticks: { font: { size: 10 } } }
+                    x: { ...ts.x, title: { display: true, text: 'Pit Lane Time (s)', color: tc.text }, beginAtZero: true },
+                    y: { ...ts.y, ticks: { ...ts.y.ticks, font: { family: 'JetBrains Mono', size: 10 } } }
                 }
             }
         });
     },
 
     position: function(ctx, data) {
+        const ts = themeScales();
+        const tt = themeTooltip();
+        const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b', grid: 'rgba(0,0,0,0.1)' };
+
         if (!data.position_progression) {
             chartInstances.position = new Chart(ctx, {
                 type: 'line', data: { datasets: [] },
-                options: { responsive: true, plugins: { title: { display: true, text: 'Position chart only available for Race sessions' } } }
+                options: { responsive: true, plugins: { title: { display: true, text: 'Position chart only available for Race sessions', color: tc.text } } }
             });
             return;
         }
@@ -776,12 +841,15 @@ const renderers = {
             options: {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
-                plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: P${c.raw.y}` } } },
+                plugins: {
+                    legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
+                    tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label}: P${c.raw.y}` } }
+                },
                 scales: {
-                    x: { title: { display: true, text: 'Lap Number' }, type: 'linear', ticks: { stepSize: 1 } },
-                    y: { title: { display: true, text: 'Position' }, reverse: true,
+                    x: { ...ts.x, title: { display: true, text: 'Lap Number', color: tc.text }, type: 'linear', ticks: { stepSize: 1 } },
+                    y: { ...ts.y, title: { display: true, text: 'Position', color: tc.text }, reverse: true,
                          ticks: { stepSize: 1 }, min: 1,
-                         grid: { color: c => c.tick.value === 1 ? 'rgba(231,76,60,0.5)' : 'rgba(0,0,0,0.1)' } }
+                         grid: { color: c => c.tick.value === 1 ? 'rgba(231,76,60,0.5)' : tc.grid } }
                 }
             }
         });
@@ -795,5 +863,10 @@ document.querySelectorAll('.chart-cb').forEach(cb => {
         renderCheckedCharts(cachedData);
     });
 });
+
+// Theme change → re-render charts
+window.updateChartTheme = function() {
+    if (cachedData) renderCheckedCharts(cachedData);
+};
 </script>
 {% endblock %}

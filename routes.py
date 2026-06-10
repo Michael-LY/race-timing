@@ -266,35 +266,51 @@ def upload(event_id):
 
         cls_file = request.files.get("classification_file")
         sec_file = request.files.get("sector_file")
+        pit_file = request.files.get("pitstops_file")
+        tlw_file = request.files.get("tlw_file")
+        msg_file = request.files.get("messages_file")
 
-        if not cls_file and not sec_file:
+        # Check at least one file uploaded
+        any_file = cls_file or sec_file or pit_file or tlw_file or msg_file
+        if not any_file:
             flash("Please upload at least one CSV file", "danger")
             return redirect(url_for("main.upload", event_id=event_id))
 
         # Validate that uploaded files are CSVs
-        for f in (cls_file, sec_file):
+        all_files = [cls_file, sec_file, pit_file, tlw_file, msg_file]
+        for f in all_files:
             if f and f.filename and not allowed_file(f.filename):
                 flash(f"'{f.filename}' is not a CSV file", "danger")
                 return redirect(url_for("main.upload", event_id=event_id))
 
         # Save files
         ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        cls_path = None
-        sec_path = None
 
-        if cls_file and cls_file.filename:
-            cls_name = secure_filename(cls_file.filename)
-            cls_path = os.path.join(current_app.config["UPLOAD_FOLDER"], f"{ts}_cls_{cls_name}")
-            cls_file.save(cls_path)
+        def save_file(uploaded_file, prefix):
+            if uploaded_file and uploaded_file.filename:
+                name = secure_filename(uploaded_file.filename)
+                path = os.path.join(
+                    current_app.config["UPLOAD_FOLDER"], f"{ts}_{prefix}_{name}"
+                )
+                uploaded_file.save(path)
+                return path
+            return None
 
-        if sec_file and sec_file.filename:
-            sec_name = secure_filename(sec_file.filename)
-            sec_path = os.path.join(current_app.config["UPLOAD_FOLDER"], f"{ts}_sec_{sec_name}")
-            sec_file.save(sec_path)
+        cls_path = save_file(cls_file, "cls")
+        sec_path = save_file(sec_file, "sec")
+        pit_path = save_file(pit_file, "pit")
+        tlw_path = save_file(tlw_file, "tlw")
+        msg_path = save_file(msg_file, "msg")
 
-        # Parse
+        # Parse — pass all paths; each parser uses the kwargs it needs
         try:
-            data = parser.parse(classification_path=cls_path, sector_path=sec_path)
+            data = parser.parse(
+                sector_path=sec_path,
+                classification_path=cls_path,
+                pitstops_path=pit_path,
+                tlw_path=tlw_path,
+                messages_path=msg_path,
+            )
         except Exception as e:
             flash(f"Parse error: {e}", "danger")
             return redirect(url_for("main.upload", event_id=event_id))

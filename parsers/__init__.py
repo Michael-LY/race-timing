@@ -1,8 +1,10 @@
 from .base import BaseParser
 from .tsl import TSLTimingParser
+from .swiss_timing import SwissTimingParser
 
 PARSER_REGISTRY: dict[str, BaseParser] = {
     "tsl_timing": TSLTimingParser(),
+    "swiss_timing": SwissTimingParser(),
 }
 
 

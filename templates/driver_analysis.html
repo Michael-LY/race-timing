@@ -3,59 +3,59 @@
 
 {% block content %}
 <div class="mt-3 mb-4">
-    <a href="{{ url_for('main.session_detail', session_id=session.id) }}" class="no-underline text-gray-600 hover:text-gray-900 inline-flex items-center gap-1 text-sm">
+    <a href="{{ url_for('main.session_detail', session_id=session.id) }}" class="no-underline text-theme-secondary hover:text-theme-primary inline-flex items-center gap-1 text-sm">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to {{ session.name }}
     </a>
 </div>
 
 <h3 class="text-lg font-bold flex items-center gap-2">
     <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type }}">{{ session.session_type }}</span>
-    Driver Analysis
+    <span class="text-theme-primary">Driver Analysis</span>
 </h3>
-<p class="text-gray-500 text-sm">{{ session.event.name }} &middot; {{ drivers|length }} drivers</p>
+<p class="text-theme-secondary text-sm">{{ session.event.name }} &middot; {{ drivers|length }} drivers</p>
 
-<div class="bg-white rounded-lg shadow-sm">
-    <div class="px-4 py-2 border-b border-gray-200 font-semibold bg-gray-50 rounded-t-lg">
-        Theoretical Best Lap <small class="text-gray-500">(best S1 + best S2 + best S3)</small>
-        <small class="ml-2"><span class="inline-block w-3 h-3 rounded" style="background-color: #e8d5f5;"></span> Overall best sector</small>
+<div class="card rounded-lg mt-3">
+    <div class="card-header rounded-t-lg">
+        Theoretical Best Lap <small class="text-theme-secondary">(best S1 + best S2 + best S3)</small>
+        <small class="ml-2"><span class="inline-block w-3 h-3 rounded bg-purple"></span> Overall best sector</small>
     </div>
     <div class="overflow-x-auto">
-        <table class="w-full text-sm table-hover sortable-table">
+        <table class="themed-table">
             <thead>
-                <tr class="border-b-2 border-gray-200">
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">#</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Driver</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Car</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Laps</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best Lap</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best S1</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best S2</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Best S3</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Theoretical</th>
-                    <th class="sortable text-left px-4 py-2 font-semibold text-gray-600">Gap to Best</th>
+                <tr>
+                    <th class="sortable text-left">#</th>
+                    <th class="sortable text-left">Driver</th>
+                    <th class="sortable text-left">Car</th>
+                    <th class="sortable text-left">Laps</th>
+                    <th class="sortable text-left">Best Lap</th>
+                    <th class="sortable text-left">Best S1</th>
+                    <th class="sortable text-left">Best S2</th>
+                    <th class="sortable text-left">Best S3</th>
+                    <th class="sortable text-left">Theoretical</th>
+                    <th class="sortable text-left">Gap to Best</th>
                 </tr>
             </thead>
             <tbody>
                 {% set overall_best = drivers | selectattr('best_lap') | map(attribute='best_lap') | min %}
                 {% for d in drivers %}
                 {% set gap = (d.best_lap - overall_best) if d.best_lap and overall_best else None %}
-                <tr class="border-b border-gray-100">
-                    <td class="px-4 py-2"><strong>{{ loop.index }}</strong></td>
-                    <td class="px-4 py-2"><strong>{{ d.driver_name }}</strong></td>
-                    <td class="px-4 py-2">#{{ d.car_number }}</td>
-                    <td class="px-4 py-2">{{ d.total_laps }}</td>
-                    <td class="px-4 py-2 best-lap">{% if d.best_lap %}{{ "%d:%06.3f"|format(d.best_lap // 60, d.best_lap % 60) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2{% if d.best_s1 == overall_best_s1 %} bg-purple{% endif %}">
+                <tr>
+                    <td><strong>{{ loop.index }}</strong></td>
+                    <td><strong>{{ d.driver_name }}</strong></td>
+                    <td>#{{ d.car_number }}</td>
+                    <td>{{ d.total_laps }}</td>
+                    <td class="best-lap">{% if d.best_lap %}{{ "%d:%06.3f"|format(d.best_lap // 60, d.best_lap % 60) }}{% else %}-{% endif %}</td>
+                    <td class="{% if d.best_s1 == overall_best_s1 %}bg-purple{% endif %}">
                         {% if d.best_s1 %}{{ "%.3f"|format(d.best_s1) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2{% if d.best_s2 == overall_best_s2 %} bg-purple{% endif %}">
+                    <td class="{% if d.best_s2 == overall_best_s2 %}bg-purple{% endif %}">
                         {% if d.best_s2 %}{{ "%.3f"|format(d.best_s2) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2{% if d.best_s3 == overall_best_s3 %} bg-purple{% endif %}">
+                    <td class="{% if d.best_s3 == overall_best_s3 %}bg-purple{% endif %}">
                         {% if d.best_s3 %}{{ "%.3f"|format(d.best_s3) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-2">{% if d.theoretical %}{{ "%d:%06.3f"|format(d.theoretical // 60, d.theoretical % 60) }}{% else %}-{% endif %}</td>
-                    <td class="px-4 py-2">{% if gap is not none and gap >= 0 %}+{{ "%.3f"|format(gap) }}{% elif gap is not none %}{{ "%.3f"|format(gap) }}{% else %}-{% endif %}</td>
+                    <td>{% if d.theoretical %}{{ "%d:%06.3f"|format(d.theoretical // 60, d.theoretical % 60) }}{% else %}-{% endif %}</td>
+                    <td>{% if gap is not none and gap >= 0 %}+{{ "%.3f"|format(gap) }}{% elif gap is not none %}{{ "%.3f"|format(gap) }}{% else %}-{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -66,7 +66,6 @@
 
 {% block scripts %}
 <script>
-// ── Table sorting ──────────────────────────────────────────────
 function parseSortValue(cell) {
     const text = cell.textContent.trim();
     if (text === '-' || text === '') return { val: Infinity, type: 'empty' };
@@ -83,7 +82,7 @@ function parseSortValue(cell) {
     return { val: text.toLowerCase(), type: 'string' };
 }
 
-document.querySelectorAll('.sortable-table').forEach(table => {
+document.querySelectorAll('.themed-table').forEach(table => {
     table.querySelectorAll('th.sortable').forEach(th => {
         th.addEventListener('click', function() {
             const tbody = table.querySelector('tbody');

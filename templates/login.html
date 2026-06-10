@@ -3,24 +3,22 @@
 
 {% block content %}
 <div class="flex items-center justify-center min-h-[70vh]">
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-md p-8">
+    <div class="card-glass w-full max-w-md p-8 rounded-lg stagger-item">
         <div class="text-center mb-6">
-            <i data-lucide="lock" class="w-10 h-10 text-gray-400 mx-auto"></i>
-            <h2 class="mt-3 text-xl font-bold text-gray-900">Login</h2>
+            <i data-lucide="lock" class="w-10 h-10 text-theme-muted mx-auto"></i>
+            <h2 class="mt-3 text-xl font-bold text-theme-primary">Login</h2>
         </div>
         <form method="POST">
             <div class="mb-4">
-                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                <input type="text" id="username" name="username" required autofocus
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <label for="username" class="block text-sm font-medium text-theme-primary mb-1">Username</label>
+                <input type="text" id="username" name="username" required autofocus class="themed-input">
             </div>
             <div class="mb-6">
-                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input type="password" id="password" name="password" required
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <label for="password" class="block text-sm font-medium text-theme-primary mb-1">Password</label>
+                <input type="password" id="password" name="password" required class="themed-input">
             </div>
             <button type="submit"
-                    class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 font-medium inline-flex items-center justify-center gap-2">
+                    class="btn-primary w-full py-2 rounded-md font-medium inline-flex items-center justify-center gap-2">
                 <i data-lucide="log-in" class="w-4 h-4"></i> Login
             </button>
         </form>

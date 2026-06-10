@@ -3,15 +3,15 @@
 
 {% block content %}
 <div class="mt-3 mb-4">
-    <a href="{{ url_for('main.index') }}" class="no-underline text-gray-600 hover:text-gray-900 inline-flex items-center gap-1 text-sm">
+    <a href="{{ url_for('main.index') }}" class="no-underline text-theme-secondary hover:text-theme-primary inline-flex items-center gap-1 text-sm">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Events
     </a>
 </div>
 
 <div class="flex justify-between items-center">
     <div>
-        <h2 class="text-xl font-bold">{{ event.name }}</h2>
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mt-1">
+        <h2 class="text-xl font-bold text-theme-primary">{{ event.name }}</h2>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-theme-secondary mt-1">
             {% if event.championship %}
             <span class="inline-flex items-center gap-1">
                 <i data-lucide="trophy" class="w-3.5 h-3.5"></i> {{ event.championship }}
@@ -36,15 +36,15 @@
     </div>
     <div class="flex gap-2 items-center">
         {% if current_user and current_user.is_admin %}
-        <a href="{{ url_for('main.event_edit', event_id=event.id) }}" class="border border-blue-500 text-blue-500 p-2 rounded hover:bg-blue-50 inline-flex items-center" title="Edit Event">
+        <a href="{{ url_for('main.event_edit', event_id=event.id) }}" class="btn-ghost p-2" title="Edit Event">
             <i data-lucide="pencil" class="w-4 h-4"></i>
         </a>
-        <a href="{{ url_for('main.upload', event_id=event.id) }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-flex items-center gap-1.5 text-sm no-underline">
+        <a href="{{ url_for('main.upload', event_id=event.id) }}" class="btn-primary-green px-4 py-2 rounded-md">
             <i data-lucide="upload" class="w-4 h-4"></i> Upload CSV
         </a>
         <form method="POST" action="{{ url_for('main.event_delete', event_id=event.id) }}"
               onsubmit="return confirm('Delete this event and all its sessions?');">
-            <button type="submit" class="border border-red-500 text-red-500 p-2 rounded hover:bg-red-50 inline-flex items-center">
+            <button type="submit" class="btn-danger p-2">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
         </form>
@@ -53,37 +53,37 @@
 </div>
 
 <div class="mt-4 flex items-center justify-between">
-    <h4 class="font-semibold text-gray-700">Sessions</h4>
+    <h4 class="font-semibold text-theme-primary">Sessions</h4>
     {% if event.sessions %}
     <div class="flex items-center gap-1.5 text-xs">
-        <span class="text-gray-500">Sort:</span>
-        <button onclick="sortSessions('type')" class="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 text-gray-600" data-sort="type">Type</button>
-        <button onclick="sortSessions('name')" class="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 text-gray-600" data-sort="name">Name</button>
-        <button onclick="sortSessions('laps')" class="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 text-gray-600" data-sort="laps">Laps</button>
+        <span class="text-theme-secondary">Sort:</span>
+        <button onclick="sortSessions('type')" class="btn-ghost" data-sort="type">Type</button>
+        <button onclick="sortSessions('name')" class="btn-ghost" data-sort="name">Name</button>
+        <button onclick="sortSessions('laps')" class="btn-ghost" data-sort="laps">Laps</button>
     </div>
     {% endif %}
 </div>
 {% if event.sessions %}
 <div id="sessions-list" class="mt-2 space-y-2">
     {% for session in event.sessions %}
-    <div class="bg-white border border-gray-200 rounded-lg px-4 py-3 flex justify-between items-center hover:bg-gray-50 cursor-pointer"
+    <div class="stagger-item card rounded-lg px-4 py-3 flex justify-between items-center cursor-pointer"
          data-type="{{ session.session_type }}" data-name="{{ session.name }}" data-laps="{{ session.laps|length }}"
          onclick="window.location='{{ url_for('main.session_detail', session_id=session.id) }}'">
         <div class="flex items-center gap-2">
             <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type }}">{{ session.session_type }}</span>
-            <strong>{{ session.name }}</strong>
-            <small class="text-gray-500 ml-2">{{ session.laps|length }} laps</small>
+            <strong class="text-theme-primary">{{ session.name }}</strong>
+            <small class="text-theme-secondary ml-2">{{ session.laps|length }} laps</small>
         </div>
         {% if current_user and current_user.is_admin %}
         <div class="flex gap-1.5 items-center">
             <a href="{{ url_for('main.session_edit', session_id=session.id) }}"
                onclick="event.stopPropagation();"
-               class="border border-blue-500 text-blue-500 p-1.5 rounded hover:bg-blue-50 inline-flex items-center" title="Edit Session">
+               class="btn-ghost p-1.5" title="Edit Session">
                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
             </a>
             <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
                   onsubmit="event.stopPropagation(); return confirm('Delete this session?');">
-                <button type="submit" class="border border-red-500 text-red-500 p-1.5 rounded hover:bg-red-50 inline-flex items-center">
+                <button type="submit" class="btn-danger p-1.5">
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                 </button>
             </form>
@@ -93,11 +93,11 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="text-center py-8 text-gray-500">
-    <i data-lucide="cloud-upload" class="w-10 h-10 text-gray-300 mx-auto"></i>
+<div class="text-center py-8 text-theme-secondary">
+    <i data-lucide="cloud-upload" class="w-10 h-10 text-theme-muted mx-auto"></i>
     <p class="mt-2">No sessions yet. Upload a CSV file to get started.</p>
     {% if current_user and current_user.is_admin %}
-    <a href="{{ url_for('main.upload', event_id=event.id) }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-flex items-center gap-1.5 text-sm no-underline">
+    <a href="{{ url_for('main.upload', event_id=event.id) }}" class="btn-primary-green px-4 py-2 rounded-md">
         <i data-lucide="upload" class="w-4 h-4"></i> Upload CSV
     </a>
     {% endif %}
@@ -140,15 +140,14 @@ function sortSessions(key) {
 
     items.forEach(el => container.appendChild(el));
 
-    // Update button styles
     document.querySelectorAll('[data-sort]').forEach(btn => {
-        btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
-        btn.classList.add('bg-white', 'text-gray-600', 'border-gray-300');
+        btn.classList.remove('btn-ghost-active');
+        btn.classList.add('btn-ghost');
     });
     const active = document.querySelector(`[data-sort="${key}"]`);
     if (active) {
-        active.classList.remove('bg-white', 'text-gray-600', 'border-gray-300');
-        active.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+        active.classList.remove('btn-ghost');
+        active.classList.add('btn-ghost-active');
         active.textContent = key.charAt(0).toUpperCase() + key.slice(1) + (sortAsc ? ' ▲' : ' ▼');
     }
 }

@@ -1,0 +1,58 @@
+Rank;Bib;ClassName;Driver1;Driver2;Driver3;Driver4;CarName;TeamName;LicenceHolderName;TotalTime;LapCount;GapTime;GapLap;BestLapAverageSpeed;BestLapTime;BestLapLapNumber;State
+1;66;Silver Cup;Rocco Mazzola;Sebastian Øgaard;Ariel Levi;;Audi R8 LMS GT3 EVO II;Tresor Attempto Racing;Tresor Attempto Racing;3:01:03.675;79;;;194.30;1:47.306;18;
+2;48;Pro Cup;Lucas Auer;Luca Stolz;Maro Engel;;Mercedes-AMG GT3 EVO;Mercedes-AMG Team MANN-FILTER;Winward Racing;3:01:04.458;79;0.783;0;195.90;1:46.445;69;
+3;555;Silver Cup;Baptiste Moulin;Romain Andriolo;Lorens Lecertua;;McLaren 720S GT3 EVO;CSA Racing;CSA Racing;3:01:06.100;79;2.425;0;194.10;1:47.419;71;
+4;2;Pro Cup;Morris Schuring;Dorian Boccolacci;Alessio Picariello;;Porsche 911 GT3 R EVO;Boutsen VDS;Boutsen VDS;3:01:06.460;79;2.785;0;195.20;1:46.788;41;
+5;98;Pro Cup;Augusto Farfus;Jake Dennis;Raffaele Marciello;;BMW M4 GT3 EVO;Rowe Racing;Motorsport Competence Group AG;3:01:07.233;79;3.558;0;194.10;1:47.410;22;
+6;23;Silver Cup;Horatio Fitz-Simon;Maxwell Lynn;Ben Dörr;;McLaren 720S GT3 EVO;Team RJN;Team RJN;3:01:08.245;79;4.570;0;195.50;1:46.659;69;
+7;32;Pro Cup;Kelvin van der Linde;Jordan Pepper;Charles Weerts;;BMW M4 GT3 EVO;Team WRT;Team WRT;3:01:08.888;79;5.213;0;195.00;1:46.938;67;
+8;96;Pro Cup;Luca Engstler;Marco Mapelli;Patric Niederhauser;;Lamborghini Temerario GT3;Rutronik Racing;Rutronik Racing;3:01:09.800;79;6.125;0;194.50;1:47.197;57;
+9;74;Bronze Cup;Dustin Blattner;Lorenzo Patrese;Dennis Marschall;;Ferrari 296 GT3 EVO;Kessel Racing;Kessel Racing;3:01:10.505;79;6.830;0;196.00;1:46.396;71;
+10;56;Bronze Cup;Giacomo Petrobelli;Lorcan Hanafin;Jonathan Adam;;Aston Martin Vantage AMR GT3 EVO;Ecurie Ecosse Blackthorn;Ecurie Ecosse Blackthorn;3:01:12.186;79;8.511;0;194.70;1:47.060;65;
+11;54;Silver Cup;Francesco Simonazzi;Angus Whiteside;Tanart Sathienthirakul;;Porsche 911 GT3 R EVO;Dinamic GT;Dinamic GT;3:01:12.983;79;9.308;0;194.20;1:47.361;65;
+12;50;Pro Cup;Lilou Wadoux;Arthur Leclerc;Sean Gelael;;Ferrari 296 GT3 EVO;AF Corse;AF Corse;3:01:13.658;79;9.983;0;195.00;1:46.942;53;
+13;42;Bronze Cup;Ahmad Al Harthy;Javier Sagrera;Calan Williams;;BMW M4 GT3 EVO;Oman Racing by Century Motorsport;Century Motorsport;3:01:14.254;79;10.579;0;194.00;1:47.475;22;
+14;6;Silver Cup;Anthony Bartone;Cesar Gazeau;Aurelien Panis;;Mercedes-AMG GT3 EVO;GetSpeed Team Bartone Bros;GetSpeed;3:01:15.143;79;11.468;0;194.40;1:47.226;65;
+15;71;Gold Cup;Frederik Schandorff;Malte Ebdrup;Simon Birch;;Ferrari 296 GT3 EVO;Selected Car Racing;AF Corse;3:01:16.380;79;12.705;0;194.10;1:47.422;19;
+16;93;Bronze Cup;Jonathan Hui;Chris Froggatt;Eddie Cheever;;Porsche 911 GT3 R EVO;Ziggo Sport Tempesta Racing;Ziggo Sport Tempesta Racing;3:01:17.460;79;13.785;0;193.90;1:47.542;63;
+17;991;Bronze Cup;Robert De Haan;Darren Leung;James Kellett;;BMW M4 GT3 EVO;Paradine Competition;Paradine Competition;3:01:17.768;79;14.093;0;194.50;1:47.213;15;
+18;30;Silver Cup;Ignacio Montenegro;Matisse Lismont;Amaury Cordeel;;BMW M4 GT3 EVO;Team WRT;Team WRT;3:01:19.865;79;16.190;0;193.90;1:47.536;67;
+19;58;Gold Cup;Thomas Fleming;Louis Prette;Benjamin Goethe;;McLaren 720S GT3 EVO;Garage 59;Garage 59;3:01:22.425;79;18.750;0;194.30;1:47.296;66;
+20;45;Silver Cup;Rafael Duran;Dylan Medler;David Perel;;Ferrari 296 GT3 EVO;Rinaldi Racing;Rinaldi Racing;3:01:22.709;79;19.034;0;195.60;1:46.606;41;
+21;84;Pro Cup;Christopher Haase;Simon Reicher;Markus Winkelhock;;Audi R8 LMS GT3 EVO II;Eastalent Racing;Eastalent Racing;3:01:23.732;79;20.057;0;194.50;1:47.189;67;
+22;89;Bronze Cup;Patrick Kolb;Bashar Mardini;Alex Fontana;;Porsche 911 GT3 R EVO;Lionspeed GP;Lionspeed GP-PK Motorsport;3:01:24.175;79;20.500;0;194.20;1:47.336;68;
+23;24;Gold Cup;Mikkel Mac;Antoine Doquin;Dennis Lind;;Chevrolet Corvette Z06 GT3 R;Steller Motorsport;Steller Motorsport;3:01:26.699;79;23.024;0;194.70;1:47.079;37;
+24;60;Bronze Cup;Thomas Kiefer;Rolf Ineichen;Tim Heinemann;;Ferrari 296 GT3 EVO;JMW Motorsport;JMW Motorsport;3:01:29.944;79;26.269;0;193.90;1:47.528;67;
+25;998;Gold Cup;Ugo De Wilde;Tim Tramnitz;Jens Klingmann;;BMW M4 GT3 EVO;Rowe Racing;Motorsport Competence Group AG;3:01:31.005;79;27.330;0;194.10;1:47.394;64;
+26;35;Silver Cup;Gaspard Simon;Ethan Ischer;Mateo Villagomez;;Aston Martin Vantage AMR GT3 EVO;Walkenhorst Motorsport;Walkenhorst Motorsport;3:01:35.575;79;31.900;0;193.60;1:47.666;70;
+27;91;Bronze Cup;Ralf Bohn;Huub van Eijndhoven;Robert Renauer;;Porsche 911 GT3 R EVO;Herberth Motorsport;Herberth Motorsport;3:01:36.465;79;32.790;0;194.10;1:47.405;66;
+28;21;Silver Cup;Kobe Pauwels;Oliver Söderström;Sebastien Baud;;Aston Martin Vantage AMR GT3 EVO;Comtoyou Racing;Comtoyou Racing;3:01:50.040;79;46.365;0;194.20;1:47.350;68;
+29;34;Pro Cup;Jamie Day;Christian Krognes;Henrique Chaves;;Aston Martin Vantage AMR GT3 EVO;natural elements by Walkenhorst Motorsport;Walkenhorst Motorsport;3:01:50.825;79;47.150;0;194.10;1:47.426;39;
+30;88;Bronze Cup;Carrie Schreiner;Daniele Di Amato;Gerhard Tweraser;;Audi R8 LMS GT3 EVO II;Tresor Attempto Racing;Tresor Attempto Racing;3:02:01.681;79;58.006;0;194.00;1:47.481;65;
+31;12;Bronze Cup;Gabriel Rindone;Tom Kalender;Mikael Grenier;;Mercedes-AMG GT3 EVO;GetSpeed Team Dubai;GetSpeed;3:01:10.516;78;6.841;1;193.90;1:47.531;59;
+32;177;Bronze Cup;Alfredo Hernandez Ortega;Stephane Tribaudini;Colin Caresani;;Mercedes-AMG GT3 EVO;Grupo Prom Racing Team;Grupo Prom Racing Team;3:01:33.957;78;30.282;1;193.60;1:47.711;59;
+33;111;Gold Cup;Arthur Rougier;Simon Gachet;James Kell;;McLaren 720S GT3 EVO;CSA Racing;CSA Racing;3:01:43.462;78;39.787;1;194.30;1:47.298;69;
+34;992;Silver Cup;Christian Hahn;Bobby Thompson;Josh Rowledge;;BMW M4 GT3 EVO;Paradine Competition;Paradine Competition;3:02:10.822;78;1:07.147;1;193.70;1:47.629;20;
+35;87;Bronze Cup;Marvin Dienst;Gabriele Piana;Rinat Salikhov;;Mercedes-AMG GT3 EVO;Winward Racing;Winward Racing;2:54:55.244;77;-6:08.431;2;194.60;1:47.115;66;
+36;25;Silver Cup;Ezequiel Perez Companc;Etienne Cheli;Ivan Klymenko;;Audi R8 LMS GT3 EVO II;Sainteloc Racing;Sainteloc Racing;2:54:56.479;77;-6:07.196;2;194.50;1:47.198;66;
+37;9;Silver Cup;Aleksei Nesov;Max Hofer;Aliaksandr Malykhin;;Porsche 911 GT3 R EVO;Pure Rxcing;Pure Rxcing;2:54:57.642;77;-6:06.033;2;194.60;1:47.141;69;
+38;97;Bronze Cup;Riccardo Pera;Antares Au;Sven Müller;;Porsche 911 GT3 R EVO;Rutronik Racing;Rutronik Racing;2:54:56.350;76;-6:07.325;3;194.50;1:47.221;32;
+39;11;Bronze Cup;Aaron Muss;Marcelo Tomasoni;Kyle Marcelli;;Aston Martin Vantage AMR GT3 EVO;Comtoyou Racing;Comtoyou Racing;3:01:37.474;76;33.799;3;192.80;1:48.127;65;
+40;914;Bronze Cup;Georgios Kolovos;Lenny Ried;Stylianos Kolovos;;Porsche 911 GT3 R EVO;Razoon - more than racing;Razoon - more than racing;3:01:18.783;72;15.108;7;192.40;1:48.369;57;
+41;222;Bronze Cup;Reece Barr;Charles Dawson;Kiern Jewiss;;Mercedes-AMG GT3 EVO;2 Seas Motorsport;2Seas Motorsport;2:37:51.359;71;-23:12.316;8;193.90;1:47.528;67;
+42;44;Silver Cup;Joshua Rattican;Tomas Pintos;Jayden Kelly;;McLaren 720S GT3 EVO;Greystone GT;Greystone GT;2:40:54.618;71;-20:09.057;8;194.00;1:47.471;65;
+;5;Silver Cup;Dante Rappange;Guilherme Oliveira;Mikey Porter;;McLaren 720S GT3 EVO;Optimum Motorsport;Optimum Motorsport;1:46:12.218;44;-1:14:51.457;35;194.30;1:47.284;12;NC
+;63;Pro Cup;Mirko Bortolotti;Maximilian Paul;Franck Perera;;Lamborghini Temerario GT3;TGI Team by GRT;TGI Team by GRT;1:34:39.778;41;-1:26:23.897;38;193.40;1:47.777;12;NC
+;3;Pro Cup;Daniel Juncadella;Chris Lulham;Jules Gounon;;Mercedes-AMG GT3 EVO;Mercedes-AMG Team Verstappen Racing;2Seas Motorsport;1:16:32.870;31;-1:44:30.805;48;193.90;1:47.528;20;NC
+;17;Pro Cup;Maxime Martin;Maximilian Götz;Fabian Schiller;;Mercedes-AMG GT3 EVO;Mercedes-AMG Team GetSpeed;GetSpeed;56:38.204;23;-2:04:25.471;56;195.00;1:46.899;20;NC
+;99;Gold Cup;Dylan Pereira;Andrea Frassineti;Lorenzo Ferrari;;Audi R8 LMS GT3 EVO II;Tresor Attempto Racing;Tresor Attempto Racing;48:25.220;22;-2:12:38.455;57;194.00;1:47.452;12;NC
+;52;Silver Cup;Matias Zagazeta;Jeff Machiels;Gilles Stadsbader;;Ferrari 296 GT3 EVO;AF Corse;AF Corse;30:07.444;12;-2:30:56.231;67;191.70;1:48.756;10;NC
+;4;Gold Cup;Adam Smalley;Freddie Tomlinson;Harry George;;McLaren 720S GT3 EVO;Optimum Motorsport;Optimum Motorsport;2:20:54.959;5;-40:08.716;74;185.60;1:52.338;4;NC
+;46;Pro Cup;Daniel Harper;Max Hesse;Valentino Rossi;;BMW M4 GT3 EVO;Team WRT;Team WRT;10:17.855;3;-2:50:45.820;76;;;;NC
+;7;Pro Cup;Mattia Drudi;Marco Sorensen;Nicki Thiim;;Aston Martin Vantage AMR GT3 EVO;Comtoyou Racing;Comtoyou Racing;3:41.976;1;-2:57:21.699;78;;;;NC
+;64;Pro Cup;Arjun Maini;Fabio Scherer;Thomas Drouet;;Ford Mustang GT3 EVO;HRT Ford Racing;Haupt Racing Team;;;;;;;;NC
+;65;Silver Cup;Finn Wiebelhaus;Eduardo Coseteng;Maxime Oosten;;Ford Mustang GT3 EVO;HRT Ford Racing;Haupt Racing Team;;;;;;;;NC
+;80;Pro Cup;Ricardo Feller;Thomas Preining;Bastian Buus;;Porsche 911 GT3 R EVO;Lionspeed GP;Lionspeed GP-PK Motorsport;;;;;;;;NC
+;51;Pro Cup;Alessio Rovera;Nicklas Nielsen;Tommaso Mosca;;Ferrari 296 GT3 EVO;AF Corse;AF Corse;;;;;;;;NC
+;10;Gold Cup;Gilles Magnus;Robin Knutsson;Alessandro Ghiretti;;Porsche 911 GT3 R EVO;Boutsen VDS;Boutsen VDS;;;;;;;;NC
+;59;Pro Cup;Joseph Loake;Dean Macdonald;Marvin Kirchhöfer;;McLaren 720S GT3 EVO;Garage 59;Garage 59;;;;;;;;NC

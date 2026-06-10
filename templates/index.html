@@ -4,10 +4,10 @@
 {% block content %}
 <div class="flex justify-between items-center mt-3 mb-4">
     <h2 class="mb-0 text-xl font-bold flex items-center gap-2">
-        <i data-lucide="flag" class="w-5 h-5"></i> Events
+        <i data-lucide="flag" class="w-5 h-5 text-cyan-400"></i> Events
     </h2>
     {% if current_user and current_user.is_admin %}
-    <a href="{{ url_for('main.event_create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 inline-flex items-center gap-1.5 text-sm no-underline">
+    <a href="{{ url_for('main.event_create') }}" class="btn-primary px-4 py-2 rounded-md">
         <i data-lucide="plus" class="w-4 h-4"></i> New Event
     </a>
     {% endif %}
@@ -17,9 +17,8 @@
 <form method="GET" action="{{ url_for('main.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
     {% if championships %}
     <div>
-        <label for="championship" class="block text-xs font-medium text-gray-500 mb-1">Championship</label>
-        <select name="championship" id="championship" onchange="this.form.submit()"
-                class="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+        <label for="championship" class="block text-xs font-medium text-theme-secondary mb-1">Championship</label>
+        <select name="championship" id="championship" onchange="this.form.submit()" class="themed-select px-3 py-1.5 text-sm w-auto">
             <option value="">All Championships</option>
             {% for c in championships %}
             <option value="{{ c }}" {% if selected_championship == c %}selected{% endif %}>{{ c }}</option>
@@ -29,9 +28,8 @@
     {% endif %}
     {% if tracks %}
     <div>
-        <label for="track" class="block text-xs font-medium text-gray-500 mb-1">Track</label>
-        <select name="track" id="track" onchange="this.form.submit()"
-                class="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+        <label for="track" class="block text-xs font-medium text-theme-secondary mb-1">Track</label>
+        <select name="track" id="track" onchange="this.form.submit()" class="themed-select px-3 py-1.5 text-sm w-auto">
             <option value="">All Tracks</option>
             {% for t in tracks %}
             <option value="{{ t }}" {% if selected_track == t %}selected{% endif %}>{{ t }}</option>
@@ -41,9 +39,8 @@
     {% endif %}
     {% if years %}
     <div>
-        <label for="year" class="block text-xs font-medium text-gray-500 mb-1">Year</label>
-        <select name="year" id="year" onchange="this.form.submit()"
-                class="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+        <label for="year" class="block text-xs font-medium text-theme-secondary mb-1">Year</label>
+        <select name="year" id="year" onchange="this.form.submit()" class="themed-select px-3 py-1.5 text-sm w-auto">
             <option value="">All Years</option>
             {% for y in years %}
             <option value="{{ y }}" {% if selected_year == y|string %}selected{% endif %}>{{ y }}</option>
@@ -52,7 +49,7 @@
     </div>
     {% endif %}
     {% if selected_year or selected_championship or selected_track %}
-    <a href="{{ url_for('main.index') }}" class="text-sm text-gray-500 hover:text-gray-700 no-underline inline-flex items-center gap-1 pb-0.5">
+    <a href="{{ url_for('main.index') }}" class="text-sm text-theme-secondary hover:text-theme-primary no-underline inline-flex items-center gap-1 pb-0.5">
         <i data-lucide="x" class="w-3.5 h-3.5"></i> Clear
     </a>
     {% endif %}
@@ -62,26 +59,26 @@
 {% if events %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
     {% for event in events %}
-    <div class="bg-white rounded-lg shadow-sm h-full">
+    <div class="stagger-item card rounded-lg h-full">
         <div class="p-5">
             <h5 class="text-lg font-semibold">
-                <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="no-underline text-gray-900 hover:text-blue-600">
+                <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="no-underline text-theme-primary hover:text-cyan-400">
                     {{ event.name }}
                 </a>
             </h5>
             {% if event.championship or event.year %}
-            <p class="text-sm text-gray-500 mb-1 flex items-center gap-1">
+            <p class="text-sm text-theme-secondary mb-1 flex items-center gap-1">
                 {% if event.championship %}<i data-lucide="trophy" class="w-3.5 h-3.5"></i> {{ event.championship }}{% endif %}
                 {% if event.year %}<span class="mx-1">&middot;</span> {{ event.year }}{% endif %}
             </p>
             {% endif %}
             {% if event.track %}
-            <p class="text-sm text-gray-500 mb-1 flex items-center gap-1">
+            <p class="text-sm text-theme-secondary mb-1 flex items-center gap-1">
                 <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> {{ event.track }}
             </p>
             {% endif %}
             {% if event.event_date %}
-            <p class="text-sm text-gray-500 mb-1 flex items-center gap-1">
+            <p class="text-sm text-theme-secondary mb-1 flex items-center gap-1">
                 <i data-lucide="calendar" class="w-3.5 h-3.5"></i> {{ event.event_date }}
             </p>
             {% endif %}
@@ -97,9 +94,9 @@
 </div>
 {% else %}
 <div class="text-center py-12">
-    <i data-lucide="inbox" class="w-12 h-12 text-gray-300 mx-auto"></i>
-    <p class="mt-3 text-gray-500">No events yet. Create your first event to get started.</p>
-    <a href="{{ url_for('main.event_create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 inline-flex items-center gap-1.5 text-sm no-underline">
+    <i data-lucide="inbox" class="w-12 h-12 text-theme-muted mx-auto"></i>
+    <p class="mt-3 text-theme-secondary">No events yet. Create your first event to get started.</p>
+    <a href="{{ url_for('main.event_create') }}" class="btn-primary px-4 py-2 rounded-md">
         <i data-lucide="plus" class="w-4 h-4"></i> Create Event
     </a>
 </div>

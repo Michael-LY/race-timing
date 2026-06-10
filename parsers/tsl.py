@@ -97,10 +97,11 @@ class TSLTimingParser(BaseParser):
 
     # ── parse ─────────────────────────────────────────────────────
 
-    def parse(self, classification_path: str = None, sector_path: str = None) -> dict[str, Any]:
+    def parse(self, classification_path: str = None, sector_path: str = None, **kwargs: Any) -> dict[str, Any]:
         """Parse one or both TSL CSV files.
 
         Pass paths as keyword arguments. At least one must be provided.
+        Additional kwargs (e.g., pitstops_path) are ignored for TSL compatibility.
         Returns:
             session_name, session_type, laps (list), standings (list)
         """

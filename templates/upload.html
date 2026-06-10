@@ -3,20 +3,20 @@
 
 {% block content %}
 <div class="mt-3 mb-4">
-    <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="no-underline text-gray-600 hover:text-gray-900 inline-flex items-center gap-1 text-sm">
+    <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="no-underline text-theme-secondary hover:text-theme-primary inline-flex items-center gap-1 text-sm">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to {{ event.name }}
     </a>
 </div>
 
-<h2 class="text-xl font-bold">Upload Timing Data</h2>
-<p class="text-gray-500 text-sm">Event: <strong>{{ event.name }}</strong></p>
+<h2 class="text-xl font-bold text-theme-primary">Upload Timing Data</h2>
+<p class="text-theme-secondary text-sm">Event: <strong class="text-theme-primary">{{ event.name }}</strong></p>
 
-<div class="bg-white rounded-lg shadow-sm mt-3">
+<div class="card rounded-lg mt-3 stagger-item">
     <div class="p-5">
         <form method="POST" enctype="multipart/form-data">
             <div class="mb-4">
-                <label for="parser" class="block text-sm font-medium text-gray-700 mb-1">Time Keeper Format *</label>
-                <select class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="parser" name="parser" required
+                <label for="parser" class="block text-sm font-medium text-theme-primary mb-1">Time Keeper Format *</label>
+                <select class="themed-select" id="parser" name="parser" required
                         onchange="toggleFileInputs(this.value)">
                     <option value="">-- Select format --</option>
                     {% for p in parsers %}
@@ -25,76 +25,120 @@
                     </option>
                     {% endfor %}
                 </select>
-                <p class="text-xs text-gray-500 mt-1">Select the time keeper system that generated these files.</p>
+                <p class="text-xs text-theme-secondary mt-1">Select the time keeper system that generated these files.</p>
             </div>
 
             <div class="mb-4">
-                <label for="session_name" class="block text-sm font-medium text-gray-700 mb-1">Session Name</label>
-                <input type="text" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="session_name"
+                <label for="session_name" class="block text-sm font-medium text-theme-primary mb-1">Session Name</label>
+                <input type="text" class="themed-input" id="session_name"
                        name="session_name" placeholder="e.g. Free Practice 1, Qualifying 2 (leave empty to auto-detect)">
-                <p class="text-xs text-gray-500 mt-1">Optional. If left empty, the name will be detected from the CSV file.</p>
+                <p class="text-xs text-theme-secondary mt-1">Optional. If left empty, the name will be detected from the CSV file.</p>
             </div>
 
             <div class="mb-4">
-                <label for="session_type" class="block text-sm font-medium text-gray-700 mb-1">Session Type</label>
-                <select class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="session_type" name="session_type">
+                <label for="session_type" class="block text-sm font-medium text-theme-primary mb-1">Session Type</label>
+                <select class="themed-select" id="session_type" name="session_type">
                     <option value="">Auto-detect from CSV</option>
                     {% for st in session_types %}
                     <option value="{{ st }}">{{ st }}</option>
                     {% endfor %}
                 </select>
-                <p class="text-xs text-gray-500 mt-1">Optional. If left empty, the type will be detected from the CSV filename.</p>
+                <p class="text-xs text-theme-secondary mt-1">Optional. If left empty, the type will be detected from the CSV filename.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="fileInputs">
-                <div class="tsl-files">
-                    <label for="classification_file" class="block text-sm font-medium text-gray-700 mb-1">
-                        Classification CSV
-                        <span class="text-red-500" id="clsRequired">*</span>
+                <div class="tsl-files swiss-files">
+                    <label for="classification_file" class="block text-sm font-medium text-theme-primary mb-1">
+                        Classification / ResultList CSV
+                        <span class="text-red-500 swiss-opt">*</span>
                     </label>
-                    <input type="file" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" id="classification_file"
-                           name="classification_file" accept=".csv,.txt">
-                    <p class="text-xs text-gray-500 mt-1">Results summary: Pos, No., Name, Class, Total Time, Gap, Fastest Lap...</p>
+                    <input type="file" class="w-full text-sm" id="classification_file"
+                           name="classification_file" accept=".csv,.txt"
+                           style="color: var(--text-secondary);">
+                    <p class="text-xs text-theme-secondary mt-1 tsl-desc">Results summary: Pos, No., Name, Class, Total Time, Gap, Fastest Lap...</p>
+                    <p class="text-xs text-theme-secondary mt-1 swiss-desc hidden">Swiss Timing ResultListCSV — final classification (optional if no SectorList)</p>
                 </div>
-                <div class="tsl-files">
-                    <label for="sector_file" class="block text-sm font-medium text-gray-700 mb-1">
+                <div class="tsl-files swiss-files">
+                    <label for="sector_file" class="block text-sm font-medium text-theme-primary mb-1">
                         Sector Analysis CSV
-                        <span class="text-red-500" id="secRequired">*</span>
+                        <span class="text-red-500">*</span>
                     </label>
-                    <input type="file" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" id="sector_file"
-                           name="sector_file" accept=".csv,.txt">
-                    <p class="text-xs text-gray-500 mt-1">Lap-by-lap data: sectors, speed traps, pit in/out markers.</p>
+                    <input type="file" class="w-full text-sm" id="sector_file"
+                           name="sector_file" accept=".csv,.txt"
+                           style="color: var(--text-secondary);">
+                    <p class="text-xs text-theme-secondary mt-1 tsl-desc">Lap-by-lap data: sectors, speed traps, pit in/out markers.</p>
+                    <p class="text-xs text-theme-secondary mt-1 swiss-desc hidden">Swiss Timing SectorListCSV — lap times, sectors, speed traps (required)</p>
+                </div>
+                <div class="swiss-files hidden">
+                    <label for="pitstops_file" class="block text-sm font-medium text-theme-primary mb-1">
+                        Pit Stops CSV
+                        <span class="text-gray-400">(optional)</span>
+                    </label>
+                    <input type="file" class="w-full text-sm" id="pitstops_file"
+                           name="pitstops_file" accept=".csv,.txt"
+                           style="color: var(--text-secondary);">
+                    <p class="text-xs text-theme-secondary mt-1">Swiss Timing PitStopsCsv — identifies which laps are pit in/out</p>
+                </div>
+                <div class="swiss-files hidden">
+                    <label for="tlw_file" class="block text-sm font-medium text-theme-primary mb-1">
+                        Track Limit Warnings CSV
+                        <span class="text-gray-400">(optional)</span>
+                    </label>
+                    <input type="file" class="w-full text-sm" id="tlw_file"
+                           name="tlw_file" accept=".csv,.txt"
+                           style="color: var(--text-secondary);">
+                    <p class="text-xs text-theme-secondary mt-1">Swiss Timing TLWlistMessage — track limit warnings by car</p>
+                </div>
+                <div class="swiss-files hidden">
+                    <label for="messages_file" class="block text-sm font-medium text-theme-primary mb-1">
+                        Race Control Messages CSV
+                        <span class="text-gray-400">(optional)</span>
+                    </label>
+                    <input type="file" class="w-full text-sm" id="messages_file"
+                           name="messages_file" accept=".csv,.txt"
+                           style="color: var(--text-secondary);">
+                    <p class="text-xs text-theme-secondary mt-1">Swiss Timing MessageListCSV — race control messages</p>
                 </div>
             </div>
 
             <div class="mt-4">
-                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-flex items-center gap-1.5 text-sm">
+                <button type="submit" class="btn-primary-green px-4 py-2 rounded-md">
                     <i data-lucide="upload" class="w-4 h-4"></i> Upload & Parse
                 </button>
-                <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="bg-white text-gray-700 px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50 text-sm no-underline ml-2">Cancel</a>
+                <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="btn-ghost ml-2">Cancel</a>
             </div>
         </form>
     </div>
 </div>
 
-<div class="bg-white rounded-lg shadow-sm mt-4">
-    <div class="px-4 py-2 border-b border-gray-200 font-semibold bg-gray-50 rounded-t-lg">Supported Formats</div>
+<div class="card rounded-lg mt-4">
+    <div class="card-header rounded-t-lg">Supported Formats</div>
     <div class="p-0 overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="themed-table">
             <thead>
-                <tr class="border-b border-gray-200">
-                    <th class="text-left px-4 py-2 font-semibold text-gray-600">Format</th>
-                    <th class="text-left px-4 py-2 font-semibold text-gray-600">Description</th>
-                    <th class="text-left px-4 py-2 font-semibold text-gray-600">Required Files</th>
+                <tr>
+                    <th class="text-left">Format</th>
+                    <th class="text-left">Description</th>
+                    <th class="text-left">Required Files</th>
                 </tr>
             </thead>
             <tbody>
-            <tr class="border-b border-gray-100">
-                <td class="px-4 py-2 font-medium">TSL Timing</td>
-                <td class="px-4 py-2 text-gray-500">TSL Timing — GTWC Asia official time keeper</td>
-                <td class="px-4 py-2">
+            <tr>
+                <td class="font-medium">TSL Timing</td>
+                <td class="text-theme-secondary">TSL Timing — GTWC Asia official time keeper</td>
+                <td>
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-600 text-white">Classification.csv</span>
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-cyan-500 text-white">Sector Analysis.csv</span>
+                </td>
+            </tr>
+            <tr>
+                <td class="font-medium">Swiss Timing</td>
+                <td class="text-theme-secondary">Swiss Timing — GTWC Europe / GT World Challenge</td>
+                <td>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-600 text-white">SectorListCSV</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-600 text-white mr-1">ResultListCSV</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-600 text-white mr-1">PitStopsCsv</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-600 text-white">TLWlistMessage</span>
                 </td>
             </tr>
             </tbody>
@@ -107,13 +151,30 @@
 <script>
 function toggleFileInputs(parserKey) {
     const tslFiles = document.querySelectorAll('.tsl-files');
-    tslFiles.forEach(el => {
-        if (parserKey === 'tsl_timing') {
-            el.classList.remove('hidden');
-        } else {
-            el.classList.add('hidden');
-        }
-    });
+    const swissFiles = document.querySelectorAll('.swiss-files');
+    const swissOnly = document.querySelectorAll('.swiss-files:not(.tsl-files)');
+    const swissOpt = document.querySelectorAll('.swiss-opt');
+    const tslDesc = document.querySelectorAll('.tsl-desc');
+    const swissDesc = document.querySelectorAll('.swiss-desc');
+
+    if (parserKey === 'swiss_timing') {
+        // Show all fields for Swiss Timing
+        tslFiles.forEach(el => el.classList.remove('hidden'));
+        swissOnly.forEach(el => el.classList.remove('hidden'));
+        swissOpt.forEach(el => el.textContent = '(optional)');
+        tslDesc.forEach(el => el.classList.add('hidden'));
+        swissDesc.forEach(el => el.classList.remove('hidden'));
+    } else if (parserKey === 'tsl_timing') {
+        // Show only TSL fields
+        tslFiles.forEach(el => el.classList.remove('hidden'));
+        swissOnly.forEach(el => el.classList.add('hidden'));
+        swissOpt.forEach(el => el.textContent = '*');
+        tslDesc.forEach(el => el.classList.remove('hidden'));
+        swissDesc.forEach(el => el.classList.add('hidden'));
+    } else {
+        tslFiles.forEach(el => el.classList.add('hidden'));
+        swissOnly.forEach(el => el.classList.add('hidden'));
+    }
 }
 toggleFileInputs('{{ selected_parser }}');
 </script>
