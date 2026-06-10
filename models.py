@@ -39,6 +39,8 @@ class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     track = db.Column(db.String(200), default="")
+    year = db.Column(db.Integer, nullable=True)
+    championship = db.Column(db.String(200), default="")
     event_date = db.Column(db.Date, nullable=True)
     time_keeper_id = db.Column(db.Integer, db.ForeignKey("time_keepers.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

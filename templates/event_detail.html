@@ -11,12 +11,28 @@
 <div class="flex justify-between items-center">
     <div>
         <h2 class="text-xl font-bold">{{ event.name }}</h2>
-        {% if event.track %}
-        <p class="text-gray-500 flex items-center gap-1">
-            <i data-lucide="map-pin" class="w-4 h-4"></i> {{ event.track }}
-            {% if event.event_date %} <span class="mx-1">&middot;</span> {{ event.event_date }}{% endif %}
-        </p>
-        {% endif %}
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 mt-1">
+            {% if event.championship %}
+            <span class="inline-flex items-center gap-1">
+                <i data-lucide="trophy" class="w-3.5 h-3.5"></i> {{ event.championship }}
+            </span>
+            {% endif %}
+            {% if event.year %}
+            <span class="inline-flex items-center gap-1">
+                <i data-lucide="calendar" class="w-3.5 h-3.5"></i> {{ event.year }}
+            </span>
+            {% endif %}
+            {% if event.track %}
+            <span class="inline-flex items-center gap-1">
+                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> {{ event.track }}
+            </span>
+            {% endif %}
+            {% if event.event_date %}
+            <span class="inline-flex items-center gap-1">
+                <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i> {{ event.event_date }}
+            </span>
+            {% endif %}
+        </div>
     </div>
     <div class="flex gap-2 items-center">
         {% if current_user and current_user.is_admin %}

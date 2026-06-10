@@ -23,6 +23,12 @@
                     {{ event.name }}
                 </a>
             </h5>
+            {% if event.championship or event.year %}
+            <p class="text-sm text-gray-500 mb-1 flex items-center gap-1">
+                {% if event.championship %}<i data-lucide="trophy" class="w-3.5 h-3.5"></i> {{ event.championship }}{% endif %}
+                {% if event.year %}<span class="mx-1">&middot;</span> {{ event.year }}{% endif %}
+            </p>
+            {% endif %}
             {% if event.track %}
             <p class="text-sm text-gray-500 mb-1 flex items-center gap-1">
                 <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> {{ event.track }}

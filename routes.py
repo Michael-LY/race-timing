@@ -125,13 +125,20 @@ def event_create():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         track = request.form.get("track", "").strip()
+        year_str = request.form.get("year", "").strip()
+        championship = request.form.get("championship", "").strip()
         date_str = request.form.get("event_date", "").strip()
 
         if not name:
             flash("Event name is required", "danger")
             return redirect(url_for("main.event_create"))
 
-        event = Event(name=name, track=track)
+        event = Event(name=name, track=track, championship=championship)
+        if year_str:
+            try:
+                event.year = int(year_str)
+            except ValueError:
+                pass
         if date_str:
             try:
                 event.event_date = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -180,6 +187,8 @@ def event_edit(event_id):
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         track = request.form.get("track", "").strip()
+        year_str = request.form.get("year", "").strip()
+        championship = request.form.get("championship", "").strip()
         date_str = request.form.get("event_date", "").strip()
 
         if not name:
@@ -188,6 +197,14 @@ def event_edit(event_id):
 
         event.name = name
         event.track = track
+        event.championship = championship
+        if year_str:
+            try:
+                event.year = int(year_str)
+            except ValueError:
+                pass
+        else:
+            event.year = None
         if date_str:
             try:
                 event.event_date = datetime.strptime(date_str, "%Y-%m-%d").date()
