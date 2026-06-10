@@ -116,6 +116,7 @@ def index():
 
     year = request.args.get("year", "").strip()
     championship = request.args.get("championship", "").strip()
+    track = request.args.get("track", "").strip()
 
     if year:
         try:
@@ -124,16 +125,20 @@ def index():
             pass
     if championship:
         query = query.filter(Event.championship == championship)
+    if track:
+        query = query.filter(Event.track == track)
 
     events = query.order_by(Event.created_at.desc()).all()
 
     # Distinct filter options from all events
     years = sorted(set(e.year for e in Event.query.all() if e.year), reverse=True)
     championships = sorted(set(e.championship for e in Event.query.all() if e.championship))
+    tracks = sorted(set(e.track for e in Event.query.all() if e.track))
 
     return render_template("index.html", events=events,
-                           years=years, championships=championships,
-                           selected_year=year, selected_championship=championship)
+                           years=years, championships=championships, tracks=tracks,
+                           selected_year=year, selected_championship=championship,
+                           selected_track=track)
 
 
 # ---------------------------------------------------------------------------
