@@ -1,14 +1,106 @@
 import os
+from functools import wraps
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import (Blueprint, render_template, request, redirect, url_for,
+                   flash, jsonify, current_app, session as flask_session)
 from werkzeug.utils import secure_filename
-from models import db, Event, Session, LapRecord, Standing, TimeKeeper
+from models import db, Event, Session, LapRecord, Standing, TimeKeeper, User
 from parsers import get_parser, list_parsers
 from datetime import datetime
 
 bp = Blueprint("main", __name__)
 
 ALLOWED_EXTENSIONS = {"csv", "txt"}
+
+
+# ---------------------------------------------------------------------------
+# Auth decorators
+# ---------------------------------------------------------------------------
+def login_required(f):
+    """Redirect to login page if user is not authenticated."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not flask_session.get("user_id"):
+            flash("Please log in to continue", "warning")
+            return redirect(url_for("main.login", next=request.url))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def admin_required(f):
+    """Return 403 if user is not an admin."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user_id = flask_session.get("user_id")
+        if not user_id:
+            flash("Please log in to continue", "warning")
+            return redirect(url_for("main.login", next=request.url))
+        user = db.session.get(User, user_id)
+        if not user or not user.is_admin:
+            flash("Admin access required", "danger")
+            return redirect(url_for("main.index"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ---------------------------------------------------------------------------
+# Auth routes
+# ---------------------------------------------------------------------------
+@bp.route("/login", methods=["GET", "POST"])
+def login():
+    if flask_session.get("user_id"):
+        return redirect(url_for("main.index"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            flask_session["user_id"] = user.id
+            flash(f"Welcome back, {user.username}!", "success")
+            next_url = request.args.get("next") or url_for("main.index")
+            return redirect(next_url)
+        else:
+            flash("Invalid username or password", "danger")
+
+    return render_template("login.html")
+
+
+@bp.route("/logout")
+def logout():
+    flask_session.pop("user_id", None)
+    flash("Logged out", "success")
+    return redirect(url_for("main.index"))
+
+
+@bp.route("/register", methods=["GET", "POST"])
+@login_required
+@admin_required
+def register():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm", "")
+        is_admin = request.form.get("is_admin") == "on"
+
+        if not username or not password:
+            flash("Username and password are required", "danger")
+        elif len(password) < 6:
+            flash("Password must be at least 6 characters", "danger")
+        elif password != confirm:
+            flash("Passwords do not match", "danger")
+        elif User.query.filter_by(username=username).first():
+            flash("Username already exists", "danger")
+        else:
+            user = User(username=username, is_admin=is_admin)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+            flash(f'User "{username}" created', "success")
+            return redirect(url_for("main.index"))
+
+    return render_template("register.html")
 
 
 def allowed_file(filename):
@@ -28,6 +120,7 @@ def index():
 # Create event
 # ---------------------------------------------------------------------------
 @bp.route("/events/new", methods=["GET", "POST"])
+@admin_required
 def event_create():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
@@ -66,6 +159,7 @@ def event_detail(event_id):
 # Delete event
 # ---------------------------------------------------------------------------
 @bp.route("/events/<int:event_id>/delete", methods=["POST"])
+@admin_required
 def event_delete(event_id):
     event = Event.query.get_or_404(event_id)
     name = event.name
@@ -79,6 +173,7 @@ def event_delete(event_id):
 # Upload CSV(s)
 # ---------------------------------------------------------------------------
 @bp.route("/events/<int:event_id>/upload", methods=["GET", "POST"])
+@admin_required
 def upload(event_id):
     event = Event.query.get_or_404(event_id)
     parsers = list_parsers()
@@ -435,6 +530,7 @@ def driver_analysis(session_id):
 # Delete session
 # ---------------------------------------------------------------------------
 @bp.route("/sessions/<int:session_id>/delete", methods=["POST"])
+@admin_required
 def session_delete(session_id):
     session = Session.query.get_or_404(session_id)
     event_id = session.event_id

@@ -19,6 +19,7 @@
         {% endif %}
     </div>
     <div class="flex gap-2 items-center">
+        {% if current_user and current_user.is_admin %}
         <a href="{{ url_for('main.upload', event_id=event.id) }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-flex items-center gap-1.5 text-sm no-underline">
             <i data-lucide="upload" class="w-4 h-4"></i> Upload CSV
         </a>
@@ -28,6 +29,7 @@
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
         </form>
+        {% endif %}
     </div>
 </div>
 
@@ -42,12 +44,14 @@
             <strong>{{ session.name }}</strong>
             <small class="text-gray-500 ml-2">{{ session.laps|length }} laps</small>
         </div>
+        {% if current_user and current_user.is_admin %}
         <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
               onsubmit="event.stopPropagation(); return confirm('Delete this session?');">
             <button type="submit" class="border border-red-500 text-red-500 p-1.5 rounded hover:bg-red-50 inline-flex items-center">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
         </form>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
@@ -55,9 +59,11 @@
 <div class="text-center py-8 text-gray-500">
     <i data-lucide="cloud-upload" class="w-10 h-10 text-gray-300 mx-auto"></i>
     <p class="mt-2">No sessions yet. Upload a CSV file to get started.</p>
+    {% if current_user and current_user.is_admin %}
     <a href="{{ url_for('main.upload', event_id=event.id) }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 inline-flex items-center gap-1.5 text-sm no-underline">
         <i data-lucide="upload" class="w-4 h-4"></i> Upload CSV
     </a>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}

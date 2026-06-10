@@ -1,8 +1,8 @@
 import os
 
-from flask import Flask
+from flask import Flask, session as flask_session
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS, UPLOAD_FOLDER
-from models import db, TimeKeeper
+from models import db, TimeKeeper, User
 
 
 def create_app():
@@ -20,6 +20,16 @@ def create_app():
     with app.app_context():
         db.create_all()
         _seed_time_keepers()
+        _seed_admin()
+
+    # Context processor: inject current_user into all templates
+    @app.context_processor
+    def inject_current_user():
+        user_id = flask_session.get("user_id")
+        user = None
+        if user_id:
+            user = db.session.get(User, user_id)
+        return dict(current_user=user)
 
     from routes import bp
     app.register_blueprint(bp)
@@ -33,3 +43,12 @@ def _seed_time_keepers():
         if not TimeKeeper.query.filter_by(name=parser.name).first():
             db.session.add(TimeKeeper(name=parser.name, parser_module=key, description=parser.description))
     db.session.commit()
+
+
+def _seed_admin():
+    """Create default admin account if no users exist."""
+    if User.query.count() == 0:
+        admin = User(username="admin", is_admin=True)
+        admin.set_password("admin123")
+        db.session.add(admin)
+        db.session.commit()

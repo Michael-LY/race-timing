@@ -50,9 +50,28 @@
         </a>
         <div class="flex items-center gap-5">
             <a class="text-sm text-gray-300 hover:text-white no-underline" href="{{ url_for('main.index') }}">Events</a>
+            {% if current_user and current_user.is_admin %}
             <a class="text-sm text-gray-300 hover:text-white no-underline flex items-center gap-1" href="{{ url_for('main.event_create') }}">
                 <i data-lucide="plus" class="w-4 h-4"></i> New Event
             </a>
+            {% endif %}
+            {% if current_user %}
+            {% if current_user.is_admin %}
+            <a class="text-sm text-gray-300 hover:text-white no-underline flex items-center gap-1" href="{{ url_for('main.register') }}">
+                <i data-lucide="user-plus" class="w-4 h-4"></i> Register
+            </a>
+            {% endif %}
+            <span class="text-sm text-gray-400 flex items-center gap-1">
+                <i data-lucide="user" class="w-4 h-4"></i> {{ current_user.username }}
+            </span>
+            <a class="text-sm text-gray-300 hover:text-white no-underline flex items-center gap-1" href="{{ url_for('main.logout') }}">
+                <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+            </a>
+            {% else %}
+            <a class="text-sm text-gray-300 hover:text-white no-underline flex items-center gap-1" href="{{ url_for('main.login') }}">
+                <i data-lucide="log-in" class="w-4 h-4"></i> Login
+            </a>
+            {% endif %}
         </div>
     </div>
 </nav>

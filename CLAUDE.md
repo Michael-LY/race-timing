@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Race timing analysis web app (like HH Timing) deployed on a server with browser-based access. Users upload time-keeper CSV files which are parsed and stored in SQLite. An event contains multiple sessions (Practice, Qualifying, Race).
 
-**Tech stack:** Python Flask + SQLAlchemy + SQLite + Bootstrap 5 + Chart.js. No frontend build step — server-rendered Jinja2 templates with CDN assets.
+**Tech stack:** Python Flask + SQLAlchemy + SQLite + Tailwind CSS (CDN) + Chart.js. No frontend build step — server-rendered Jinja2 templates with CDN assets.
 
 ## Commands
 
@@ -29,6 +29,7 @@ CSV upload → Parser → dict → Flask route → SQLAlchemy models → SQLite
 
 ### Database models (`models.py`)
 
+- **User** — authentication account. Fields: username (unique), password_hash (werkzeug pbkdf2), is_admin flag. Methods: `set_password()`, `check_password()`. Default admin seeded on first run: `admin` / `admin123`
 - **Event** — name, track, event_date; linked to a TimeKeeper; has many Sessions
 - **Session** — belongs to Event; type is `Practice|Qualifying|Race`; has many LapRecords and many Standings
 - **Standing** — per-car classification result: position, team_name, class_name, nationality, total_time, gap, diff, laps_completed, fastest_lap, fastest_lap_no, fastest_lap_speed, pit_stops, is_classified
@@ -54,6 +55,9 @@ To add a new time keeper: subclass `BaseParser`, register in `parsers/__init__.p
 
 | Route | Purpose |
 |---|---|
+| `GET/POST /login` | Login page |
+| `GET /logout` | Logout (clears session) |
+| `GET/POST /register` | Register new user (admin only) |
 | `GET /` | Event list |
 | `GET/POST /events/new` | Create event |
 | `GET /events/<id>` | Event detail with session list |
@@ -74,7 +78,7 @@ The `session_detail` route computes via `_compute_session_stats()` returning 4 i
 
 ### Templates
 
-Server-rendered Jinja2 with Bootstrap 5 CDN. Session detail page (`session_detail.html`) has **5 inline-switchable views** toggled by buttons — no page navigation:
+Server-rendered Jinja2 with Tailwind CSS CDN. Session detail page (`session_detail.html`) has **5 inline-switchable views** toggled by buttons — no page navigation:
 
 1. **Classification** — standings table, NC cars pushed below classified finishers with separator row
 2. **Lap Summary** — best lap per car, sorted by lap time
@@ -131,3 +135,17 @@ Pit stop detection: pairs consecutive in_lap→out_lap transitions within a car'
 - **Three-level best highlighting** — overall best (purple) > car best (green) > stint best (orange). Stint = consecutive laps between pit stops or driver changes, computed by detecting out_lap boundaries
 - **Chart tabs** — 7 chart sub-types share one canvas; tab switching destroys/recreates the Chart.js instance
 - **SQLite by default** — swap to PostgreSQL by changing `DATABASE_URL` env var in `config.py`
+
+### Authentication & Authorization
+
+Flask session-based auth using `werkzeug.security` password hashing — no extra dependencies. Two decorators in `routes.py`:
+
+- `@login_required` — redirects to `/login` if no `user_id` in session
+- `@admin_required` — redirects to `/login` (unauthenticated) or `/` with flash (non-admin)
+
+**Protected routes** (admin only): event create/delete, CSV upload, session delete, user registration.
+**Public routes**: home, event detail, session detail, driver analysis, all JSON APIs.
+
+`current_user` is injected into all templates via `app.context_processor`. Templates conditionally show admin buttons (`{% if current_user and current_user.is_admin %}`).
+
+Default admin account is seeded by `_seed_admin()` in `app.py` — only created when the users table is empty.
