@@ -13,6 +13,40 @@
     {% endif %}
 </div>
 
+{% if years or championships %}
+<form method="GET" action="{{ url_for('main.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
+    {% if championships %}
+    <div>
+        <label for="championship" class="block text-xs font-medium text-gray-500 mb-1">Championship</label>
+        <select name="championship" id="championship" onchange="this.form.submit()"
+                class="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="">All Championships</option>
+            {% for c in championships %}
+            <option value="{{ c }}" {% if selected_championship == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+    {% if years %}
+    <div>
+        <label for="year" class="block text-xs font-medium text-gray-500 mb-1">Year</label>
+        <select name="year" id="year" onchange="this.form.submit()"
+                class="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="">All Years</option>
+            {% for y in years %}
+            <option value="{{ y }}" {% if selected_year == y|string %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+    {% if selected_year or selected_championship %}
+    <a href="{{ url_for('main.index') }}" class="text-sm text-gray-500 hover:text-gray-700 no-underline inline-flex items-center gap-1 pb-0.5">
+        <i data-lucide="x" class="w-3.5 h-3.5"></i> Clear
+    </a>
+    {% endif %}
+</form>
+{% endif %}
+
 {% if events %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
     {% for event in events %}

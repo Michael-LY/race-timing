@@ -112,8 +112,28 @@ def allowed_file(filename):
 # ---------------------------------------------------------------------------
 @bp.route("/")
 def index():
-    events = Event.query.order_by(Event.created_at.desc()).all()
-    return render_template("index.html", events=events)
+    query = Event.query
+
+    year = request.args.get("year", "").strip()
+    championship = request.args.get("championship", "").strip()
+
+    if year:
+        try:
+            query = query.filter(Event.year == int(year))
+        except ValueError:
+            pass
+    if championship:
+        query = query.filter(Event.championship == championship)
+
+    events = query.order_by(Event.created_at.desc()).all()
+
+    # Distinct filter options from all events
+    years = sorted(set(e.year for e in Event.query.all() if e.year), reverse=True)
+    championships = sorted(set(e.championship for e in Event.query.all() if e.championship))
+
+    return render_template("index.html", events=events,
+                           years=years, championships=championships,
+                           selected_year=year, selected_championship=championship)
 
 
 # ---------------------------------------------------------------------------
