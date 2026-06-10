@@ -27,6 +27,7 @@ class TSLTimingParser(BaseParser):
         "Qualifying": ["qualifying", "qual", "q", "qualification"],
         "Race": ["race", "r"],
         "Paid Test": ["paid test", "paidtest", "paid_test"],
+        "Bronze Session": ["bronze session", "bronzesession", "bronze_session"],
         "Pre-Qualifying": ["pre-qualifying", "prequalifying", "pre_qualifying", "pre-qual", "prequal"],
         "Warm-up": ["warm-up", "warmup", "warm_up"],
     }

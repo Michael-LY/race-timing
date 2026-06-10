@@ -622,7 +622,7 @@ def session_delete(session_id):
 # ---------------------------------------------------------------------------
 # Edit session
 # ---------------------------------------------------------------------------
-SESSION_TYPES = ["Paid Test", "Practice", "Pre-Qualifying", "Qualifying", "Warm-up", "Race"]
+SESSION_TYPES = ["Paid Test", "Practice", "Bronze Session", "Pre-Qualifying", "Qualifying", "Warm-up", "Race"]
 
 
 @bp.route("/sessions/<int:session_id>/edit", methods=["GET", "POST"])
