@@ -30,8 +30,8 @@ CSV upload → Parser → dict → Flask route → SQLAlchemy models → SQLite
 ### Database models (`models.py`)
 
 - **User** — authentication account. Fields: username (unique), password_hash (werkzeug pbkdf2), is_admin flag. Methods: `set_password()`, `check_password()`. Default admin seeded on first run: `admin` / `admin123`
-- **Event** — name, track, event_date; linked to a TimeKeeper; has many Sessions
-- **Session** — belongs to Event; type is `Practice|Qualifying|Race`; has many LapRecords and many Standings
+- **Event** — name, track, year (Integer), championship (String), event_date; linked to a TimeKeeper; has many Sessions
+- **Session** — belongs to Event; type is `Paid Test|Practice|Bronze Session|Pre-Qualifying|Qualifying|Warm-up|Race`; has many LapRecords and many Standings
 - **Standing** — per-car classification result: position, team_name, class_name, nationality, total_time, gap, diff, laps_completed, fastest_lap, fastest_lap_no, fastest_lap_speed, pit_stops, is_classified
 - **LapRecord** — single lap. Fields: car_number, driver_name, lap_number, lap_time, sector_1/2/3, speed_trap_1-4, time_of_day, session_time, out_lap/in_lap booleans, is_best flag
 - **TimeKeeper** — registered parser formats, seeded from `PARSER_REGISTRY` on first run
@@ -58,12 +58,12 @@ To add a new time keeper: subclass `BaseParser`, register in `parsers/__init__.p
 | `GET/POST /login` | Login page |
 | `GET /logout` | Logout (clears session) |
 | `GET/POST /register` | Register new user (admin only) |
-| `GET /` | Event list |
+| `GET /` | Event list (with year/championship/track filter dropdowns) |
 | `GET/POST /events/new` | Create event |
 | `GET /events/<id>` | Event detail with session list |
-| `GET/POST /events/<id>/edit` | Edit event name/track/date (admin only) |
+| `GET/POST /events/<id>/edit` | Edit event name/track/year/championship/date (admin only) |
 | `POST /events/<id>/delete` | Delete event (cascades to sessions) |
-| `GET/POST /events/<id>/upload` | Upload CSV(s) — dual file inputs for TSL |
+| `GET/POST /events/<id>/upload` | Upload CSV(s) — dual file inputs for TSL, with optional session name/type override |
 | `GET /sessions/<id>` | Session detail — all 5 views rendered inline |
 | `POST /sessions/<id>/delete` | Delete session |
 | `GET/POST /sessions/<id>/edit` | Edit session name/type (admin only) |
@@ -106,11 +106,17 @@ All best values are **bold**. All four tables (Classification, Lap Summary, Lap-
 
 ### Session type auto-detection
 
-Parsers detect session type from the CSV **filename** (not full path) by matching keywords:
+Parsers detect session type from the CSV **filename** (not full path) by matching keywords. Type ordering: Paid Test → Practice → Bronze Session → Pre-Qualifying → Qualifying → Warm-up → Race.
+
+- `paid test|paidtest|paid_test` → Paid Test
 - `practice|free practice|fp` → Practice
+- `bronze session|bronzesession|bronze_session` → Bronze Session
+- `pre-qualifying|prequalifying|pre-qual|prequal` → Pre-Qualifying
 - `qualifying|qual|qualification` → Qualifying
+- `warm-up|warmup|warm_up` → Warm-up
 - `race` → Race
-Falls back to "Practice".
+
+Falls back to "Practice". Upload page allows manual session name and type override.
 
 ### Charts & Analytics API
 
