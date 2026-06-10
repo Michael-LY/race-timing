@@ -52,11 +52,22 @@
     </div>
 </div>
 
-<h4 class="mt-4 font-semibold text-gray-700">Sessions</h4>
+<div class="mt-4 flex items-center justify-between">
+    <h4 class="font-semibold text-gray-700">Sessions</h4>
+    {% if event.sessions %}
+    <div class="flex items-center gap-1.5 text-xs">
+        <span class="text-gray-500">Sort:</span>
+        <button onclick="sortSessions('type')" class="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 text-gray-600" data-sort="type">Type</button>
+        <button onclick="sortSessions('name')" class="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 text-gray-600" data-sort="name">Name</button>
+        <button onclick="sortSessions('laps')" class="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 text-gray-600" data-sort="laps">Laps</button>
+    </div>
+    {% endif %}
+</div>
 {% if event.sessions %}
-<div class="mt-2 space-y-2">
+<div id="sessions-list" class="mt-2 space-y-2">
     {% for session in event.sessions %}
     <div class="bg-white border border-gray-200 rounded-lg px-4 py-3 flex justify-between items-center hover:bg-gray-50 cursor-pointer"
+         data-type="{{ session.session_type }}" data-name="{{ session.name }}" data-laps="{{ session.laps|length }}"
          onclick="window.location='{{ url_for('main.session_detail', session_id=session.id) }}'">
         <div class="flex items-center gap-2">
             <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type }}">{{ session.session_type }}</span>
@@ -92,4 +103,54 @@
     {% endif %}
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TYPE_ORDER = { 'Practice': 0, 'Qualifying': 1, 'Race': 2 };
+let currentSort = '';
+let sortAsc = true;
+
+function sortSessions(key) {
+    if (currentSort === key) {
+        sortAsc = !sortAsc;
+    } else {
+        currentSort = key;
+        sortAsc = true;
+    }
+
+    const container = document.getElementById('sessions-list');
+    const items = Array.from(container.children);
+
+    items.sort((a, b) => {
+        let va, vb;
+        if (key === 'type') {
+            va = TYPE_ORDER[a.dataset.type] ?? 99;
+            vb = TYPE_ORDER[b.dataset.type] ?? 99;
+        } else if (key === 'laps') {
+            va = parseInt(a.dataset.laps) || 0;
+            vb = parseInt(b.dataset.laps) || 0;
+        } else {
+            va = a.dataset.name.toLowerCase();
+            vb = b.dataset.name.toLowerCase();
+            return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        }
+        return sortAsc ? va - vb : vb - va;
+    });
+
+    items.forEach(el => container.appendChild(el));
+
+    // Update button styles
+    document.querySelectorAll('[data-sort]').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+        btn.classList.add('bg-white', 'text-gray-600', 'border-gray-300');
+    });
+    const active = document.querySelector(`[data-sort="${key}"]`);
+    if (active) {
+        active.classList.remove('bg-white', 'text-gray-600', 'border-gray-300');
+        active.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+        active.textContent = key.charAt(0).toUpperCase() + key.slice(1) + (sortAsc ? ' ▲' : ' ▼');
+    }
+}
+</script>
 {% endblock %}
