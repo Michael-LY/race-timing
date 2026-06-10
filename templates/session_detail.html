@@ -44,7 +44,20 @@
 
 <!-- CLASSIFICATION TABLE -->
 <div class="card rounded-lg mb-4" id="classificationCard">
-    <div class="card-header rounded-t-lg">Classification</div>
+    <div class="card-header rounded-t-lg flex flex-wrap justify-between items-center gap-2">
+        <span>Classification</span>
+        <div class="flex flex-wrap items-center gap-2">
+            <label class="text-sm text-theme-secondary" for="classificationClassFilter">Class</label>
+            <select id="classificationClassFilter" class="themed-select px-2 py-1 text-sm w-auto">
+                <option value="">All classes</option>
+                {% for class_name in class_options %}
+                <option value="{{ class_name }}">{{ class_name }}</option>
+                {% endfor %}
+            </select>
+            <label class="text-sm text-theme-secondary" for="classificationCarHighlight">Highlight</label>
+            <input id="classificationCarHighlight" type="text" inputmode="text" placeholder="e.g. 12, 34" class="themed-input px-2 py-1 text-sm w-32">
+        </div>
+    </div>
     <div class="overflow-x-auto">
         {% if standings %}
         {% set classified = standings | selectattr('is_classified') | list %}
@@ -69,7 +82,7 @@
             </thead>
             <tbody>
                 {% for s in classified %}
-                <tr class="{% if s.position == 1 %}bg-winner{% endif %}" data-sort-group="ranked" data-sort-value="{{ s.position if s.position and s.position > 0 else 999999 }}" data-sort-laps="{{ s.laps_completed if s.laps_completed is not none else -1 }}">
+                <tr class="{% if s.position == 1 %}bg-winner{% endif %}" data-sort-group="ranked" data-sort-value="{{ s.position if s.position and s.position > 0 else 999999 }}" data-sort-laps="{{ s.laps_completed if s.laps_completed is not none else -1 }}" data-classification-row="true" data-class="{{ s.class_name or '' }}" data-car-number="{{ s.car_number or '' }}">
                     <td><strong>{{ s.position }}</strong></td>
                     <td><strong>#{{ s.car_number }}</strong></td>
                     <td>{{ s.team_name }}</td>
@@ -88,7 +101,7 @@
                 {% if nc %}
                 <tr class="bg-nc-separator" data-sort-ignore="true"><td colspan="13" class="text-center text-sm py-2 text-theme-secondary">-- Not Classified --</td></tr>
                 {% for s in nc %}
-                <tr class="text-theme-secondary" data-sort-group="nc" data-sort-value="999999" data-sort-laps="{{ s.laps_completed if s.laps_completed is not none else -1 }}">
+                <tr class="text-theme-secondary" data-sort-group="nc" data-sort-value="999999" data-sort-laps="{{ s.laps_completed if s.laps_completed is not none else -1 }}" data-classification-row="true" data-class="{{ s.class_name or '' }}" data-car-number="{{ s.car_number or '' }}">
                     <td><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-500 text-white">NC</span></td>
                     <td><strong>#{{ s.car_number }}</strong></td>
                     <td>{{ s.team_name }}</td>
@@ -350,6 +363,46 @@ document.getElementById('carFilter').addEventListener('change', function() {
         row.style.display = (!car || row.dataset.car === car) ? '' : 'none';
     });
 });
+
+// ── Classification filters ─────────────────────────────────────
+const classificationClassFilter = document.getElementById('classificationClassFilter');
+const classificationCarHighlight = document.getElementById('classificationCarHighlight');
+
+function applyClassificationFilters() {
+    if (!classificationClassFilter || !classificationCarHighlight) return;
+
+    const selectedClass = (classificationClassFilter.value || '').trim().toLowerCase();
+    const highlightCars = (classificationCarHighlight.value || '')
+        .split(',')
+        .map(value => value.trim().replace(/^#/, '').toLowerCase())
+        .filter(Boolean);
+    const classificationRows = document.querySelectorAll('#classificationCard tbody tr[data-classification-row="true"]');
+    const separatorRow = document.querySelector('#classificationCard tbody tr.bg-nc-separator');
+
+    let visibleRows = 0;
+    classificationRows.forEach(row => {
+        const rowClass = (row.dataset.class || '').trim().toLowerCase();
+        const rowCar = (row.dataset.carNumber || '').trim().toLowerCase();
+        const matchesClass = !selectedClass || rowClass === selectedClass;
+        const shouldShow = matchesClass;
+        const shouldHighlight = shouldShow && highlightCars.length > 0 && highlightCars.includes(rowCar);
+
+        row.style.display = shouldShow ? '' : 'none';
+        row.classList.toggle('classification-row-highlight', shouldHighlight);
+        row.classList.toggle('font-semibold', shouldHighlight);
+
+        if (shouldShow) visibleRows += 1;
+    });
+
+    if (separatorRow) {
+        separatorRow.style.display = visibleRows > 0 ? '' : 'none';
+    }
+}
+
+if (classificationClassFilter && classificationCarHighlight) {
+    classificationClassFilter.addEventListener('change', applyClassificationFilters);
+    classificationCarHighlight.addEventListener('input', applyClassificationFilters);
+}
 
 // ── Table sorting ──────────────────────────────────────────────
 function parseSortValue(cell) {

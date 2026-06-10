@@ -20,6 +20,29 @@ def _coerce_position(position):
         return None
 
 
+def get_classification_filter_options(standings):
+    class_names = []
+    seen = set()
+    for standing in standings:
+        class_name = getattr(standing, "class_name", None)
+        if class_name is None:
+            continue
+
+        normalized = str(class_name).strip()
+        if not normalized:
+            continue
+
+        key = normalized.casefold()
+        if key in seen:
+            continue
+
+        seen.add(key)
+        class_names.append(normalized)
+
+    class_names.sort(key=lambda name: name.casefold())
+    return class_names
+
+
 def sort_standings_for_display(standings):
     normalized = []
     for standing in standings:
@@ -513,6 +536,7 @@ def _compute_session_stats(laps: list[LapRecord]):
 def session_detail(session_id):
     session = Session.query.get_or_404(session_id)
     standings = sort_standings_for_display(session.standings)
+    class_options = get_classification_filter_options(standings)
     laps = session.laps
 
     overall, per_car_bests, car_groups, stint_bests = _compute_session_stats(laps)
@@ -582,6 +606,7 @@ def session_detail(session_id):
     return render_template("session_detail.html",
                            session=session,
                            standings=standings,
+                           class_options=class_options,
                            car_summaries=car_summaries,
                            car_groups=car_groups,
                            overall=overall,

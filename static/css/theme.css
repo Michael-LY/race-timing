@@ -262,6 +262,13 @@ a:hover { color: var(--accent-cyan-hover); }
     color: var(--highlight-car-text);
 }
 
+.classification-row-highlight {
+    background-color: var(--highlight-car-bg) !important;
+    font-weight: 700;
+    color: var(--highlight-car-text);
+    box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.3);
+}
+
 .bg-orange {
     background-color: var(--highlight-stint-bg) !important;
     font-weight: 700;
