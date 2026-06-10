@@ -26,6 +26,7 @@ class TSLTimingParser(BaseParser):
         "Practice": ["practice", "free practice", "fp"],
         "Qualifying": ["qualifying", "qual", "q", "qualification"],
         "Race": ["race", "r"],
+        "Paid Test": ["paid test", "paidtest", "paid_test"],
     }
 
     # ── time parsing ──────────────────────────────────────────────

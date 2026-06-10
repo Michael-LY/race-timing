@@ -304,10 +304,11 @@ def upload(event_id):
         if tk:
             event.time_keeper_id = tk.id
 
-        # Create session
+        # Create session — use custom name if provided, otherwise parser default
+        custom_name = request.form.get("session_name", "").strip()
         session = Session(
             event_id=event.id,
-            name=data.get("session_name", "Untitled"),
+            name=custom_name if custom_name else data.get("session_name", "Untitled"),
             session_type=data.get("session_type", "Practice"),
             start_time=datetime.utcnow(),
         )
@@ -620,7 +621,7 @@ def session_delete(session_id):
 # ---------------------------------------------------------------------------
 # Edit session
 # ---------------------------------------------------------------------------
-SESSION_TYPES = ["Practice", "Qualifying", "Race"]
+SESSION_TYPES = ["Practice", "Qualifying", "Race", "Paid Test"]
 
 
 @bp.route("/sessions/<int:session_id>/edit", methods=["GET", "POST"])
