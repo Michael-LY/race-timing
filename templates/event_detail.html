@@ -57,6 +57,7 @@
     <div class="flex items-center gap-1.5 text-xs">
         {% if event.sessions %}
         <span class="text-theme-secondary">Sort:</span>
+        <button onclick="sortSessions('default')" class="btn-ghost" data-sort="default">Default</button>
         <button onclick="sortSessions('type')" class="btn-ghost" data-sort="type">Type</button>
         <button onclick="sortSessions('name')" class="btn-ghost" data-sort="name">Name</button>
         <button onclick="sortSessions('laps')" class="btn-ghost" data-sort="laps">Laps</button>
@@ -126,6 +127,8 @@ let currentSort = '';
 let sortAsc = true;
 window.sessionReorderActive = false;
 let draggedSessionId = null;
+
+const originalOrder = Array.from(document.getElementById('sessions-list').children).map(el => el.dataset.sessionId);
 
 function updateSessionOrderInput() {
     const container = document.getElementById('sessions-list');
@@ -214,6 +217,22 @@ function attachSessionReorderHandlers() {
 }
 
 function sortSessions(key) {
+    if (key === 'default') {
+        currentSort = '';
+        sortAsc = true;
+        const container = document.getElementById('sessions-list');
+        const cardMap = {};
+        container.querySelectorAll('.session-card').forEach(el => { cardMap[el.dataset.sessionId] = el; });
+        originalOrder.forEach(id => { if (cardMap[id]) container.appendChild(cardMap[id]); });
+
+        document.querySelectorAll('[data-sort]').forEach(btn => {
+            btn.classList.remove('btn-ghost-active');
+            btn.classList.add('btn-ghost');
+        });
+        updateSessionOrderInput();
+        return;
+    }
+
     if (currentSort === key) {
         sortAsc = !sortAsc;
     } else {
