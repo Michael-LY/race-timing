@@ -137,8 +137,8 @@
         <table class="themed-table">
             <thead>
                 <tr>
-                    <th class="sortable text-left">#</th>
-                    <th class="sortable text-left">Car</th>
+                    <th class="sortable text-left sticky-col sticky-col-1">#</th>
+                    <th class="sortable text-left sticky-col sticky-col-2">Car</th>
                     <th class="sortable text-left">Driver(s)</th>
                     <th class="sortable text-left">Category</th>
                     <th class="sortable text-left">Laps</th>
@@ -152,8 +152,8 @@
             <tbody>
                 {% for c in car_summaries %}
                 <tr>
-                    <td><strong>{{ loop.index }}</strong></td>
-                    <td><strong>#{{ c.car_number }}</strong></td>
+                    <td class="sticky-col sticky-col-1"><strong>{{ loop.index }}</strong></td>
+                    <td class="sticky-col sticky-col-2"><strong>#{{ c.car_number }}</strong></td>
                     <td>{{ c.driver }}</td>
                     <td><small>{{ c.category }}</small></td>
                     <td>{{ c.total_laps }}</td>
@@ -180,7 +180,7 @@
 </div>
 
 <!-- LAP-BY-LAP DETAIL -->
-<div class="card rounded-lg hidden" id="lapDetailCard">
+<div class="card rounded-lg mb-4 hidden" id="lapDetailCard">
     <div class="card-header rounded-t-lg flex flex-col sm:flex-row sm:flex justify-between items-start sm:items-center gap-2">
         <span>Lap-by-Lap Detail
             <small class="ml-2 hidden sm:inline"><span class="inline-block w-3 h-3 rounded bg-purple"></span> Overall</small>

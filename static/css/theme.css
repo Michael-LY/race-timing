@@ -279,6 +279,15 @@ a:hover { color: var(--accent-cyan-hover); }
     background: var(--highlight-winner-bg) !important;
 }
 
+.bg-winner .sticky-col {
+    background: var(--highlight-winner-bg) !important;
+}
+
+.lap-row[style*="pit-in-bg"] .sticky-col,
+.lap-row[style*="pit-out-bg"] .sticky-col {
+    background: inherit !important;
+}
+
 .bg-nc-separator {
     background: var(--nc-separator-bg);
 }
