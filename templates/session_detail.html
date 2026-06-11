@@ -526,14 +526,28 @@ function chartZoomOptions() {
             zoom: {
                 wheel: { enabled: true },
                 pinch: { enabled: true },
+                drag: {
+                    enabled: true,
+                    mode: 'y'
+                },
                 mode: 'y'
             },
             pan: {
                 enabled: true,
-                mode: 'y'
+                mode: 'y',
+                modifierKey: 'shift'
             }
         }
     };
+}
+
+function setupZoomReset(chart) {
+    if (!chart || !chart.canvas) return;
+    chart.canvas.addEventListener('dblclick', function(e) {
+        if (e.button === 0) {
+            chart.resetZoom();
+        }
+    });
 }
 
 async function loadChart() {
@@ -610,7 +624,7 @@ const renderers = {
             if (l.lap_number === 1) return;
             if (!l.lap_time) return;
             if (!cars[l.car_number]) cars[l.car_number] = { driver: l.driver_name, laps: [] };
-            cars[l.car_number].laps.push({ x: l.lap_number, y: l.lap_time });
+            cars[l.car_number].laps.push({ x: l.session_time, y: l.lap_time });
         });
         Object.values(cars).forEach(c => c.laps.sort((a, b) => a.x - b.x));
 
@@ -641,11 +655,12 @@ const renderers = {
                     ...chartZoomOptions()
                 },
                 scales: {
-                    x: { ...ts.x, title: { display: true, text: 'Lap Number', color: tc.text }, type: 'linear', ticks: { ...ts.x.ticks, stepSize: 1 }, offset: false },
+                    x: { ...ts.x, title: { display: true, text: 'Session Time (s)', color: tc.text }, type: 'linear', ticks: { ...ts.x.ticks, callback: v => v.toFixed(0) }, offset: false },
                     y: { ...ts.y, title: { display: true, text: 'Lap Time', color: tc.text }, ticks: { ...ts.y.ticks, callback: v => fmtTime(v) }, beginAtZero: false }
                 }
             }
         });
+        setupZoomReset(chartInstances.lapTime);
     },
 
     delta: function(ctx, data) {
@@ -663,7 +678,7 @@ const renderers = {
         laps.forEach(l => {
             if (!l.lap_time) return;
             if (!cars[l.car_number]) cars[l.car_number] = { driver: l.driver_name, laps: [] };
-            cars[l.car_number].laps.push({ x: l.lap_number, y: l.lap_time - data.overall_best_lap });
+            cars[l.car_number].laps.push({ x: l.session_time, y: l.lap_time - data.overall_best_lap });
         });
         Object.values(cars).forEach(c => c.laps.sort((a, b) => a.x - b.x));
 
@@ -690,12 +705,13 @@ const renderers = {
                     ...chartZoomOptions()
                 },
                 scales: {
-                    x: { ...ts.x, title: { display: true, text: 'Lap Number', color: tc.text }, type: 'linear', ticks: { stepSize: 1 } },
+                    x: { ...ts.x, title: { display: true, text: 'Session Time (s)', color: tc.text }, type: 'linear', ticks: { callback: v => v.toFixed(0) } },
                     y: { ...ts.y, title: { display: true, text: 'Gap to Best (s)', color: tc.text },
                          ticks: { ...ts.y.ticks, callback: v => (v >= 0 ? '+' : '') + v.toFixed(3) }, beginAtZero: false }
                 }
             }
         });
+        setupZoomReset(chartInstances.delta);
     },
 
     sector: function(ctx, data) {
@@ -739,6 +755,7 @@ const renderers = {
                 }
             }
         });
+        setupZoomReset(chartInstances.sector);
     },
 
     speed: function(ctx, data) {
@@ -776,6 +793,7 @@ const renderers = {
                 }
             }
         });
+        setupZoomReset(chartInstances.speed);
     },
 
     boxPlot: function(ctx, data) {
@@ -840,6 +858,7 @@ const renderers = {
                 }
             }
         });
+        setupZoomReset(chartInstances.boxPlot);
     },
 
     pitStops: function(ctx, data) {
@@ -855,12 +874,53 @@ const renderers = {
             return;
         }
 
+        // Compute out-driver for each pit stop
+        const pitDrivers = data.pit_stops.map(p => {
+            const inDriver = p.driver_name || '';
+            const outLapEntry = (data.lap_times || []).find(l =>
+                String(l.car_number) === String(p.car_number) && l.lap_number === p.out_lap
+            );
+            const outDriver = outLapEntry ? (outLapEntry.driver_name || '') : '';
+            return { in: inDriver, out: outDriver };
+        });
+
         const labels = data.pit_stops.map(p => {
             const t = Number.isFinite(p.pit_time) ? p.pit_time.toFixed(1) + 's' : 'N/A';
             return `#${p.car_number} L${p.in_lap}→L${p.out_lap} (${t})`;
         });
         const pitTimes = data.pit_stops.map(p => Number.isFinite(p.pit_time) ? Math.max(0, p.pit_time) : 0);
         const barColors = data.pit_stops.map(p => getCarColor(p.car_number));
+
+        // Custom plugin to draw driver labels inside each bar
+        const pitLabelPlugin = {
+            id: 'pitLabel',
+            afterDraw(ch) {
+                const cCtx = ch.ctx;
+                const meta = ch.getDatasetMeta(0);
+                cCtx.save();
+                cCtx.font = 'bold 11px JetBrains Mono';
+                cCtx.textBaseline = 'middle';
+                meta.data.forEach((bar, idx) => {
+                    const drivers = pitDrivers[idx];
+                    if (!drivers || bar.width < 40) return;
+                    // Left side: pit-in driver
+                    cCtx.textAlign = 'left';
+                    cCtx.strokeStyle = '#000';
+                    cCtx.lineWidth = 3;
+                    cCtx.strokeText(drivers.in, bar.x + 6, bar.y);
+                    cCtx.fillStyle = '#fff';
+                    cCtx.fillText(drivers.in, bar.x + 6, bar.y);
+                    // Right side: pit-out driver
+                    cCtx.textAlign = 'right';
+                    cCtx.strokeStyle = '#000';
+                    cCtx.lineWidth = 3;
+                    cCtx.strokeText(drivers.out, bar.x + bar.width - 6, bar.y);
+                    cCtx.fillStyle = '#fff';
+                    cCtx.fillText(drivers.out, bar.x + bar.width - 6, bar.y);
+                });
+                cCtx.restore();
+            }
+        };
 
         chartInstances.pitStops = new Chart(ctx, {
             type: 'bar',
@@ -872,6 +932,8 @@ const renderers = {
                     backgroundColor: barColors,
                     borderColor: barColors.map(c => c + 'cc'),
                     borderWidth: 1,
+                    barPercentage: 0.65,
+                    categoryPercentage: 0.8,
                 }]
             },
             options: {
@@ -882,9 +944,10 @@ const renderers = {
                     tooltip: { ...tt, callbacks: {
                         label: c => {
                             const p = data.pit_stops[c.dataIndex];
+                            const d = pitDrivers[c.dataIndex];
                             return [
-                                `Car: #${p.car_number} / ${p.driver_name}`,
-                                `In Lap: ${p.in_lap} → Out Lap: ${p.out_lap}`,
+                                `Car: #${p.car_number}`,
+                                `In: ${d.in} → Out: ${d.out}`,
                                 `Pit Lane Time: ${Number.isFinite(p.pit_time) ? p.pit_time.toFixed(1) + 's' : 'N/A'}`,
                             ];
                         }
@@ -895,8 +958,18 @@ const renderers = {
                     x: { ...ts.x, title: { display: true, text: 'Pit Lane Time (s)', color: tc.text }, beginAtZero: true },
                     y: { ...ts.y, ticks: { ...ts.y.ticks, font: { family: 'JetBrains Mono', size: 10 } } }
                 }
-            }
+            },
+            plugins: [pitLabelPlugin]
         });
+
+        // Make pit stops chart panel taller
+        const panel = document.getElementById('chartPanel-pitStops');
+        if (panel) {
+            const container = panel.querySelector('.chart-container');
+            if (container) container.style.minHeight = '600px';
+        }
+
+        setupZoomReset(chartInstances.pitStops);
     },
 
     position: function(ctx, data) {
@@ -940,6 +1013,7 @@ const renderers = {
                 }
             }
         });
+        setupZoomReset(chartInstances.position);
     },
 };
 
