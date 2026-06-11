@@ -333,6 +333,9 @@ class SwissTimingParser(BaseParser):
         # Sort by car number then lap number
         laps.sort(key=lambda x: (str(x["car_number"]).zfill(4), x["lap_number"]))
 
+        # Calculate session_time as cumulative lap time per car
+        self._compute_session_times(laps)
+
         # Assign driver names and detect pit in/out laps
         self._assign_drivers_and_pits(laps)
 
@@ -642,6 +645,27 @@ class SwissTimingParser(BaseParser):
         return msgs
 
     # ── Helpers ───────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _compute_session_times(laps: list[dict]) -> None:
+        """Calculate session_time for each lap as cumulative elapsed time.
+
+        Swiss Timing CSV doesn't include a session_time column, so it is
+        computed by summing lap_times sequentially per car.
+        session_time for lap N = sum of lap times for laps 1 through N.
+        """
+        car_groups: dict[str, list[dict]] = {}
+        for lap in laps:
+            car_groups.setdefault(lap["car_number"], []).append(lap)
+
+        for car_num, car_laps in car_groups.items():
+            car_laps.sort(key=lambda x: x["lap_number"])
+            cumulative = 0.0
+            for lap in car_laps:
+                lt = lap.get("lap_time")
+                if lt and lt > 0:
+                    cumulative += lt
+                lap["session_time"] = cumulative if lt and lt > 0 else None
 
     def _assign_drivers_and_pits(self, laps: list[dict]) -> None:
         """Assign driver names from Driver1-4 columns.
