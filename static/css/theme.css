@@ -490,7 +490,22 @@ a:hover { color: var(--accent-cyan-hover); }
 
 .chart-container {
     position: relative;
-    min-height: 380px;
+    min-height: 300px;
+}
+
+@media (min-width: 768px) {
+    .chart-container {
+        min-height: 380px;
+    }
+}
+
+/* -- Scrollbar Hide Utility -- */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
 }
 
 .chart-checkboxes label {
