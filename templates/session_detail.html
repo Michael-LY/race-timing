@@ -328,6 +328,18 @@
             <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none chart-cb-position">
                 <input type="checkbox" class="chart-cb rounded" data-chart="position"> Position
             </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="driverS1"> S1 Box
+            </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="driverS2"> S2 Box
+            </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="driverS3"> S3 Box
+            </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="driverLap"> Lap Box
+            </label>
         </div>
     </div>
     <div id="chartGrid" class="p-4 grid gap-4" style="grid-template-columns: 1fr;">
@@ -476,6 +488,10 @@ const CHART_TITLES = {
     boxPlot: 'Lap Time Distribution',
     pitStops: 'Pit Stops',
     position: 'Position Progression',
+    driverS1: 'S1 by Driver',
+    driverS2: 'S2 by Driver',
+    driverS3: 'S3 by Driver',
+    driverLap: 'Lap Time by Driver',
 };
 
 function fmtTime(seconds) {
@@ -595,6 +611,106 @@ function ensurePanel(type) {
     grid.appendChild(panel);
 }
 
+function computeBoxPlot(values) {
+    const sorted = [...values].sort((a, b) => a - b);
+    const n = sorted.length;
+    if (n === 0) return null;
+    return {
+        min: sorted[0],
+        q1: sorted[Math.floor(n * 0.25)],
+        median: sorted[Math.floor(n * 0.5)],
+        q3: sorted[Math.floor(n * 0.75)],
+        max: sorted[n - 1],
+        count: n
+    };
+}
+
+function buildDriverBoxChart(ctx, data, field, title, yTitle, chartKey) {
+    const ts = themeScales();
+    const tt = themeTooltip();
+    const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+
+    const useLapTime = field === 'lap_time';
+    const drivers = {};
+    (data.lap_times || []).forEach(l => {
+        if (l.out_lap || l.in_lap || l.sc_lap) return;
+        const val = useLapTime ? l.lap_time : l[field];
+        if (!val || val <= 0) return;
+        if (!drivers[l.driver_name]) drivers[l.driver_name] = [];
+        drivers[l.driver_name].push(val);
+    });
+
+    const entries = Object.entries(drivers).map(([name, vals]) => ({
+        name, stats: computeBoxPlot(vals)
+    })).filter(e => e.stats && e.stats.count >= 2)
+      .sort((a, b) => a.stats.median - b.stats.median);
+
+    if (entries.length === 0) {
+        chartInstances[chartKey] = new Chart(ctx, {
+            type: 'bar', data: { datasets: [] },
+            options: { responsive: true, plugins: { title: { display: true, text: 'No ' + title + ' data', color: tc.text } } }
+        });
+        return;
+    }
+
+    const labels = entries.map(e => e.name);
+    const colors = entries.map((_, i) => COLORS[i % COLORS.length]);
+
+    const minVals = entries.map(e => e.stats.min);
+    const whiskerLow = entries.map(e => e.stats.q1 - e.stats.min);
+    const boxLow = entries.map(e => e.stats.median - e.stats.q1);
+    const boxHigh = entries.map(e => e.stats.q3 - e.stats.median);
+    const whiskerHigh = entries.map(e => e.stats.max - e.stats.q3);
+
+    chartInstances[chartKey] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Min', data: minVals, backgroundColor: 'transparent', stack: 'box' },
+                { label: '', data: whiskerLow, backgroundColor: 'rgba(180,180,180,0.4)',
+                  stack: 'box', borderColor: '#999', borderWidth: { top: 1, right: 1, left: 1, bottom: 0 } },
+                { label: '', data: boxLow, backgroundColor: colors.map(c => c + '99'),
+                  stack: 'box', borderColor: colors, borderWidth: { top: 0, right: 1, left: 1, bottom: 0 } },
+                { label: '', data: boxHigh, backgroundColor: colors.map(c => c + '66'),
+                  stack: 'box', borderColor: colors, borderWidth: { top: 1, right: 1, left: 1, bottom: 1 } },
+                { label: '', data: whiskerHigh, backgroundColor: 'rgba(180,180,180,0.4)',
+                  stack: 'box', borderColor: '#999', borderWidth: { top: 1, right: 1, left: 1, bottom: 0 } },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { ...tt, callbacks: {
+                    label: function(c) {
+                        if (c.datasetIndex !== 2) return '';
+                        const e = entries[c.dataIndex];
+                        const fmt = useLapTime ? fmtTime : v => v.toFixed(3) + 's';
+                        return [
+                            e.name,
+                            'Min: ' + (useLapTime ? fmtTime(e.stats.min) : e.stats.min.toFixed(3) + 's'),
+                            'Q1: ' + (useLapTime ? fmtTime(e.stats.q1) : e.stats.q1.toFixed(3) + 's'),
+                            'Median: ' + (useLapTime ? fmtTime(e.stats.median) : e.stats.median.toFixed(3) + 's'),
+                            'Q3: ' + (useLapTime ? fmtTime(e.stats.q3) : e.stats.q3.toFixed(3) + 's'),
+                            'Max: ' + (useLapTime ? fmtTime(e.stats.max) : e.stats.max.toFixed(3) + 's'),
+                            'Laps: ' + e.stats.count,
+                        ];
+                    }
+                } },
+                ...chartZoomOptions()
+            },
+            scales: {
+                x: { ...ts.x, stacked: true, ticks: { ...ts.x.ticks, maxRotation: 45 } },
+                y: { ...ts.y, stacked: true, beginAtZero: false,
+                     title: { display: true, text: yTitle, color: tc.text },
+                     ticks: { ...ts.y.ticks, callback: v => useLapTime ? fmtTime(v) : v.toFixed(3) } }
+            }
+        }
+    });
+    setupZoomReset(chartInstances[chartKey]);
+}
+
 function renderCheckedCharts(data) {
     document.querySelectorAll('.chart-cb').forEach(cb => {
         const type = cb.dataset.chart;
@@ -623,8 +739,8 @@ const renderers = {
         laps.forEach(l => {
             if (l.lap_number === 1) return;
             if (!l.lap_time) return;
-            if (!cars[l.car_number]) cars[l.car_number] = { driver: l.driver_name, laps: [] };
-            cars[l.car_number].laps.push({ x: l.session_time, y: l.lap_time });
+            if (!cars[l.car_number]) cars[l.car_number] = { laps: [] };
+            cars[l.car_number].laps.push({ x: l.session_time, y: l.lap_time, driver: l.driver_name });
         });
         Object.values(cars).forEach(c => c.laps.sort((a, b) => a.x - b.x));
 
@@ -636,7 +752,7 @@ const renderers = {
         }] : [];
 
         const datasets = Object.entries(cars).map(([car, info]) => ({
-            label: `#${car} ${info.driver}`,
+            label: `#${car}`,
             data: info.laps,
             borderColor: getCarColor(car),
             backgroundColor: 'transparent',
@@ -648,14 +764,14 @@ const renderers = {
             data: { datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
+                interaction: { mode: 'nearest', intersect: false },
                 plugins: {
                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
-                    tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label}: ${fmtTime(c.raw.y)}` } },
+                    tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label} ${c.raw.driver || ''}: ${fmtTime(c.raw.y)}` } },
                     ...chartZoomOptions()
                 },
                 scales: {
-                    x: { ...ts.x, title: { display: true, text: 'Session Time (s)', color: tc.text }, type: 'linear', ticks: { ...ts.x.ticks, callback: v => v.toFixed(0) }, offset: false },
+                    x: { ...ts.x, title: { display: true, text: 'Session Time (min)', color: tc.text }, type: 'linear', ticks: { ...ts.x.ticks, callback: v => (v / 60).toFixed(1) }, offset: false },
                     y: { ...ts.y, title: { display: true, text: 'Lap Time', color: tc.text }, ticks: { ...ts.y.ticks, callback: v => fmtTime(v) }, beginAtZero: false }
                 }
             }
@@ -677,13 +793,13 @@ const renderers = {
         const cars = {};
         laps.forEach(l => {
             if (!l.lap_time) return;
-            if (!cars[l.car_number]) cars[l.car_number] = { driver: l.driver_name, laps: [] };
-            cars[l.car_number].laps.push({ x: l.session_time, y: l.lap_time - data.overall_best_lap });
+            if (!cars[l.car_number]) cars[l.car_number] = { laps: [] };
+            cars[l.car_number].laps.push({ x: l.session_time, y: l.lap_time - data.overall_best_lap, driver: l.driver_name });
         });
         Object.values(cars).forEach(c => c.laps.sort((a, b) => a.x - b.x));
 
         const datasets = Object.entries(cars).map(([car, info]) => ({
-            label: `#${car} ${info.driver}`,
+            label: `#${car}`,
             data: info.laps,
             borderColor: getCarColor(car),
             backgroundColor: 'transparent',
@@ -695,17 +811,17 @@ const renderers = {
             data: { datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
+                interaction: { mode: 'nearest', intersect: false },
                 plugins: {
                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
                     tooltip: { ...tt, callbacks: { label: c => {
                         const v = c.raw.y;
-                        return `${c.dataset.label}: ${v >= 0 ? '+' : ''}${v.toFixed(3)}s`;
+                        return `${c.dataset.label} ${c.raw.driver || ''}: ${v >= 0 ? '+' : ''}${v.toFixed(3)}s`;
                     } } },
                     ...chartZoomOptions()
                 },
                 scales: {
-                    x: { ...ts.x, title: { display: true, text: 'Session Time (s)', color: tc.text }, type: 'linear', ticks: { callback: v => v.toFixed(0) } },
+                    x: { ...ts.x, title: { display: true, text: 'Session Time (min)', color: tc.text }, type: 'linear', ticks: { callback: v => (v / 60).toFixed(1) } },
                     y: { ...ts.y, title: { display: true, text: 'Gap to Best (s)', color: tc.text },
                          ticks: { ...ts.y.ticks, callback: v => (v >= 0 ? '+' : '') + v.toFixed(3) }, beginAtZero: false }
                 }
@@ -763,7 +879,7 @@ const renderers = {
         const tt = themeTooltip();
         const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
 
-        const cars = data.per_car.filter(c => c.top_speed);
+        const cars = data.per_car.filter(c => c.top_speed).sort((a, b) => b.top_speed - a.top_speed);
         const labels = cars.map(c => `#${c.car_number}`);
         const speeds = cars.map(c => c.top_speed);
 
@@ -874,53 +990,12 @@ const renderers = {
             return;
         }
 
-        // Compute out-driver for each pit stop
-        const pitDrivers = data.pit_stops.map(p => {
-            const inDriver = p.driver_name || '';
-            const outLapEntry = (data.lap_times || []).find(l =>
-                String(l.car_number) === String(p.car_number) && l.lap_number === p.out_lap
-            );
-            const outDriver = outLapEntry ? (outLapEntry.driver_name || '') : '';
-            return { in: inDriver, out: outDriver };
-        });
-
         const labels = data.pit_stops.map(p => {
             const t = Number.isFinite(p.pit_time) ? p.pit_time.toFixed(1) + 's' : 'N/A';
             return `#${p.car_number} L${p.in_lap}→L${p.out_lap} (${t})`;
         });
         const pitTimes = data.pit_stops.map(p => Number.isFinite(p.pit_time) ? Math.max(0, p.pit_time) : 0);
         const barColors = data.pit_stops.map(p => getCarColor(p.car_number));
-
-        // Custom plugin to draw driver labels inside each bar
-        const pitLabelPlugin = {
-            id: 'pitLabel',
-            afterDraw(ch) {
-                const cCtx = ch.ctx;
-                const meta = ch.getDatasetMeta(0);
-                cCtx.save();
-                cCtx.font = 'bold 11px JetBrains Mono';
-                cCtx.textBaseline = 'middle';
-                meta.data.forEach((bar, idx) => {
-                    const drivers = pitDrivers[idx];
-                    if (!drivers || bar.width < 40) return;
-                    // Left side: pit-in driver
-                    cCtx.textAlign = 'left';
-                    cCtx.strokeStyle = '#000';
-                    cCtx.lineWidth = 3;
-                    cCtx.strokeText(drivers.in, bar.x + 6, bar.y);
-                    cCtx.fillStyle = '#fff';
-                    cCtx.fillText(drivers.in, bar.x + 6, bar.y);
-                    // Right side: pit-out driver
-                    cCtx.textAlign = 'right';
-                    cCtx.strokeStyle = '#000';
-                    cCtx.lineWidth = 3;
-                    cCtx.strokeText(drivers.out, bar.x + bar.width - 6, bar.y);
-                    cCtx.fillStyle = '#fff';
-                    cCtx.fillText(drivers.out, bar.x + bar.width - 6, bar.y);
-                });
-                cCtx.restore();
-            }
-        };
 
         chartInstances.pitStops = new Chart(ctx, {
             type: 'bar',
@@ -944,10 +1019,9 @@ const renderers = {
                     tooltip: { ...tt, callbacks: {
                         label: c => {
                             const p = data.pit_stops[c.dataIndex];
-                            const d = pitDrivers[c.dataIndex];
                             return [
-                                `Car: #${p.car_number}`,
-                                `In: ${d.in} → Out: ${d.out}`,
+                                `Car: #${p.car_number} / ${p.driver_name}`,
+                                `In Lap: ${p.in_lap} → Out Lap: ${p.out_lap}`,
                                 `Pit Lane Time: ${Number.isFinite(p.pit_time) ? p.pit_time.toFixed(1) + 's' : 'N/A'}`,
                             ];
                         }
@@ -958,8 +1032,7 @@ const renderers = {
                     x: { ...ts.x, title: { display: true, text: 'Pit Lane Time (s)', color: tc.text }, beginAtZero: true },
                     y: { ...ts.y, ticks: { ...ts.y.ticks, font: { family: 'JetBrains Mono', size: 10 } } }
                 }
-            },
-            plugins: [pitLabelPlugin]
+            }
         });
 
         // Make pit stops chart panel taller
@@ -986,23 +1059,29 @@ const renderers = {
         }
 
         const pp = data.position_progression;
-        const datasets = Object.entries(pp.cars).map(([car, positions]) => ({
+        const datasets = Object.entries(pp.cars).map(([car, positions]) => {
+            const allLaps = data.lap_times || [];
+            return {
             label: `#${car}`,
-            data: positions.map(p => ({ x: p.lap, y: p.position })),
+            data: positions.map(p => {
+                const lapEntry = allLaps.find(l => String(l.car_number) === car && l.lap_number === p.lap);
+                return { x: p.lap, y: p.position, driver: lapEntry ? lapEntry.driver_name : '' };
+            }),
             borderColor: getCarColor(car),
             backgroundColor: 'transparent',
             tension: 0, pointRadius: 3,
-        }));
+        };
+        });
 
         chartInstances.position = new Chart(ctx, {
             type: 'line',
             data: { datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
+                interaction: { mode: 'nearest', intersect: false },
                 plugins: {
                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
-                    tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label}: P${c.raw.y}` } },
+                    tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label} ${c.raw.driver || ''}: P${c.raw.y}` } },
                     ...chartZoomOptions()
                 },
                 scales: {
@@ -1015,6 +1094,10 @@ const renderers = {
         });
         setupZoomReset(chartInstances.position);
     },
+    driverS1: function(ctx, data) { buildDriverBoxChart(ctx, data, 'sector_1', 'Sector 1', 'Sector 1 Time', 'driverS1'); },
+    driverS2: function(ctx, data) { buildDriverBoxChart(ctx, data, 'sector_2', 'Sector 2', 'Sector 2 Time', 'driverS2'); },
+    driverS3: function(ctx, data) { buildDriverBoxChart(ctx, data, 'sector_3', 'Sector 3', 'Sector 3 Time', 'driverS3'); },
+    driverLap: function(ctx, data) { buildDriverBoxChart(ctx, data, 'lap_time', 'Lap Time', 'Lap Time', 'driverLap'); },
 };
 
 // Checkbox change → render/remove charts
