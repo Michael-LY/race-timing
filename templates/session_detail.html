@@ -740,10 +740,9 @@ const renderers = {
         const tt = themeTooltip();
         const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
 
-        const laps = cleanLapTimes(data);
+        const laps = data.lap_times || [];
         const cars = {};
         laps.forEach(l => {
-            if (l.lap_number === 1) return;
             if (!l.lap_time) return;
             if (!cars[l.car_number]) cars[l.car_number] = { laps: [] };
             cars[l.car_number].laps.push({ x: l.session_time, y: l.lap_time, driver: l.driver_name });
@@ -795,7 +794,7 @@ const renderers = {
                 options: { responsive: true, plugins: { title: { display: true, text: 'No best lap data', color: tc.text } } } });
             return;
         }
-        const laps = cleanLapTimes(data);
+        const laps = data.lap_times || [];
         const cars = {};
         laps.forEach(l => {
             if (!l.lap_time) return;
