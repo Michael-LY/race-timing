@@ -487,6 +487,8 @@ a:hover { color: var(--accent-cyan-hover); }
     border: 1px solid var(--border-default);
     border-radius: 0.5rem;
     transition: background 0.3s, border-color 0.3s;
+    overflow: hidden;
+    min-width: 0;
 }
 
 .chart-panel-header {
@@ -500,6 +502,13 @@ a:hover { color: var(--accent-cyan-hover); }
 .chart-container {
     position: relative;
     min-height: 300px;
+    width: 100%;
+    overflow: hidden;
+}
+
+.chart-container canvas {
+    width: 100% !important;
+    max-width: 100%;
 }
 
 @media (min-width: 768px) {
