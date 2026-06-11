@@ -964,6 +964,31 @@ def api_session_analytics(session_id):
             "cars": {cn: car_positions[cn] for cn in car_positions if car_positions[cn]},
         }
 
+    # Per-driver consistency (standard deviation of clean lap times)
+    driver_laps_for_consistency: dict[str, list[float]] = {}
+    for l in lap_times:
+        if l["out_lap"] or l["in_lap"] or l["sc_lap"]:
+            continue
+        if not l["lap_time"] or l["lap_time"] <= 0:
+            continue
+        name = l["driver_name"] or "Unknown"
+        driver_laps_for_consistency.setdefault(name, []).append(l["lap_time"])
+
+    driver_consistency = []
+    for driver_name, times in driver_laps_for_consistency.items():
+        if len(times) < 2:
+            continue
+        mean = sum(times) / len(times)
+        variance = sum((t - mean) ** 2 for t in times) / len(times)
+        std_dev = variance ** 0.5
+        driver_consistency.append({
+            "driver_name": driver_name,
+            "std_dev": round(std_dev, 4),
+            "lap_count": len(times),
+            "avg_lap": round(mean, 4),
+        })
+    driver_consistency.sort(key=lambda d: d["std_dev"])
+
     return jsonify({
         "session_name": session.name,
         "session_type": session.session_type,
@@ -972,4 +997,5 @@ def api_session_analytics(session_id):
         "overall_best_lap": overall_best,
         "pit_stops": pit_stops,
         "position_progression": position_progression,
+        "driver_consistency": driver_consistency,
     })

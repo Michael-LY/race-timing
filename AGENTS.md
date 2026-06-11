@@ -13,15 +13,19 @@ This repository is a small Flask application for importing race timing CSV files
 - Prefer the standard library CSV parser; avoid adding pandas or introducing a frontend build pipeline.
 - Preserve the normalized lap and standing fields used across the app, especially lap_time, driver_name, out_lap, in_lap, sector values, and session_time.
 - When changing import, parsing, or display behavior, add or update tests in [tests/](tests/).
-- Do not assume database migrations exist; tables are created from the models at startup.
+- Do not assume database migrations exist; tables are created from the models at startup. Inline `ALTER TABLE` migrations live in [app.py](app.py) (`_ensure_*` functions) and run on first boot.
 
 ## Commands
 - Install dependencies: `pip install -r requirements.txt`
 - Run the app: `python run.py`
 - Run tests: `python -m unittest discover -s tests`
-- Reset the local database if needed: `rm instance/timing.db && python run.py`
+- Run a single test: `python -m unittest tests.test_standings_sorting`
+- Reset the local database if needed: `rm instance/timing.db && python run.py` (Windows: `del instance\timing.db && python run.py`)
 
 ## Agent guidance
 - Keep UI changes consistent with the existing server-rendered Tailwind/Jinja approach.
 - If a parser change affects import behavior, verify the downstream display logic and tests that depend on the normalized payload.
 - Prefer small, targeted changes over architectural rewrites.
+- New parsers: subclass `BaseParser`, implement `parse()` returning `{session_name, session_type, laps[], standings[]}`, then register the instance in `PARSER_REGISTRY` in [parsers/__init__.py](parsers/__init__.py).
+- Default admin account seeded on first run: `admin` / `admin123` (do not hardcode credentials in templates or routes).
+- Upload accepts up to 5 CSV files per session; which inputs appear is parser-specific. The upload route in [routes.py](routes.py) dynamically shows fields based on the selected parser.

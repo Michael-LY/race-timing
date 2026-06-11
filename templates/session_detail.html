@@ -342,6 +342,9 @@
             <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
                 <input type="checkbox" class="chart-cb rounded" data-chart="driverLap"> Lap Box
             </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="consistency"> Consistency
+            </label>
         </div>
     </div>
     <div id="chartGrid" class="p-4 grid gap-4" style="grid-template-columns: 1fr;">
@@ -494,6 +497,7 @@ const CHART_TITLES = {
     driverS2: 'S2 by Driver',
     driverS3: 'S3 by Driver',
     driverLap: 'Lap Time by Driver',
+    consistency: 'Lap Time Consistency (Std Dev)',
 };
 
 function fmtTime(seconds) {
@@ -1100,6 +1104,74 @@ const renderers = {
     driverS2: function(ctx, data) { buildDriverBoxChart(ctx, data, 'sector_2', 'Sector 2', 'Sector 2 Time', 'driverS2'); },
     driverS3: function(ctx, data) { buildDriverBoxChart(ctx, data, 'sector_3', 'Sector 3', 'Sector 3 Time', 'driverS3'); },
     driverLap: function(ctx, data) { buildDriverBoxChart(ctx, data, 'lap_time', 'Lap Time', 'Lap Time', 'driverLap'); },
+
+    consistency: function(ctx, data) {
+        const ts = themeScales();
+        const tt = themeTooltip();
+        const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+
+        const entries = (data.driver_consistency || [])
+            .filter(d => d.std_dev > 0 && d.lap_count >= 2);
+
+        if (entries.length === 0) {
+            chartInstances.consistency = new Chart(ctx, {
+                type: 'bar', data: { datasets: [] },
+                options: { responsive: true, plugins: { title: { display: true, text: 'No consistency data (need 2+ laps per driver)', color: tc.text } } }
+            });
+            return;
+        }
+
+        const labels = entries.map(d => d.driver_name);
+        const stdDevs = entries.map(d => d.std_dev);
+        const colors = entries.map((_, i) => COLORS[i % COLORS.length]);
+
+        chartInstances.consistency = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Std Dev (s)',
+                    data: stdDevs,
+                    backgroundColor: colors.map(c => c + '99'),
+                    borderColor: colors,
+                    borderWidth: 1,
+                    barPercentage: 0.65,
+                    categoryPercentage: 0.8,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { ...tt, callbacks: {
+                        label: function(c) {
+                            const d = entries[c.dataIndex];
+                            return [
+                                `Driver: ${d.driver_name}`,
+                                `Std Dev: ${d.std_dev.toFixed(3)}s`,
+                                `Avg Lap: ${fmtTime(d.avg_lap)}`,
+                                `Laps: ${d.lap_count}`,
+                            ];
+                        }
+                    } },
+                    ...chartZoomOptions()
+                },
+                scales: {
+                    x: { ...ts.x, title: { display: true, text: 'Standard Deviation (s)', color: tc.text }, beginAtZero: true },
+                    y: { ...ts.y, ticks: { ...ts.y.ticks, font: { family: 'JetBrains Mono', size: 10 } } }
+                }
+            }
+        });
+
+        const panel = document.getElementById('chartPanel-consistency');
+        if (panel) {
+            const container = panel.querySelector('.chart-container');
+            if (container) container.style.minHeight = '400px';
+        }
+
+        setupZoomReset(chartInstances.consistency);
+    },
 };
 
 // Checkbox change → render/remove charts
