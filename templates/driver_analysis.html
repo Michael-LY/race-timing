@@ -65,50 +65,8 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/table-sort.js') }}"></script>
 <script>
-function parseSortValue(cell) {
-    const text = cell.textContent.trim();
-    if (text === '-' || text === '') return { val: Infinity, type: 'empty' };
-    const timeMatch = text.match(/^[+-]?(\d+):(\d{2})\.(\d+)/);
-    if (timeMatch) {
-        let val = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]) + parseInt(timeMatch[3]) / 1000;
-        if (text.startsWith('-')) val = -val;
-        return { val, type: 'time' };
-    }
-    const floatMatch = text.match(/^[+-]?[\d,.]+$/);
-    if (floatMatch) return { val: parseFloat(text.replace(/,/g, '')), type: 'number' };
-    const carMatch = text.match(/^#(\d+)$/);
-    if (carMatch) return { val: parseInt(carMatch[1]), type: 'number' };
-    return { val: text.toLowerCase(), type: 'string' };
-}
-
-document.querySelectorAll('.themed-table').forEach(table => {
-    table.querySelectorAll('th.sortable').forEach(th => {
-        th.addEventListener('click', function() {
-            const tbody = table.querySelector('tbody');
-            const colIdx = Array.from(this.parentNode.children).indexOf(this);
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-
-            const isAsc = this.classList.contains('asc');
-            table.querySelectorAll('th.sortable').forEach(h => h.classList.remove('asc', 'desc'));
-            this.classList.add(isAsc ? 'desc' : 'asc');
-
-            rows.sort((a, b) => {
-                const aCell = a.children[colIdx];
-                const bCell = b.children[colIdx];
-                if (!aCell || !bCell) return 0;
-                const av = parseSortValue(aCell);
-                const bv = parseSortValue(bCell);
-                if (av.type === 'empty' && bv.type === 'empty') return 0;
-                if (av.type === 'empty') return 1;
-                if (bv.type === 'empty') return -1;
-                const cmp = av.val < bv.val ? -1 : av.val > bv.val ? 1 : 0;
-                return isAsc ? -cmp : cmp;
-            });
-
-            rows.forEach(row => tbody.appendChild(row));
-        });
-    });
-});
+initTableSort();
 </script>
 {% endblock %}

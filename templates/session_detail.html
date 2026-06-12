@@ -308,7 +308,7 @@
 <div class="card rounded-lg mb-4 hidden overflow-hidden" id="chartCard" data-session-id="{{ session.id }}">
     <div class="card-header rounded-t-lg flex flex-col sm:flex-row sm:flex justify-between items-start sm:items-center gap-2">
         <span>Lap Time Analysis</span>
-        <div class="chart-checkboxes flex gap-3 items-center overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+        <div class="chart-checkboxes flex flex-wrap gap-x-3 gap-y-1 items-center">
             <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
                 <input type="checkbox" class="chart-cb rounded" data-chart="lapTime" checked> Lap Times
             </label>
@@ -345,6 +345,9 @@
             <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
                 <input type="checkbox" class="chart-cb rounded" data-chart="consistency"> Consistency
             </label>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
+                <input type="checkbox" class="chart-cb rounded" data-chart="strategy"> Strategy
+            </label>
         </div>
     </div>
     <div id="chartGrid" class="p-2 sm:p-4 grid gap-4 overflow-hidden" style="grid-template-columns: 1fr;">
@@ -353,6 +356,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/table-sort.js') }}"></script>
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script>
 // ── View toggling ──────────────────────────────────────────────
@@ -422,59 +426,7 @@ if (classificationClassFilter && classificationCarHighlight) {
     classificationCarHighlight.addEventListener('input', applyClassificationFilters);
 }
 
-// ── Table sorting ──────────────────────────────────────────────
-function parseSortValue(cell) {
-    const text = cell.textContent.trim();
-    if (text === '-' || text === '') return { val: Infinity, type: 'empty' };
-    const timeMatch = text.match(/^(\d+):(\d{2})\.(\d+)/);
-    if (timeMatch) return { val: parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]) + parseInt(timeMatch[3]) / 1000, type: 'time' };
-    const floatMatch = text.match(/^-?[\d,.]+$/);
-    if (floatMatch) return { val: parseFloat(text.replace(/,/g, '')), type: 'number' };
-    const badge = cell.querySelector('.badge');
-    if (badge) return { val: badge.textContent.trim(), type: 'string' };
-    const carMatch = text.match(/^#(\d+)$/);
-    if (carMatch) return { val: parseInt(carMatch[1]), type: 'number' };
-    return { val: text.toLowerCase(), type: 'string' };
-}
-
-document.querySelectorAll('.sortable-table, .themed-table').forEach(table => {
-    table.querySelectorAll('th.sortable').forEach(th => {
-        th.addEventListener('click', function() {
-            const tbody = table.querySelector('tbody');
-            const colIdx = Array.from(this.parentNode.children).indexOf(this);
-            const rows = Array.from(tbody.querySelectorAll('tr:not([data-sort-ignore="true"])'));
-
-            const isAsc = this.classList.contains('asc');
-            table.querySelectorAll('th.sortable').forEach(h => h.classList.remove('asc', 'desc'));
-            this.classList.add(isAsc ? 'desc' : 'asc');
-
-            rows.sort((a, b) => {
-                if (colIdx === 0 && (a.dataset.sortGroup || b.dataset.sortGroup)) {
-                    const aGroup = a.dataset.sortGroup === 'ranked' ? 0 : 1;
-                    const bGroup = b.dataset.sortGroup === 'ranked' ? 0 : 1;
-                    if (aGroup !== bGroup) return aGroup - bGroup;
-
-                    const aValue = parseInt(a.dataset.sortValue || '999999', 10);
-                    const bValue = parseInt(b.dataset.sortValue || '999999', 10);
-                    const cmp = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-                    return isAsc ? cmp : -cmp;
-                }
-
-                const aCell = a.children[colIdx];
-                const bCell = b.children[colIdx];
-                if (!aCell || !bCell) return 0;
-                const av = parseSortValue(aCell);
-                const bv = parseSortValue(bCell);
-                if (av.type === 'empty' && bv.type === 'empty') return 0;
-                if (av.type === 'empty') return 1;
-                if (bv.type === 'empty') return -1;
-                const cmp = av.val < bv.val ? -1 : av.val > bv.val ? 1 : 0;
-                return isAsc ? -cmp : cmp;
-            });
-
-            rows.forEach(row => tbody.appendChild(row));
-        });
-    });
-});
+// ── Table sorting (shared) ─────────────────────────────────────
+initTableSort();
 </script>
 {% endblock %}

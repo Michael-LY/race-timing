@@ -22,6 +22,7 @@ const CHART_TITLES = {
     driverS3: 'S3 by Driver',
     driverLap: 'Lap Time by Driver',
     consistency: 'Lap Time Consistency (Std Dev)',
+    strategy: 'Strategy (Stint Map)',
 };
 
 function fmtTime(seconds) {
@@ -34,6 +35,20 @@ function fmtTime(seconds) {
 function getCarColor(carNum) {
     const idx = parseInt(carNum) || 0;
     return COLORS[idx % COLORS.length];
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function lightenHex(hex, percent) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+    const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amt));
+    const B = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
+    return 'rgb(' + R + ',' + G + ',' + B + ')';
 }
 
 function themeScales() {
@@ -103,8 +118,19 @@ async function loadChart() {
     if (!sessionId) return;
 
     if (!cachedData) {
-        const resp = await fetch(`/api/sessions/${sessionId}/analytics`);
-        cachedData = await resp.json();
+        const grid = document.getElementById('chartGrid');
+        const placeholder = document.createElement('div');
+        placeholder.id = 'chart-loading';
+        placeholder.className = 'text-center py-8 text-theme-secondary';
+        placeholder.innerHTML = '<svg class="animate-spin inline-block w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>Loading chart data\u2026';
+        grid.appendChild(placeholder);
+        try {
+            const resp = await fetch(`/api/sessions/${sessionId}/analytics`);
+            cachedData = await resp.json();
+        } finally {
+            const el = document.getElementById('chart-loading');
+            if (el) el.remove();
+        }
     }
     const data = cachedData;
 
@@ -592,19 +618,23 @@ const renderers = {
         }
 
         const pp = data.position_progression;
-        const datasets = Object.entries(pp.cars).map(([car, positions]) => {
-            const allLaps = data.lap_times || [];
-            return {
+        // Pre-build O(1) lookup map for driver names
+        const lapDriverMap = {};
+        (data.lap_times || []).forEach(l => {
+            lapDriverMap[l.car_number + ':' + l.lap_number] = l.driver_name;
+        });
+
+        const datasets = Object.entries(pp.cars).map(([car, positions]) => ({
             label: `#${car}`,
-            data: positions.map(p => {
-                const lapEntry = allLaps.find(l => String(l.car_number) === car && l.lap_number === p.lap);
-                return { x: p.lap, y: p.position, driver: lapEntry ? lapEntry.driver_name : '' };
-            }),
+            data: positions.map(p => ({
+                x: p.lap,
+                y: p.position,
+                driver: lapDriverMap[car + ':' + p.lap] || '',
+            })),
             borderColor: getCarColor(car),
             backgroundColor: 'transparent',
             tension: 0, pointRadius: 3,
-        };
-        });
+        }));
 
         chartInstances.position = new Chart(ctx, {
             type: 'line',
@@ -698,6 +728,120 @@ const renderers = {
         }
 
         setupZoomReset(chartInstances.consistency);
+    },
+
+    // ── Strategy Gantt Chart (HTML-based, no Chart.js canvas) ──────
+    strategy: function(ctx, data) {
+        const container = document.getElementById('chartPanel-strategy');
+        if (!container) return;
+        const chartContainer = container.querySelector('.chart-container');
+        if (!chartContainer) return;
+
+        chartContainer.scrollLeft = 0;
+        chartContainer.style.minHeight = 'auto';
+        chartContainer.style.overflowX = 'auto';
+        chartContainer.style.overflowY = 'visible';
+
+        const carStints = data.car_stints || [];
+        if (carStints.length === 0) {
+            chartContainer.innerHTML = '<div class="strategy-empty">No stint data available</div>';
+            chartInstances.strategy = { destroy: function() {} };
+            return;
+        }
+
+        // Compute global time range across all stints
+        let globalMin = Infinity, globalMax = -Infinity;
+        var hasTime = false;
+        carStints.forEach(function(car) {
+            (car.stints || []).forEach(function(s) {
+                if (s.start_time != null && s.end_time != null) {
+                    if (s.start_time < globalMin) globalMin = s.start_time;
+                    if (s.end_time > globalMax) globalMax = s.end_time;
+                    hasTime = true;
+                }
+            });
+        });
+
+        if (!hasTime || globalMax <= globalMin) {
+            chartContainer.innerHTML = '<div class="strategy-empty">Session time data not available for stint chart</div>';
+            chartInstances.strategy = { destroy: function() {} };
+            return;
+        }
+
+        var duration = globalMax - globalMin;
+        if (duration <= 0) duration = 1;
+
+        // Time axis ticks: every 5 minutes
+        var tickInterval = 300;
+        var firstTick = Math.floor(globalMin / tickInterval) * tickInterval;
+        var ticks = [];
+        for (var t = firstTick; t <= globalMax; t += tickInterval) {
+            ticks.push(t);
+        }
+
+        var tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+
+        var html = '<div class="strategy-chart">';
+
+        // ── Time axis ──
+        html += '<div class="strategy-time-axis">';
+        for (var ti = 0; ti < ticks.length; ti++) {
+            var pct = ((ticks[ti] - globalMin) / duration * 100).toFixed(1);
+            html += '<div class="strategy-tick" style="left:' + pct + '%">' + (ticks[ti] / 60).toFixed(0) + 'm</div>';
+        }
+        html += '</div>';
+
+        // ── Car rows ──
+        for (var ci = 0; ci < carStints.length; ci++) {
+            var car = carStints[ci];
+            var baseColor = getCarColor(car.car_number);
+            var posLabel = (car.position != null && car.position > 0) ? 'P' + car.position : 'NC';
+
+            html += '<div class="strategy-row">';
+            html += '<div class="strategy-car-label">#' + escapeHtml(car.car_number) + ' <span style="color:' + tc.text + ';font-weight:400">' + posLabel + '</span></div>';
+            html += '<div class="strategy-track">';
+
+            for (var si = 0; si < car.stints.length; si++) {
+                var stint = car.stints[si];
+                if (stint.start_time == null || stint.end_time == null) continue;
+
+                var left = ((stint.start_time - globalMin) / duration * 100).toFixed(1);
+                var width = ((stint.end_time - stint.start_time) / duration * 100).toFixed(1);
+                if (width < 0.5) width = 0.5;
+
+                // Alternate color lightness per stint
+                var stintColor = lightenHex(baseColor, (si % 2 === 0) ? 0 : -15);
+
+                html += '<div class="strategy-block" style="left:' + left + '%;width:' + width + '%;background:' + stintColor + ';"';
+                html += ' title="Stint ' + (si + 1) + ': ' + escapeHtml(stint.driver) + ' | ' + stint.lap_count + ' laps | Best: ' + fmtTime(stint.fastest_lap) + '">';
+                html += '<div class="strategy-block-driver">' + escapeHtml(stint.driver) + '</div>';
+                html += '<div class="strategy-block-stats">' + stint.lap_count + ' laps &middot; ' + fmtTime(stint.fastest_lap) + '</div>';
+                html += '</div>';
+
+                // Pit stop label centered in the gap between stint blocks
+                if (si > 0 && stint.pit_time != null && stint.pit_time > 0) {
+                    var prevStint = car.stints[si - 1];
+                    var prevEndPct = prevStint.end_time != null ? ((prevStint.end_time - globalMin) / duration * 100) : 0;
+                    var currStartPct = parseFloat(left);
+                    var midPct = ((prevEndPct + currStartPct) / 2).toFixed(1);
+                    html += '<div class="strategy-block-pit" style="left:' + midPct + '%;">';
+                    html += '<span class="strategy-block-pit-label">&#x2B07; ' + stint.pit_time.toFixed(1) + 's</span>';
+                    html += '</div>';
+                }
+            }
+
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+
+        chartContainer.innerHTML = html;
+
+        // Set minimum height based on number of cars
+        var rowCount = carStints.length;
+        chartContainer.style.minHeight = Math.max(100, rowCount * 56 + 40) + 'px';
+
+        chartInstances.strategy = { destroy: function() {} };
     },
 };
 

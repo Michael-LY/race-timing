@@ -1,0 +1,505 @@
+$ node -e "
+const fs = require('fs');
+const html = fs.readFileSync('templates/session_detail.html', 'utf8');
+const m = html.match(/<script>([\s\S]*?)<\/script>/);
+const js = m[1];
+
+// Count braces
+let depth = 0;
+let parenDepth = 0;
+let bracketDepth = 0;
+let lastChange = '';
+
+for (let i = 0; i < js.length; i++) {
+  const ch = js[i];
+  if (ch === '{') { depth++; lastChange = '{ at ' + i; }
+  else if (ch === '}') { depth--; lastChange = '} at ' + i; }
+  else if (ch === '(') { parenDepth++; }
+  else if (ch === ')') { parenDepth--; }
+  else if (ch === '[') { bracketDepth++; }
+  else if (ch === ']') { bracketDepth--; }
+}
+
+console.log('Curly depth:', depth, 'Paren depth:', parenDepth, 'Bracket depth:', bracketDepth);
+console.log('Last change:', lastChange);
+
+// Show context around some of the lines to check
+const lines = js.split('\n');
+for (let i = 0; i < lines.length; i++) {
+  const openC = (lines[i].match(/{/g) || []).length;
+  const closeC = (lines[i].match(/}/g) || [])
+  if (openC !== closeC) {
+    console.log('Line', i+1, '(' + openC + ' open, ' + closeC + ' close):', lines[i].substring(0, 120));
+  }
+}
+"
+[exit 0]
+Curly depth: 0 Paren depth: -1 Bracket depth: 0
+Last change: } at 30252
+Line 1 (0 open,  close): 
+Line 2 (0 open,  close): // ── View toggling ──────────────────────────────────────────────
+Line 3 (1 open,  close): const views = {
+Line 4 (0 open,  close):     classification: document.getElementById('classificationCard'),
+Line 5 (0 open,  close):     lapSummary: document.getElementById('lapSummaryCard'),
+Line 6 (0 open,  close):     lapDetail: document.getElementById('lapDetailCard'),
+Line 7 (0 open,  close):     driver: document.getElementById('driverCard'),
+Line 8 (0 open,  close):     chart: document.getElementById('chartCard')
+Line 9 (0 open, } close): };
+Line 10 (0 open,  close): 
+Line 11 (1 open,  close): function showView(name) {
+Line 12 (0 open,  close):     Object.entries(views).forEach(([k, el]) => el.classList.toggle('hidden', k !== name));
+Line 13 (0 open, } close): }
+Line 14 (0 open,  close): 
+Line 15 (0 open,  close): document.getElementById('btnClassification').addEventListener('click', () => showView('classification'));
+Line 16 (0 open,  close): document.getElementById('btnLapSummary').addEventListener('click', () => showView('lapSummary'));
+Line 17 (0 open,  close): document.getElementById('btnLapDetail').addEventListener('click', () => showView('lapDetail'));
+Line 18 (0 open,  close): document.getElementById('btnDrivers').addEventListener('click', () => showView('driver'));
+Line 19 (1 open, } close): document.getElementById('btnChart').addEventListener('click', () => { showView('chart'); loadChart(); });
+Line 20 (0 open,  close): 
+Line 21 (0 open,  close): // ── Car filter for lap detail ──────────────────────────────────
+Line 22 (1 open,  close): document.getElementById('carFilter').addEventListener('change', function() {
+Line 23 (0 open,  close):     const car = this.value;
+Line 24 (1 open,  close):     document.querySelectorAll('.lap-row').forEach(row => {
+Line 25 (0 open,  close):         row.style.display = (!car || row.dataset.car === car) ? '' : 'none';
+Line 26 (0 open, } close):     });
+Line 27 (0 open, } close): });
+Line 28 (0 open,  close): 
+Line 29 (0 open,  close): // ── Classification filters ─────────────────────────────────────
+Line 30 (0 open,  close): const classificationClassFilter = document.getElementById('classificationClassFilter');
+Line 31 (0 open,  close): const classificationCarHighlight = document.getElementById('classificationCarHighlight');
+Line 32 (0 open,  close): 
+Line 33 (1 open,  close): function applyClassificationFilters() {
+Line 34 (0 open,  close):     if (!classificationClassFilter || !classificationCarHighlight) return;
+Line 35 (0 open,  close): 
+Line 36 (0 open,  close):     const selectedClass = (classificationClassFilter.value || '').trim().toLowerCase();
+Line 37 (0 open,  close):     const highlightCars = (classificationCarHighlight.value || '')
+Line 38 (0 open,  close):         .split(',')
+Line 39 (0 open,  close):         .map(value => value.trim().replace(/^#/, '').toLowerCase())
+Line 40 (0 open,  close):         .filter(Boolean);
+Line 41 (0 open,  close):     const classificationRows = document.querySelectorAll('#classificationCard tbody tr[data-classification-row="true"]')
+Line 42 (0 open,  close):     const separatorRow = document.querySelector('#classificationCard tbody tr.bg-nc-separator');
+Line 43 (0 open,  close): 
+Line 44 (0 open,  close):     let visibleRows = 0;
+Line 45 (1 open,  close):     classificationRows.forEach(row => {
+Line 46 (0 open,  close):         const rowClass = (row.dataset.class || '').trim().toLowerCase();
+Line 47 (0 open,  close):         const rowCar = (row.dataset.carNumber || '').trim().toLowerCase();
+Line 48 (0 open,  close):         const matchesClass = !selectedClass || rowClass === selectedClass;
+Line 49 (0 open,  close):         const shouldShow = matchesClass;
+Line 50 (0 open,  close):         const shouldHighlight = shouldShow && highlightCars.length > 0 && highlightCars.includes(rowCar);
+Line 51 (0 open,  close): 
+Line 52 (0 open,  close):         row.style.display = shouldShow ? '' : 'none';
+Line 53 (0 open,  close):         row.classList.toggle('classification-row-highlight', shouldHighlight);
+Line 54 (0 open,  close):         row.classList.toggle('font-semibold', shouldHighlight);
+Line 55 (0 open,  close): 
+Line 56 (0 open,  close):         if (shouldShow) visibleRows += 1;
+Line 57 (0 open, } close):     });
+Line 58 (0 open,  close): 
+Line 59 (1 open,  close):     if (separatorRow) {
+Line 60 (0 open,  close):         separatorRow.style.display = visibleRows > 0 ? '' : 'none';
+Line 61 (0 open, } close):     }
+Line 62 (0 open, } close): }
+Line 63 (0 open,  close): 
+Line 64 (1 open,  close): if (classificationClassFilter && classificationCarHighlight) {
+Line 65 (0 open,  close):     classificationClassFilter.addEventListener('change', applyClassificationFilters);
+Line 66 (0 open,  close):     classificationCarHighlight.addEventListener('input', applyClassificationFilters);
+Line 67 (0 open, } close): }
+Line 68 (0 open,  close): 
+Line 69 (0 open,  close): // ── Table sorting ──────────────────────────────────────────────
+Line 70 (1 open,  close): function parseSortValue(cell) {
+Line 71 (0 open,  close):     const text = cell.textContent.trim();
+Line 72 (1 open, } close):     if (text === '-' || text === '') return { val: Infinity, type: 'empty' };
+Line 73 (1 open, } close):     const timeMatch = text.match(/^(\d+):(\d{2})\.(\d+)/);
+Line 74 (1 open, } close):     if (timeMatch) return { val: parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]) + parseInt(timeMatch[3]) / 1000, t
+Line 75 (0 open,  close):     const floatMatch = text.match(/^-?[\d,.]+$/);
+Line 76 (1 open, } close):     if (floatMatch) return { val: parseFloat(text.replace(/,/g, '')), type: 'number' };
+Line 77 (0 open,  close):     const badge = cell.querySelector('.badge');
+Line 78 (1 open, } close):     if (badge) return { val: badge.textContent.trim(), type: 'string' };
+Line 79 (0 open,  close):     const carMatch = text.match(/^#(\d+)$/);
+Line 80 (1 open, } close):     if (carMatch) return { val: parseInt(carMatch[1]), type: 'number' };
+Line 81 (1 open, } close):     return { val: text.toLowerCase(), type: 'string' };
+Line 82 (0 open, } close): }
+Line 83 (0 open,  close): 
+Line 84 (1 open,  close): document.querySelectorAll('.sortable-table, .themed-table').forEach(table => {
+Line 85 (1 open,  close):     table.querySelectorAll('th.sortable').forEach(th => {
+Line 86 (1 open,  close):         th.addEventListener('click', function() {
+Line 87 (0 open,  close):             const tbody = table.querySelector('tbody');
+Line 88 (0 open,  close):             const colIdx = Array.from(this.parentNode.children).indexOf(this);
+Line 89 (0 open,  close):             const rows = Array.from(tbody.querySelectorAll('tr:not([data-sort-ignore="true"])'));
+Line 90 (0 open,  close): 
+Line 91 (0 open,  close):             const isAsc = this.classList.contains('asc');
+Line 92 (0 open,  close):             table.querySelectorAll('th.sortable').forEach(h => h.classList.remove('asc', 'desc'));
+Line 93 (0 open,  close):             this.classList.add(isAsc ? 'desc' : 'asc');
+Line 94 (0 open,  close): 
+Line 95 (1 open,  close):             rows.sort((a, b) => {
+Line 96 (1 open,  close):                 if (colIdx === 0 && (a.dataset.sortGroup || b.dataset.sortGroup)) {
+Line 97 (0 open,  close):                     const aGroup = a.dataset.sortGroup === 'ranked' ? 0 : 1;
+Line 98 (0 open,  close):                     const bGroup = b.dataset.sortGroup === 'ranked' ? 0 : 1;
+Line 99 (0 open,  close):                     if (aGroup !== bGroup) return aGroup - bGroup;
+Line 100 (0 open,  close): 
+Line 101 (0 open,  close):                     const aValue = parseInt(a.dataset.sortValue || '999999', 10);
+Line 102 (0 open,  close):                     const bValue = parseInt(b.dataset.sortValue || '999999', 10);
+Line 103 (0 open,  close):                     const cmp = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+Line 104 (0 open,  close):                     return isAsc ? cmp : -cmp;
+Line 105 (0 open, } close):                 }
+Line 106 (0 open,  close): 
+Line 107 (0 open,  close):                 const aCell = a.children[colIdx];
+Line 108 (0 open,  close):                 const bCell = b.children[colIdx];
+Line 109 (0 open,  close):                 if (!aCell || !bCell) return 0;
+Line 110 (0 open,  close):                 const av = parseSortValue(aCell);
+Line 111 (0 open,  close):                 const bv = parseSortValue(bCell);
+Line 112 (0 open,  close):                 if (av.type === 'empty' && bv.type === 'empty') return 0;
+Line 113 (0 open,  close):                 if (av.type === 'empty') return 1;
+Line 114 (0 open,  close):                 if (bv.type === 'empty') return -1;
+Line 115 (0 open,  close):                 const cmp = av.val < bv.val ? -1 : av.val > bv.val ? 1 : 0;
+Line 116 (0 open,  close):                 return isAsc ? -cmp : cmp;
+Line 117 (0 open, } close):             });
+Line 118 (0 open,  close): 
+Line 119 (0 open,  close):             rows.forEach(row => tbody.appendChild(row));
+Line 120 (0 open, } close):         });
+Line 121 (0 open, } close):     });
+Line 122 (0 open, } close): });
+Line 123 (0 open,  close): 
+Line 124 (0 open,  close): // ── Chart ──────────────────────────────────────────────────────
+Line 125 (0 open,  close): const COLORS = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#06b6d4',
+Line 126 (0 open,  close):                 '#f97316','#6366f1','#14b8a6','#e11d48','#a855f7','#0891b2',
+Line 127 (0 open,  close):                 '#dc2626','#0d9488','#78716c','#eab308','#475569','#ec4899',
+Line 128 (0 open,  close):                 '#22d3ee','#fb923c','#78350f','#64748b','#059669','#84cc16'];
+Line 129 (0 open,  close): 
+Line 130 (1 open, } close): const chartInstances = {};
+Line 131 (0 open,  close): let cachedData = null;
+Line 132 (0 open,  close): 
+Line 133 (1 open,  close): const CHART_TITLES = {
+Line 134 (0 open,  close):     lapTime: 'Lap Times',
+Line 135 (0 open,  close):     delta: 'Delta to Best',
+Line 136 (0 open,  close):     sector: 'Sector Breakdown',
+Line 137 (0 open,  close):     speed: 'Speed Trap',
+Line 138 (0 open,  close):     boxPlot: 'Lap Time Distribution',
+Line 139 (0 open,  close):     pitStops: 'Pit Stops',
+Line 140 (0 open,  close):     position: 'Position Progression',
+Line 141 (0 open, } close): };
+Line 142 (0 open,  close): 
+Line 143 (1 open,  close): function fmtTime(seconds) {
+Line 144 (0 open,  close):     if (seconds == null || isNaN(seconds)) return '-';
+Line 145 (0 open,  close):     const m = Math.floor(seconds / 60);
+Line 146 (0 open,  close):     const s = (seconds % 60).toFixed(3);
+Line 147 (0 open,  close):     return m + ':' + s.padStart(6, '0');
+Line 148 (0 open, } close): }
+Line 149 (0 open,  close): 
+Line 150 (1 open,  close): function getCarColor(carNum) {
+Line 151 (0 open,  close):     const idx = parseInt(carNum) || 0;
+Line 152 (0 open,  close):     return COLORS[idx % COLORS.length];
+Line 153 (0 open, } close): }
+Line 154 (0 open,  close): 
+Line 155 (1 open,  close): function themeScales() {
+Line 156 (1 open, } close):     const tc = window.getThemeColors ? window.getThemeColors() : { grid: 'rgba(0,0,0,0.1)', gridMajor: 'rgba(0,0,0,0.2)'
+Line 157 (1 open,  close):     return {
+Line 158 (1 open,  close):         x: {
+Line 159 (2 open, },} close):             ticks: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } },
+Line 160 (1 open, } close):             grid: { color: tc.grid, lineWidth: 1.5 },
+Line 161 (1 open, } close):             border: { color: tc.gridMajor }
+Line 162 (0 open, } close):         },
+Line 163 (1 open,  close):         y: {
+Line 164 (2 open, },} close):             ticks: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } },
+Line 165 (1 open, } close):             grid: { color: tc.grid, lineWidth: 1.5 },
+Line 166 (1 open, } close):             border: { color: tc.gridMajor }
+Line 167 (0 open, } close):         }
+Line 168 (0 open, } close):     };
+Line 169 (0 open, } close): }
+Line 170 (0 open,  close): 
+Line 171 (1 open,  close): function themeTooltip() {
+Line 172 (1 open, } close):     const tc = window.getThemeColors ? window.getThemeColors() : { tooltipBg: 'rgba(0,0,0,0.9)', tooltipText: '#fff', ac
+Line 173 (1 open,  close):     return {
+Line 174 (0 open,  close):         backgroundColor: tc.tooltipBg,
+Line 175 (0 open,  close):         titleColor: tc.tooltipText,
+Line 176 (0 open,  close):         bodyColor: tc.tooltipText,
+Line 177 (0 open,  close):         borderColor: tc.accentCyan,
+Line 178 (0 open,  close):         borderWidth: 1,
+Line 179 (1 open, } close):         titleFont: { family: 'JetBrains Mono', size: 12 },
+Line 180 (1 open, } close):         bodyFont: { family: 'JetBrains Mono', size: 11 },
+Line 181 (0 open,  close):         padding: 10
+Line 182 (0 open, } close):     };
+Line 183 (0 open, } close): }
+Line 184 (0 open,  close): 
+Line 185 (1 open,  close): function chartZoomOptions() {
+Line 186 (1 open,  close):     return {
+Line 187 (1 open,  close):         zoom: {
+Line 188 (1 open,  close):             zoom: {
+Line 189 (1 open, } close):                 wheel: { enabled: true },
+Line 190 (1 open, } close):                 pinch: { enabled: true },
+Line 191 (1 open,  close):                 drag: {
+Line 192 (0 open,  close):                     enabled: true,
+Line 193 (0 open,  close):                     mode: 'y'
+Line 194 (0 open, } close):                 },
+Line 195 (0 open,  close):                 mode: 'y'
+Line 196 (0 open, } close):             },
+Line 197 (1 open,  close):             pan: {
+Line 198 (0 open,  close):                 enabled: true,
+Line 199 (0 open,  close):                 mode: 'y',
+Line 200 (0 open,  close):                 modifierKey: 'shift'
+Line 201 (0 open, } close):             }
+Line 202 (0 open, } close):         }
+Line 203 (0 open, } close):     };
+Line 204 (0 open, } close): }
+Line 205 (0 open,  close): 
+Line 206 (1 open,  close): function setupZoomReset(chart) {
+Line 207 (0 open,  close):     if (!chart || !chart.canvas) return;
+Line 208 (1 open,  close):     chart.canvas.addEventListener('dblclick', function(e) {
+Line 209 (1 open,  close):         if (e.button === 0) {
+Line 210 (0 open,  close):             chart.resetZoom();
+Line 211 (0 open, } close):         }
+Line 212 (0 open, } close):     });
+Line 213 (0 open, } close): }
+Line 214 (0 open,  close): 
+Line 215 (1 open,  close): async function loadChart() {
+Line 216 (1 open,  close):     if (!cachedData) {
+Line 217 (2 open, },} close):         const resp = await fetch(`/api/sessions/{{ session.id }}/analytics`);
+Line 218 (0 open,  close):         cachedData = await resp.json();
+Line 219 (0 open, } close):     }
+Line 220 (0 open,  close):     const data = cachedData;
+Line 221 (0 open,  close): 
+Line 222 (0 open,  close):     const posLabel = document.querySelector('.chart-cb-position');
+Line 223 (0 open,  close):     if (posLabel) posLabel.style.display = data.session_type === 'Race' ? '' : 'none';
+Line 224 (1 open,  close):     if (data.session_type !== 'Race') {
+Line 225 (0 open,  close):         const posCb = document.querySelector('.chart-cb[data-chart="position"]');
+Line 226 (1 open, } close):         if (posCb && posCb.checked) { posCb.checked = false; destroyChart('position'); removePanel('position'); }
+Line 227 (0 open, } close):     }
+Line 228 (0 open,  close): 
+Line 229 (0 open,  close):     renderCheckedCharts(data);
+Line 230 (0 open, } close): }
+Line 231 (0 open,  close): 
+Line 232 (1 open,  close): function cleanLapTimes(data) {
+Line 233 (1 open,  close):     return data.lap_times.filter(l => {
+Line 234 (0 open,  close):         if (l.out_lap || l.in_lap) return false;
+Line 235 (0 open,  close):         if (l.sc_lap) return false;
+Line 236 (0 open,  close):         return true;
+Line 237 (0 open, } close):     });
+Line 238 (0 open, } close): }
+Line 239 (0 open,  close): 
+Line 240 (1 open,  close): function destroyChart(type) {
+Line 241 (1 open, } close):     if (chartInstances[type]) { chartInstances[type].destroy(); delete chartInstances[type]; }
+Line 242 (0 open, } close): }
+Line 243 (0 open,  close): 
+Line 244 (1 open,  close): function removePanel(type) {
+Line 245 (0 open,  close):     const panel = document.getElementById('chartPanel-' + type);
+Line 246 (0 open,  close):     if (panel) panel.remove();
+Line 247 (0 open, } close): }
+Line 248 (0 open,  close): 
+Line 249 (1 open,  close): function ensurePanel(type) {
+Line 250 (0 open,  close):     if (document.getElementById('chartPanel-' + type)) return;
+Line 251 (0 open,  close):     const grid = document.getElementById('chartGrid');
+Line 252 (0 open,  close):     const panel = document.createElement('div');
+Line 253 (0 open,  close):     panel.id = 'chartPanel-' + type;
+Line 254 (0 open,  close):     panel.className = 'chart-panel';
+Line 255 (1 open, } close):     panel.innerHTML = `<div class="chart-panel-header">${CHART_TITLES[type] || type}</div>`
+Line 256 (1 open, } close):         + `<div class="p-4 chart-container"><canvas id="chartCanvas-${type}"></canvas></div>`;
+Line 257 (0 open,  close):     grid.appendChild(panel);
+Line 258 (0 open, } close): }
+Line 259 (0 open,  close): 
+Line 260 (1 open,  close): function renderCheckedCharts(data) {
+Line 261 (1 open,  close):     document.querySelectorAll('.chart-cb').forEach(cb => {
+Line 262 (0 open,  close):         const type = cb.dataset.chart;
+Line 263 (1 open,  close):         if (cb.checked) {
+Line 264 (0 open,  close):             ensurePanel(type);
+Line 265 (0 open,  close):             const canvas = document.getElementById('chartCanvas-' + type);
+Line 266 (0 open,  close):             if (!canvas) return;
+Line 267 (0 open,  close):             const ctx = canvas.getContext('2d');
+Line 268 (0 open,  close):             destroyChart(type);
+Line 269 (0 open,  close):             renderers[type](ctx, data);
+Line 270 (1 open, } close):         } else {
+Line 271 (0 open,  close):             destroyChart(type);
+Line 272 (0 open,  close):             removePanel(type);
+Line 273 (0 open, } close):         }
+Line 274 (0 open, } close):     });
+Line 275 (0 open, } close): }
+Line 276 (0 open,  close): 
+Line 277 (1 open,  close): const renderers = {
+Line 278 (1 open,  close):     lapTime: function(ctx, data) {
+Line 279 (0 open,  close):         const ts = themeScales();
+Line 280 (0 open,  close):         const tt = themeTooltip();
+Line 281 (1 open, } close):         const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+Line 282 (0 open,  close): 
+Line 283 (0 open,  close):         const laps = cleanLapTimes(data);
+Line 284 (1 open, } close):         const cars = {};
+Line 285 (1 open,  close):         laps.forEach(l => {
+Line 286 (0 open,  close):             if (l.lap_number === 1) return;
+Line 287 (0 open,  close):             if (!l.lap_time) return;
+Line 288 (1 open, } close):             if (!cars[l.car_number]) cars[l.car_number] = { laps: [] };
+Line 289 (1 open, } close):             cars[l.car_number].laps.push({ x: l.session_time, y: l.lap_time, driver: l.driver_name });
+Line 290 (0 open, } close):         });
+Line 291 (0 open,  close):         Object.values(cars).forEach(c => c.laps.sort((a, b) => a.x - b.x));
+Line 292 (0 open,  close): 
+Line 293 (1 open,  close):         const bestLine = data.overall_best_lap ? [{
+Line 294 (0 open,  close):             label: 'Session Best',
+Line 295 (1 open, } close):             data: Object.values(cars).flatMap(c => [{ x: c.laps[0]?.x, y: data.overall_best_lap },
+Line 296 (1 open, } close):                                                      { x: c.laps[c.laps.length-1]?.x, y: data.overall_best_lap }]).filte
+Line 297 (0 open,  close):             borderColor: '#a78bfa', borderDash: [6, 3], borderWidth: 2, pointRadius: 0, fill: false
+Line 298 (0 open, } close):         }] : [];
+Line 299 (0 open,  close): 
+Line 300 (1 open,  close):         const datasets = Object.entries(cars).map(([car, info]) => ({
+Line 301 (1 open, } close):             label: `#${car}`,
+Line 302 (0 open,  close):             data: info.laps,
+Line 303 (0 open,  close):             borderColor: getCarColor(car),
+Line 304 (0 open,  close):             backgroundColor: 'transparent',
+Line 305 (0 open,  close):             tension: 0.1, pointRadius: 2, spanGaps: false,
+Line 306 (0 open, } close):         })).concat(bestLine);
+Line 307 (0 open,  close): 
+Line 308 (1 open,  close):         chartInstances.lapTime = new Chart(ctx, {
+Line 309 (0 open,  close):             type: 'line',
+Line 310 (1 open, } close):             data: { datasets },
+Line 311 (1 open,  close):             options: {
+Line 312 (0 open,  close):                 responsive: true, maintainAspectRatio: false,
+Line 313 (1 open, } close):                 interaction: { mode: 'nearest', intersect: false },
+Line 314 (1 open,  close):                 plugins: {
+Line 315 (3 open, },},} close):                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
+Line 316 (5 open, },},},},} close):                     tooltip: { ...tt, callbacks: { label: c => `${c.dataset.label} ${c.raw.driver || ''}: ${fmtTime(c.ra
+Line 317 (0 open,  close):                     ...chartZoomOptions()
+Line 318 (0 open, } close):                 },
+Line 319 (1 open,  close):                 scales: {
+Line 320 (3 open, },},} close):                     x: { ...ts.x, title: { display: true, text: 'Session Time (min)', color: tc.text }, type: 'linear', 
+Line 321 (3 open, },},} close):                     y: { ...ts.y, title: { display: true, text: 'Lap Time', color: tc.text }, ticks: { ...ts.y.ticks, ca
+Line 322 (0 open, } close):                 }
+Line 323 (0 open, } close):             }
+Line 324 (0 open, } close):         });
+Line 325 (0 open,  close):         setupZoomReset(chartInstances.lapTime);
+Line 326 (0 open, } close):     },
+Line 327 (0 open,  close): 
+Line 328 (1 open,  close):     delta: function(ctx, data) {
+Line 329 (0 open,  close):         const ts = themeScales();
+Line 330 (0 open,  close):         const tt = themeTooltip();
+Line 331 (1 open, } close):         const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+Line 332 (0 open,  close): 
+Line 333 (1 open,  close):         if (!data.overall_best_lap) {
+Line 334 (2 open, } close):             chartInstances.delta = new Chart(ctx, { type: 'line', data: { datasets: [] },
+Line 335 (3 open, },},},} close):                 options: { responsive: true, plugins: { title: { display: true, text: 'No best lap data', color: tc.text
+Line 336 (0 open,  close):             return;
+Line 337 (0 open, } close):         }
+Line 338 (0 open,  close):         const laps = cleanLapTimes(data);
+Line 339 (1 open, } close):         const cars = {};
+Line 340 (1 open,  close):         laps.forEach(l => {
+Line 341 (0 open,  close):             if (!l.lap_time) return;
+Line 342 (1 open, } close):             if (!cars[l.car_number]) cars[l.car_number] = { laps: [] };
+Line 343 (1 open, } close):             cars[l.car_number].laps.push({ x: l.session_time, y: l.lap_time - data.overall_best_lap, driver: l.driver_na
+Line 344 (0 open, } close):         });
+Line 345 (0 open,  close):         Object.values(cars).forEach(c => c.laps.sort((a, b) => a.x - b.x));
+Line 346 (0 open,  close): 
+Line 347 (1 open,  close):         const datasets = Object.entries(cars).map(([car, info]) => ({
+Line 348 (1 open, } close):             label: `#${car}`,
+Line 349 (0 open,  close):             data: info.laps,
+Line 350 (0 open,  close):             borderColor: getCarColor(car),
+Line 351 (0 open,  close):             backgroundColor: 'transparent',
+Line 352 (0 open,  close):             tension: 0.1, pointRadius: 2, spanGaps: false,
+Line 353 (0 open, } close):         }));
+Line 354 (0 open,  close): 
+Line 355 (1 open,  close):         chartInstances.delta = new Chart(ctx, {
+Line 356 (0 open,  close):             type: 'line',
+Line 357 (1 open, } close):             data: { datasets },
+Line 358 (1 open,  close):             options: {
+Line 359 (0 open,  close):                 responsive: true, maintainAspectRatio: false,
+Line 360 (1 open, } close):                 interaction: { mode: 'nearest', intersect: false },
+Line 361 (1 open,  close):                 plugins: {
+Line 362 (3 open, },},} close):                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
+Line 363 (3 open,  close):                     tooltip: { ...tt, callbacks: { label: c => {
+Line 364 (0 open,  close):                         const v = c.raw.y;
+Line 365 (4 open, },},},} close):                         return `${c.dataset.label} ${c.raw.driver || ''}: ${v >= 0 ? '+' : ''}${v.toFixed(3)}s`;
+Line 366 (0 open, },},} close):                     } } },
+Line 367 (0 open,  close):                     ...chartZoomOptions()
+Line 368 (0 open, } close):                 },
+Line 369 (1 open,  close):                 scales: {
+Line 370 (3 open, },},} close):                     x: { ...ts.x, title: { display: true, text: 'Session Time (min)', color: tc.text }, type: 'linear', 
+Line 371 (2 open, } close):                     y: { ...ts.y, title: { display: true, text: 'Gap to Best (s)', color: tc.text },
+Line 372 (1 open, },} close):                          ticks: { ...ts.y.ticks, callback: v => (v >= 0 ? '+' : '') + v.toFixed(3) }, beginAtZero: false
+Line 373 (0 open, } close):                 }
+Line 374 (0 open, } close):             }
+Line 375 (0 open, } close):         });
+Line 376 (0 open,  close):         setupZoomReset(chartInstances.delta);
+Line 377 (0 open, } close):     },
+Line 378 (0 open,  close): 
+Line 379 (1 open,  close):     sector: function(ctx, data) {
+Line 380 (0 open,  close):         const ts = themeScales();
+Line 381 (0 open,  close):         const tt = themeTooltip();
+Line 382 (1 open, } close):         const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+Line 383 (0 open,  close): 
+Line 384 (0 open,  close):         const cars = data.per_car.filter(c => c.best_s1 || c.best_s2 || c.best_s3);
+Line 385 (1 open, } close):         const labels = cars.map(c => `#${c.car_number}`);
+Line 386 (0 open,  close):         const s1 = cars.map(c => c.best_s1 || 0);
+Line 387 (0 open,  close):         const s2 = cars.map(c => c.best_s2 || 0);
+Line 388 (0 open,  close):         const s3 = cars.map(c => c.best_s3 || 0);
+Line 389 (1 open, } close):         const actualBest = cars.map((c, i) => ({ x: i, y: c.best_lap || 0 }));
+Line 390 (0 open,  close): 
+Line 391 (1 open,  close):         chartInstances.sector = new Chart(ctx, {
+Line 392 (0 open,  close):             type: 'bar',
+Line 393 (1 open,  close):             data: {
+Line 394 (0 open,  close):                 labels,
+Line 395 (0 open,  close):                 datasets: [
+Line 396 (1 open, } close):                     { label: 'Sector 1', data: s1, backgroundColor: '#3498db', stack: 'sectors' },
+Line 397 (1 open, } close):                     { label: 'Sector 2', data: s2, backgroundColor: '#2ecc71', stack: 'sectors' },
+Line 398 (1 open, } close):                     { label: 'Sector 3', data: s3, backgroundColor: '#f39c12', stack: 'sectors' },
+Line 399 (1 open,  close):                     { label: 'Actual Best Lap', data: actualBest, type: 'line',
+Line 400 (0 open,  close):                       borderColor: '#e74c3c', backgroundColor: 'transparent',
+Line 401 (0 open,  close):                       pointRadius: 4, pointBorderColor: '#e74c3c', pointBackgroundColor: '#fff',
+Line 402 (0 open, } close):                       pointBorderWidth: 2, order: 0, tension: 0 },
+Line 403 (0 open,  close):                 ]
+Line 404 (0 open, } close):             },
+Line 405 (1 open,  close):             options: {
+Line 406 (0 open,  close):                 responsive: true, maintainAspectRatio: false,
+Line 407 (1 open,  close):                 plugins: {
+Line 408 (3 open, },},} close):                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
+Line 409 (2 open,  close):                     tooltip: { ...tt, callbacks: {
+Line 410 (3 open, },},} close):                         label: c => c.dataset.label === 'Actual Best Lap' ? `Best Lap: ${fmtTime(c.raw.y)}` : `${c.datas
+Line 411 (0 open, },} close):                     } },
+Line 412 (0 open,  close):                     ...chartZoomOptions()
+Line 413 (0 open, } close):                 },
+Line 414 (1 open,  close):                 scales: {
+Line 415 (2 open, },} close):                     x: { ...ts.x, stacked: true, ticks: { ...ts.x.ticks, maxRotation: 45 } },
+Line 416 (3 open, },},} close):                     y: { ...ts.y, stacked: true, title: { display: true, text: 'Time', color: tc.text }, ticks: { ...ts.
+Line 417 (0 open, } close):                 }
+Line 418 (0 open, } close):             }
+Line 419 (0 open, } close):         });
+Line 420 (0 open,  close):         setupZoomReset(chartInstances.sector);
+Line 421 (0 open, } close):     },
+Line 422 (0 open,  close): 
+Line 423 (1 open,  close):     speed: function(ctx, data) {
+Line 424 (0 open,  close):         const ts = themeScales();
+Line 425 (0 open,  close):         const tt = themeTooltip();
+Line 426 (1 open, } close):         const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+Line 427 (0 open,  close): 
+Line 428 (0 open,  close):         const cars = data.per_car.filter(c => c.top_speed);
+Line 429 (1 open, } close):         const labels = cars.map(c => `#${c.car_number}`);
+Line 430 (0 open,  close):         const speeds = cars.map(c => c.top_speed);
+Line 431 (0 open,  close): 
+Line 432 (1 open,  close):         chartInstances.speed = new Chart(ctx, {
+Line 433 (0 open,  close):             type: 'bar',
+Line 434 (1 open,  close):             data: {
+Line 435 (0 open,  close):                 labels,
+Line 436 (1 open,  close):                 datasets: [{
+Line 437 (0 open,  close):                     label: 'Top Speed (km/h)',
+Line 438 (0 open,  close):                     data: speeds,
+Line 439 (0 open,  close):                     backgroundColor: cars.map(c => getCarColor(c.car_number)),
+Line 440 (0 open,  close):                     borderColor: cars.map(c => getCarColor(c.car_number)),
+Line 441 (0 open,  close):                     borderWidth: 1,
+Line 442 (0 open, } close):                 }]
+Line 443 (0 open, } close):             },
+Line 444 (1 open,  close):             options: {
+Line 445 (0 open,  close):                 responsive: true, maintainAspectRatio: false,
+Line 446 (0 open,  close):                 indexAxis: 'y',
+Line 447 (1 open,  close):                 plugins: {
+Line 448 (1 open, } close):                     legend: { display: false },
+Line 449 (3 open, },},} close):                     tooltip: { ...tt, callbacks: { label: c => `${c.raw} km/h` } },
+Line 450 (0 open,  close):                     ...chartZoomOptions()
+Line 451 (0 open, } close):                 },
+Line 452 (1 open,  close):                 scales: {
+Line 453 (2 open, },} close):                     x: { ...ts.x, title: { display: true, text: 'Speed (km/h)', color: tc.text }, beginAtZero: false },
+Line 454 (2 open, },} close):                     y: { ...ts.y, title: { display: false } }
+Line 455 (0 open, } close):                 }
+Line 456 (0 open, } close):             }
+Line 457 (0 open, } close):         });
+Line 458 (0 open,  close):         setupZoomReset(chartInstances.speed);
+Line 459 (0 open, } close):     },
+Line 460 (0 open,  close): 
+Line 461 (1 open,  close):     boxPlot: function(ctx, data) {
+Line 462 (0 open,  close):         const ts = themeScales();
+Line 463 (0 open,  close):         const tt = themeTooltip();
+Line 464 (1 open, } close):         const tc = window.getThemeColors ? window.getThemeColors() : { text: '#64748b' };
+Line 465 (0 open,  
+
+[… truncated 17059 chars …]
