@@ -27,6 +27,17 @@ class StandingsSortingTestCase(unittest.TestCase):
 
         self.assertEqual([row.car_number for row in sorted_rows], ["1", "2", "3"])
 
+    def test_sort_does_not_mutate_input_objects(self):
+        rows = [
+            type("Standing", (), {"car_number": "1", "position": 1, "is_classified": True, "laps_completed": 10})(),
+            type("Standing", (), {"car_number": "2", "position": 0, "is_classified": True, "laps_completed": 20})(),
+        ]
+
+        sort_standings_for_display(rows)
+
+        self.assertTrue(rows[0].is_classified)
+        self.assertTrue(rows[1].is_classified)
+
 
 if __name__ == "__main__":
     unittest.main()
