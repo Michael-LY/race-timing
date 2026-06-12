@@ -103,8 +103,19 @@ async function loadChart() {
     if (!sessionId) return;
 
     if (!cachedData) {
-        const resp = await fetch(`/api/sessions/${sessionId}/analytics`);
-        cachedData = await resp.json();
+        const grid = document.getElementById('chartGrid');
+        const placeholder = document.createElement('div');
+        placeholder.id = 'chart-loading';
+        placeholder.className = 'text-center py-8 text-theme-secondary';
+        placeholder.innerHTML = '<svg class="animate-spin inline-block w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>Loading chart data\u2026';
+        grid.appendChild(placeholder);
+        try {
+            const resp = await fetch(`/api/sessions/${sessionId}/analytics`);
+            cachedData = await resp.json();
+        } finally {
+            const el = document.getElementById('chart-loading');
+            if (el) el.remove();
+        }
     }
     const data = cachedData;
 
@@ -592,19 +603,23 @@ const renderers = {
         }
 
         const pp = data.position_progression;
-        const datasets = Object.entries(pp.cars).map(([car, positions]) => {
-            const allLaps = data.lap_times || [];
-            return {
+        // Pre-build O(1) lookup map for driver names
+        const lapDriverMap = {};
+        (data.lap_times || []).forEach(l => {
+            lapDriverMap[l.car_number + ':' + l.lap_number] = l.driver_name;
+        });
+
+        const datasets = Object.entries(pp.cars).map(([car, positions]) => ({
             label: `#${car}`,
-            data: positions.map(p => {
-                const lapEntry = allLaps.find(l => String(l.car_number) === car && l.lap_number === p.lap);
-                return { x: p.lap, y: p.position, driver: lapEntry ? lapEntry.driver_name : '' };
-            }),
+            data: positions.map(p => ({
+                x: p.lap,
+                y: p.position,
+                driver: lapDriverMap[car + ':' + p.lap] || '',
+            })),
             borderColor: getCarColor(car),
             backgroundColor: 'transparent',
             tension: 0, pointRadius: 3,
-        };
-        });
+        }));
 
         chartInstances.position = new Chart(ctx, {
             type: 'line',

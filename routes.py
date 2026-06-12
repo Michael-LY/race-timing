@@ -17,6 +17,7 @@ ALLOWED_EXTENSIONS = {"csv", "txt"}
 # Key: session_id, Value: (timestamp, data)
 _analytics_cache: dict[int, tuple[float, dict]] = {}
 _ANALYTICS_CACHE_TTL = 300  # 5 minutes
+_ANALYTICS_CACHE_MAX = 50
 
 
 def _get_analytics_cache(session_id: int) -> dict | None:
@@ -29,6 +30,9 @@ def _get_analytics_cache(session_id: int) -> dict | None:
 
 
 def _set_analytics_cache(session_id: int, data: dict) -> None:
+    if len(_analytics_cache) >= _ANALYTICS_CACHE_MAX:
+        oldest_key = min(_analytics_cache, key=lambda k: _analytics_cache[k][0])
+        del _analytics_cache[oldest_key]
     _analytics_cache[session_id] = (time.time(), data)
 
 
@@ -207,9 +211,9 @@ def index():
     events = query.order_by(Event.created_at.desc()).all()
 
     all_events = Event.query.all()
-    years = sorted(set(e.year for e in all_events if e.year), reverse=True)
-    championships = sorted(set(e.championship for e in all_events if e.championship))
-    tracks = sorted(set(e.track for e in all_events if e.track))
+    years = sorted({e.year for e in all_events if e.year}, reverse=True)
+    championships = sorted({e.championship for e in all_events if e.championship})
+    tracks = sorted({e.track for e in all_events if e.track})
 
     return render_template("index.html", events=events,
                            years=years, championships=championships, tracks=tracks,
@@ -533,24 +537,33 @@ def _calculate_pit_stop_time(in_lap, out_lap):
         return None
 
 
+def _best_sectors(valid_laps):
+    """Compute best S1/S2/S3 and best lap from a list of valid laps.
+
+    Returns (best_lap, best_s1_lap, best_s2_lap, best_s3_lap) or None for each.
+    """
+    best_lap = min(valid_laps, key=lambda l: l.lap_time) if valid_laps else None
+    best_s1_lap = min((l for l in valid_laps if l.sector_1 and l.sector_1 > 0), key=lambda l: l.sector_1, default=None)
+    best_s2_lap = min((l for l in valid_laps if l.sector_2 and l.sector_2 > 0), key=lambda l: l.sector_2, default=None)
+    best_s3_lap = min((l for l in valid_laps if l.sector_3 and l.sector_3 > 0), key=lambda l: l.sector_3, default=None)
+    return best_lap, best_s1_lap, best_s2_lap, best_s3_lap
+
+
 def _compute_session_stats(laps: list[LapRecord]):
     """Compute overall and per-car bests across all sectors."""
     valid = [l for l in laps if l.lap_time and l.lap_time > 0]
 
-    overall_best_lap = min(valid, key=lambda l: l.lap_time) if valid else None
-    overall_best_s1  = min((l for l in valid if l.sector_1 and l.sector_1 > 0), key=lambda l: l.sector_1, default=None)
-    overall_best_s2  = min((l for l in valid if l.sector_2 and l.sector_2 > 0), key=lambda l: l.sector_2, default=None)
-    overall_best_s3  = min((l for l in valid if l.sector_3 and l.sector_3 > 0), key=lambda l: l.sector_3, default=None)
+    best_lap, best_s1_lap, best_s2_lap, best_s3_lap = _best_sectors(valid)
 
     overall = {
-        "lap_time": overall_best_lap.lap_time if overall_best_lap else None,
-        "lap_car": overall_best_lap.car_number if overall_best_lap else "",
-        "s1": overall_best_s1.sector_1 if overall_best_s1 else None,
-        "s1_car": overall_best_s1.car_number if overall_best_s1 else "",
-        "s2": overall_best_s2.sector_2 if overall_best_s2 else None,
-        "s2_car": overall_best_s2.car_number if overall_best_s2 else "",
-        "s3": overall_best_s3.sector_3 if overall_best_s3 else None,
-        "s3_car": overall_best_s3.car_number if overall_best_s3 else "",
+        "lap_time": best_lap.lap_time if best_lap else None,
+        "lap_car": best_lap.car_number if best_lap else "",
+        "s1": best_s1_lap.sector_1 if best_s1_lap else None,
+        "s1_car": best_s1_lap.car_number if best_s1_lap else "",
+        "s2": best_s2_lap.sector_2 if best_s2_lap else None,
+        "s2_car": best_s2_lap.car_number if best_s2_lap else "",
+        "s3": best_s3_lap.sector_3 if best_s3_lap else None,
+        "s3_car": best_s3_lap.car_number if best_s3_lap else "",
     }
 
     # Per-car best S1/S2/S3 (independent of best lap)
@@ -612,10 +625,10 @@ def _compute_driver_analysis(laps):
     drivers = []
     for name, d_laps in driver_groups.items():
         valid = [l for l in d_laps if l.lap_time and l.lap_time > 0]
-        best_lap = min(valid, key=lambda l: l.lap_time) if valid else None
-        best_s1 = min((l.sector_1 for l in valid if l.sector_1 and l.sector_1 > 0), default=None)
-        best_s2 = min((l.sector_2 for l in valid if l.sector_2 and l.sector_2 > 0), default=None)
-        best_s3 = min((l.sector_3 for l in valid if l.sector_3 and l.sector_3 > 0), default=None)
+        best_lap, best_s1_lap, best_s2_lap, best_s3_lap = _best_sectors(valid)
+        best_s1 = best_s1_lap.sector_1 if best_s1_lap else None
+        best_s2 = best_s2_lap.sector_2 if best_s2_lap else None
+        best_s3 = best_s3_lap.sector_3 if best_s3_lap else None
         theoretical = (best_s1 + best_s2 + best_s3) if (best_s1 and best_s2 and best_s3) else None
         drivers.append({
             "driver_name": name,
@@ -630,9 +643,10 @@ def _compute_driver_analysis(laps):
     drivers.sort(key=lambda d: d["best_lap"] if d["best_lap"] else 99999)
 
     all_valid = [l for l in laps if l.lap_time and l.lap_time > 0]
-    overall_s1 = min((l.sector_1 for l in all_valid if l.sector_1 and l.sector_1 > 0), default=None)
-    overall_s2 = min((l.sector_2 for l in all_valid if l.sector_2 and l.sector_2 > 0), default=None)
-    overall_s3 = min((l.sector_3 for l in all_valid if l.sector_3 and l.sector_3 > 0), default=None)
+    _, overall_best_s1_lap, overall_best_s2_lap, overall_best_s3_lap = _best_sectors(all_valid)
+    overall_s1 = overall_best_s1_lap.sector_1 if overall_best_s1_lap else None
+    overall_s2 = overall_best_s2_lap.sector_2 if overall_best_s2_lap else None
+    overall_s3 = overall_best_s3_lap.sector_3 if overall_best_s3_lap else None
 
     return drivers, overall_s1, overall_s2, overall_s3
 
@@ -941,10 +955,13 @@ def api_session_analytics(session_id):
     # Position progression (Race only)
     position_progression = None
     if session.session_type == "Race":
-        # For each lap, determine each car's position based on cumulative time
-        # Group laps by lap_number, then rank by cumulative time
         lap_numbers = sorted(set(l.lap_number for l in all_valid))
         car_positions: dict[str, list] = {cn: [] for cn in car_groups}
+
+        # Pre-build lookup: (car_number, lap_number) → driver_name
+        lap_driver_map: dict[tuple[str, int], str] = {}
+        for l in lap_times:
+            lap_driver_map[(l["car_number"], l["lap_number"])] = l["driver_name"]
 
         for lap_num in lap_numbers:
             lap_entries = [l for l in all_valid if l.lap_number == lap_num]
