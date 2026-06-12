@@ -1,31 +1,46 @@
 # AGENTS.md
 
-This repository is a small Flask application for importing race timing CSV files, storing lap and standing data in SQLite, and rendering server-side analysis pages.
-
-## What matters most
-- Core domain models live in [models.py](models.py): Event, Session, LapRecord, Standing, User, and TimeKeeper.
-- Parsers live in [parsers/](parsers/) and should inherit from [parsers/base.py](parsers/base.py); register new parsers in [parsers/__init__.py](parsers/__init__.py).
-- The UI is server-rendered through [routes.py](routes.py) and [templates/](templates/) with Jinja2 and Tailwind CDN.
-- For broader product context, see [CLAUDE.md](CLAUDE.md).
-
-## Working conventions
-- Use Python 3 and keep changes compatible with Flask + Flask-SQLAlchemy.
-- Prefer the standard library CSV parser; avoid adding pandas or introducing a frontend build pipeline.
-- Preserve the normalized lap and standing fields used across the app, especially lap_time, driver_name, out_lap, in_lap, sector values, and session_time.
-- When changing import, parsing, or display behavior, add or update tests in [tests/](tests/).
-- Do not assume database migrations exist; tables are created from the models at startup. Inline `ALTER TABLE` migrations live in [app.py](app.py) (`_ensure_*` functions) and run on first boot.
+Flask app for importing race timing CSV files, storing lap/standing data in SQLite, and rendering server-side analysis pages. Deployed on a remote Ubuntu server with Nginx + systemd + Gunicorn.
 
 ## Commands
-- Install dependencies: `pip install -r requirements.txt`
-- Run the app: `python run.py`
-- Run tests: `python -m unittest discover -s tests`
-- Run a single test: `python -m unittest tests.test_standings_sorting`
-- Reset the local database if needed: `rm instance/timing.db && python run.py` (Windows: `del instance\timing.db && python run.py`)
 
-## Agent guidance
-- Keep UI changes consistent with the existing server-rendered Tailwind/Jinja approach.
-- If a parser change affects import behavior, verify the downstream display logic and tests that depend on the normalized payload.
+```bash
+pip install -r requirements.txt       # install deps (Flask + Flask-SQLAlchemy only)
+python run.py                          # http://localhost:5000, debug mode, binds 0.0.0.0
+python -m unittest discover -s tests   # run all tests
+python -m unittest tests.test_standings_sorting   # single test module
+del instance\timing.db && python run.py           # fresh start (Windows)
+rm instance/timing.db && python run.py            # fresh start (Linux)
+```
+
+## Architecture
+
+- **models.py** — Event, Session, LapRecord, Standing, User, TimeKeeper. Tables auto-created from models at startup; no migration framework.
+- **parsers/** — CSV parsers inheriting from `parsers/base.py`. Register new parsers in `parsers/__init__.py` `PARSER_REGISTRY`.
+- **routes.py** — All routes; upload endpoint shows parser-specific file inputs dynamically.
+- **templates/** — Server-rendered Jinja2 + Tailwind CSS CDN + Chart.js CDN. No frontend build step.
+- **app.py** — `create_app()` factory; runs inline `ALTER TABLE` migrations via `_ensure_*()` functions on first boot.
+
+## Key conventions
+
+- Python 3, stdlib `csv` module only — do not add pandas or a frontend build pipeline.
+- Preserve normalized fields: `lap_time`, `driver_name`, `out_lap`, `in_lap`, sector values, `session_time`.
+- Parser changes that affect import must update downstream display logic and tests.
 - Prefer small, targeted changes over architectural rewrites.
-- New parsers: subclass `BaseParser`, implement `parse()` returning `{session_name, session_type, laps[], standings[]}`, then register the instance in `PARSER_REGISTRY` in [parsers/__init__.py](parsers/__init__.py).
-- Default admin account seeded on first run: `admin` / `admin123` (do not hardcode credentials in templates or routes).
-- Upload accepts up to 5 CSV files per session; which inputs appear is parser-specific. The upload route in [routes.py](routes.py) dynamically shows fields based on the selected parser.
+- Admin-only routes: event CRUD, upload, session reorder/delete, user registration.
+- Default admin: `admin` / `admin123` (seeded on first run, never hardcode in templates).
+- Upload accepts up to 5 CSV files per session; which inputs appear is parser-specific.
+- Session detail has 5 inline views (Classification, Lap Summary, Lap-by-Lap, Drivers, Chart) toggled by buttons — no page navigation.
+
+## Adding a parser
+
+1. Subclass `BaseParser` (implements `name`, `description`, `parse(**kwargs)`, `detect(filepath)`)
+2. `parse()` returns `{session_name, session_type, laps[], standings[]}`
+3. Register an instance in `PARSER_REGISTRY` in `parsers/__init__.py`
+
+## Deployment
+
+- Push to main triggers `.github/workflows/deploy.yml` (build + deploy to remote)
+- Production: Ubuntu + Nginx reverse proxy → Gunicorn on 127.0.0.1:8000
+- Configs in `deploy/` (systemd service, Nginx conf)
+- Docker: `Dockerfile` builds Python 3.12-slim image
