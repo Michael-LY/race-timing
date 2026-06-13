@@ -873,8 +873,19 @@ def event_car_config(event_id):
         st.team_name for s in event.sessions for st in s.standings if st.team_name
     ))
 
+    # Collect all car_model values from the entire database for autocomplete
+    db_models: set[str] = set()
+    for row in Standing.query.with_entities(Standing.car_model).distinct():
+        if row.car_model:
+            db_models.add(row.car_model)
+    for row in CarConfig.query.with_entities(CarConfig.car_model).distinct():
+        if row.car_model:
+            db_models.add(row.car_model)
+    car_model_options = sorted(db_models, key=str.casefold)
+
     return render_template("event_car_config.html", event=event, cars=cars,
-                           class_options=class_options, team_options=team_options)
+                           class_options=class_options, team_options=team_options,
+                           car_model_options=car_model_options)
 
 
 # ---------------------------------------------------------------------------

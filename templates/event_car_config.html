@@ -73,8 +73,8 @@
 
             <!-- Datalists for autocomplete -->
             <datalist id="carModelList">
-                {% for car in cars if car.car_model %}
-                <option value="{{ car.car_model }}">
+                {% for opt in car_model_options %}
+                <option value="{{ opt }}">
                 {% endfor %}
             </datalist>
             <datalist id="teamNameList">
