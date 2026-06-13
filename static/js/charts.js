@@ -65,18 +65,16 @@ function getModelColor(model) {
 }
 
 function getCarColor(carNum, carModel) {
-    // Check explicit series_color override first (applies to both modes)
-    var explicitColor = window._carColorMap[carNum];
-    if (explicitColor && explicitColor.match(/^#[0-9a-f]{6}$/i)) return explicitColor;
-
     if (window.colorMode === 'model') {
-        // Use stored model_color from DB (derived from model name hash)
+        // By Model: model_color (global/hash) → model name hash
         var mc = window._carModelColorMap[carNum];
         if (mc && mc.match(/^#[0-9a-f]{6}$/i)) return mc;
-        // Fall back to hash from model name
         var model = carModel || window._carModelMap[carNum] || '';
         return getModelColor(model);
     }
+    // By Car #: series_color → car number hash
+    var explicitColor = window._carColorMap[carNum];
+    if (explicitColor && explicitColor.match(/^#[0-9a-f]{6}$/i)) return explicitColor;
     var idx = parseInt(carNum) || 0;
     return COLORS[idx % COLORS.length];
 }
@@ -911,5 +909,86 @@ window.toggleColorMode = function() {
         btn.textContent = (window.colorMode === 'number') ? 'By Car #' : 'By Model';
         btn.classList.toggle('btn-ghost-active', window.colorMode === 'model');
     }
-    if (cachedData) renderCheckedCharts(cachedData);
+    // Update all existing chart colors in-place (more reliable than destroy+recreate)
+    updateAllChartColors();
 };
+
+function updateAllChartColors() {
+    // Rebuild color maps from cached data so getCarColor uses new mode
+    if (!cachedData) return;
+    buildCarModelMap(cachedData);
+
+    Object.keys(chartInstances).forEach(function(type) {
+        var chart = chartInstances[type];
+        if (!chart || !chart.data || !chart.data.datasets) return;
+
+        // Strategy is HTML-based, needs full re-render
+        if (type === 'strategy') {
+            var canvas = document.getElementById('chartCanvas-strategy');
+            if (canvas) {
+                var ctx = canvas.getContext('2d');
+                renderers.strategy(ctx, cachedData);
+            }
+            return;
+        }
+
+        // Speed / pitStops: single dataset with per-bar color arrays
+        if (type === 'speed') {
+            var ds = chart.data.datasets[0];
+            if (ds && cachedData.per_car) {
+                var newColors = cachedData.per_car.map(function(c) { return getCarColor(c.car_number); });
+                ds.backgroundColor = newColors;
+                ds.borderColor = newColors;
+            }
+            chart.update('none');
+            return;
+        }
+
+        if (type === 'pitStops') {
+            var ds = chart.data.datasets[0];
+            if (ds && cachedData.pit_stops) {
+                var newColors = cachedData.pit_stops.map(function(p) { return getCarColor(p.car_number); });
+                ds.backgroundColor = newColors;
+                ds.borderColor = newColors.map(function(c) { return c + 'cc'; });
+            }
+            chart.update('none');
+            return;
+        }
+
+        // boxPlot: datasets[2] (boxLow) and datasets[3] (boxHigh) have per-car colors
+        if (type === 'boxPlot') {
+            if (cachedData.per_car) {
+                var carColors = cachedData.per_car
+                    .filter(function(c) { return c.min_lap != null && c.q1 != null && c.median != null && c.q3 != null && c.max_lap != null; })
+                    .map(function(c) { return getCarColor(c.car_number); });
+                if (chart.data.datasets[2]) {
+                    chart.data.datasets[2].backgroundColor = carColors.map(function(c) { return c + '99'; });
+                    chart.data.datasets[2].borderColor = carColors;
+                }
+                if (chart.data.datasets[3]) {
+                    chart.data.datasets[3].backgroundColor = carColors.map(function(c) { return c + '66'; });
+                    chart.data.datasets[3].borderColor = carColors;
+                }
+            }
+            chart.update('none');
+            return;
+        }
+
+        // lapTime / delta / position: one dataset per car, label = '#{carNum}'
+        // Extract car number from label, recolor
+        var changed = false;
+        chart.data.datasets.forEach(function(ds) {
+            var label = ds.label || '';
+            var match = label.match(/^#(\S+)/);
+            if (match) {
+                var carNum = match[1];
+                var newColor = getCarColor(carNum);
+                if (ds.borderColor && ds.borderColor !== newColor) {
+                    ds.borderColor = newColor;
+                    changed = true;
+                }
+            }
+        });
+        if (changed) chart.update('none');
+    });
+}
