@@ -600,7 +600,7 @@ document.querySelectorAll('.car-color-toggle').forEach(function(btn) {
                 var g = parseInt(hex.slice(3,5), 16);
                 var b = parseInt(hex.slice(5,7), 16);
                 // Apply as CSS variable on the row so .car-color-row can use it
-                row.style.setProperty('--row-car-color', 'rgba(' + r + ',' + g + ',' + b + ',0.12)');
+                row.style.setProperty('--row-car-color', 'rgba(' + r + ',' + g + ',' + b + ',0.60)');
                 row.classList.add('car-color-row');
                 // Ensure winner row still shows winner bg
                 if (row.classList.contains('bg-winner')) {

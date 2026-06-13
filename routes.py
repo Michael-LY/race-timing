@@ -819,32 +819,27 @@ def session_detail(session_id):
 
     drivers, driver_overall_s1, driver_overall_s2, driver_overall_s3 = _compute_driver_analysis(laps)
 
-    # Compute car colors for table row backgrounds
+    # Compute car colors for table row backgrounds (matches analytics API logic)
     car_colors: dict[str, str] = {}
-    # From standings (preferred)
+    car_model_map: dict[str, str] = {}
     for s in session.standings:
         cn = str(s.car_number)
-        if cn not in car_colors:
-            color = s.series_color or s.model_color or ""
-            if color:
-                car_colors[cn] = color
-    # From global CarModelColor table (fallback per model)
-    for cn, c in car_colors.items():
-        if not c:
-            st = next((st for st in session.standings if str(st.car_number) == cn), None)
-            if st and st.car_model:
-                gmc = CarModelColor.query.filter_by(car_model=st.car_model).first()
-                if gmc and gmc.model_color:
-                    car_colors[cn] = gmc.model_color
-                else:
-                    car_colors[cn] = model_to_color(st.car_model)
-            else:
-                car_colors[cn] = "#64748b"
-    # Ensure every standing car has a color
+        if s.car_model:
+            car_model_map[cn] = s.car_model
+        car_colors[cn] = s.model_color or ""
+    # Global CarModelColor overrides
+    global_model_colors: dict[str, str] = {}
+    for g in CarModelColor.query.all():
+        if g.model_color:
+            global_model_colors[g.car_model] = g.model_color
+    for cn, cm in car_model_map.items():
+        if cm in global_model_colors:
+            car_colors[cn] = global_model_colors[cm]
+    # Fallback to hash for any car still empty
     for s in session.standings:
         cn = str(s.car_number)
-        if cn not in car_colors or not car_colors[cn]:
-            car_colors[cn] = model_to_color(s.car_model if s.car_model else "")
+        if not car_colors.get(cn):
+            car_colors[cn] = model_to_color(car_model_map.get(cn, ""))
 
     return render_template("session_detail.html",
                            session=session,
