@@ -301,6 +301,11 @@ a:hover { color: var(--accent-cyan-hover); }
     background: var(--highlight-winner-bg) !important;
 }
 
+/* Classification highlight: sticky columns inherit row highlight */
+.classification-row-highlight .sticky-col {
+    background: var(--row-highlight-color, var(--highlight-car-bg)) !important;
+}
+
 .bg-nc-separator {
     background: var(--nc-separator-bg);
 }
