@@ -95,6 +95,8 @@ class Standing(db.Model):
     car_model = db.Column(db.String(100), default="")
     series_color = db.Column(db.String(20), default="")
     model_color = db.Column(db.String(20), default="")
+    gap_text = db.Column(db.String(50), default="")
+    diff_text = db.Column(db.String(50), default="")
 
     session = db.relationship("Session", back_populates="standings")
 

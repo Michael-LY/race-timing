@@ -437,7 +437,9 @@ class SwissTimingParser(BaseParser):
                 "car_model": car_model,
                 "total_time": self._to_seconds(get_col(row, "totaltime")),
                 "gap": self._to_seconds(get_col(row, "gaptime")),
+                "gap_text": get_col(row, "gaptime"),
                 "diff": None,
+                "diff_text": "",
                 "laps_completed": (
                     int(get_col(row, "lapcount"))
                     if get_col(row, "lapcount")
@@ -764,7 +766,9 @@ class SwissTimingParser(BaseParser):
                 "car_model": "",
                 "total_time": cd["total_time"] if cd["total_time"] > 0 else None,
                 "gap": gap,
+                "gap_text": "",
                 "diff": None,
+                "diff_text": "",
                 "laps_completed": cd["total_laps"],
                 "fastest_lap": cd["best_lap"],
                 "fastest_lap_no": cd["best_lap_no"],

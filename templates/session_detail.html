@@ -93,8 +93,8 @@
                     <td><small>{{ s.class_name }}</small></td>
                     <td>{{ s.nationality }}</td>
                     <td>{% if s.total_time %}{{ "%d:%06.3f"|format(s.total_time // 60, s.total_time % 60) }}{% else %}-{% endif %}</td>
-                    <td>{% if s.gap is not none %}{{ "%6.3f"|format(s.gap) }}{% else %}-{% endif %}</td>
-                    <td>{% if s.diff is not none %}{{ "%6.3f"|format(s.diff) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.gap_text %}{{ s.gap_text }}{% elif s.gap is not none %}{{ "%6.3f"|format(s.gap) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.diff_text %}{{ s.diff_text }}{% elif s.diff is not none %}{{ "%6.3f"|format(s.diff) }}{% else %}-{% endif %}</td>
                     <td>{{ s.laps_completed or '-' }}</td>
                     <td class="best-lap">{% if s.fastest_lap %}{{ "%d:%06.3f"|format(s.fastest_lap // 60, s.fastest_lap % 60) }}{% else %}-{% endif %}</td>
                     <td>{{ s.fastest_lap_no or '-' }}</td>
@@ -112,8 +112,8 @@
                     <td><small>{{ s.class_name }}</small></td>
                     <td>{{ s.nationality }}</td>
                     <td>{% if s.total_time %}{{ "%d:%06.3f"|format(s.total_time // 60, s.total_time % 60) }}{% else %}-{% endif %}</td>
-                    <td>{% if s.gap is not none %}{{ "%6.3f"|format(s.gap) }}{% else %}-{% endif %}</td>
-                    <td>{% if s.diff is not none %}{{ "%6.3f"|format(s.diff) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.gap_text %}{{ s.gap_text }}{% elif s.gap is not none %}{{ "%6.3f"|format(s.gap) }}{% else %}-{% endif %}</td>
+                    <td>{% if s.diff_text %}{{ s.diff_text }}{% elif s.diff is not none %}{{ "%6.3f"|format(s.diff) }}{% else %}-{% endif %}</td>
                     <td>{{ s.laps_completed or '-' }}</td>
                     <td class="best-lap">{% if s.fastest_lap %}{{ "%d:%06.3f"|format(s.fastest_lap // 60, s.fastest_lap % 60) }}{% else %}-{% endif %}</td>
                     <td>{{ s.fastest_lap_no or '-' }}</td>

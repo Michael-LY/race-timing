@@ -29,6 +29,7 @@ def create_app():
         _ensure_car_model_columns()
         _ensure_series_color_columns()
         _ensure_model_color_columns()
+        _ensure_gap_text_columns()
         _seed_time_keepers()
         _seed_admin()
 
@@ -135,6 +136,18 @@ def _ensure_model_color_columns():
             if "model_color" not in columns:
                 with db.engine.begin() as connection:
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN model_color VARCHAR(20) DEFAULT ''"))
+
+
+def _ensure_gap_text_columns():
+    inspector = inspect(db.engine)
+    if "standings" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("standings")}
+        if "gap_text" not in columns:
+            with db.engine.begin() as connection:
+                connection.execute(text("ALTER TABLE standings ADD COLUMN gap_text VARCHAR(50) DEFAULT ''"))
+        if "diff_text" not in columns:
+            with db.engine.begin() as connection:
+                connection.execute(text("ALTER TABLE standings ADD COLUMN diff_text VARCHAR(50) DEFAULT ''"))
 
 
 def _seed_time_keepers():
