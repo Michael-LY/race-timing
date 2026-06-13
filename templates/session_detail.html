@@ -88,7 +88,7 @@
             </thead>
             <tbody>
                 {% for s in classified %}
-                <tr class="{% if s.position == 1 %}bg-winner{% endif %}" data-sort-group="ranked" data-sort-value="{{ s.position if s.position and s.position > 0 else 999999 }}" data-sort-laps="{{ s.laps_completed if s.laps_completed is not none else -1 }}" data-classification-row="true" data-class="{{ s.class_name or '' }}" data-car-number="{{ s.car_number or '' }}" data-car-color="{{ car_colors.get(s.car_number|string, '') }}">
+                <tr data-sort-group="ranked" data-sort-value="{{ s.position if s.position and s.position > 0 else 999999 }}" data-sort-laps="{{ s.laps_completed if s.laps_completed is not none else -1 }}" data-classification-row="true" data-class="{{ s.class_name or '' }}" data-car-number="{{ s.car_number or '' }}" data-car-color="{{ car_colors.get(s.car_number|string, '') }}">
                     <td class="sticky-col sticky-col-1"><strong>{{ s.position }}</strong></td>
                     <td class="sticky-col sticky-col-2"><strong>#{{ s.car_number }}</strong></td>
                     <td>{{ s.team_name }}</td>
@@ -617,10 +617,6 @@ document.querySelectorAll('.car-color-toggle').forEach(function(btn) {
                 // Apply as CSS variable on the row so .car-color-row can use it
                 row.style.setProperty('--row-car-color', 'rgba(' + r + ',' + g + ',' + b + ',0.60)');
                 row.classList.add('car-color-row');
-                // Ensure winner row still shows winner bg
-                if (row.classList.contains('bg-winner')) {
-                    row.classList.remove('car-color-row');
-                }
             } else {
                 row.style.removeProperty('--row-car-color');
                 row.classList.remove('car-color-row');

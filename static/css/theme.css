@@ -280,10 +280,6 @@ a:hover { color: var(--accent-cyan-hover); }
     background: var(--highlight-winner-bg) !important;
 }
 
-.bg-winner .sticky-col {
-    background: var(--highlight-winner-bg) !important;
-}
-
 .lap-row[style*="pit-in-bg"] .sticky-col,
 .lap-row[style*="pit-out-bg"] .sticky-col {
     background: inherit !important;
@@ -295,10 +291,6 @@ a:hover { color: var(--accent-cyan-hover); }
 }
 .car-color-row .sticky-col {
     background: var(--row-car-color, var(--car-color-bg)) !important;
-}
-.car-color-row.bg-winner,
-.car-color-row.bg-winner .sticky-col {
-    background: var(--highlight-winner-bg) !important;
 }
 
 /* Classification highlight: sticky columns inherit row highlight */
