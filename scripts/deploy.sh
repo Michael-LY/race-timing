@@ -29,7 +29,7 @@ ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "bash -s" <<REMOTE
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-if [ "$(id -u)" -eq 0 ]; then
+if [ "\$(id -u)" -eq 0 ]; then
   apt-get update
   apt-get install -y python3 python3-venv python3-pip nginx
 else
@@ -41,6 +41,19 @@ mkdir -p '$DEPLOY_PATH/current' '$DEPLOY_PATH/shared/instance' '$DEPLOY_PATH/sha
 rm -rf '$DEPLOY_PATH/current'/* '$DEPLOY_PATH/current'/.[!.]* '$DEPLOY_PATH/current'/..?* 2>/dev/null || true
 tar -xzf /tmp/$ARCHIVE_NAME -C '$DEPLOY_PATH/current'
 rm -f /tmp/$ARCHIVE_NAME
+
+# Generate .env with SECRET_KEY if it doesn't exist
+if [ ! -f '$DEPLOY_PATH/shared/.env' ]; then
+  GENERATED_KEY=\$(python3 -c "import secrets; print(secrets.token_hex(32))")
+  cat > '$DEPLOY_PATH/shared/.env' <<ENVEOF
+SECRET_KEY=\$GENERATED_KEY
+DATABASE_URL=sqlite:////opt/race-timing/shared/instance/timing.db
+ENVEOF
+  chmod 600 '$DEPLOY_PATH/shared/.env'
+  echo "Created new .env with generated SECRET_KEY"
+else
+  echo "Using existing .env"
+fi
 
 python3 -m venv '$DEPLOY_PATH/current/.venv'
 '$DEPLOY_PATH/current/.venv/bin/pip' install --upgrade pip

@@ -1,9 +1,10 @@
 import os
+import secrets
 
-from flask import Flask, session as flask_session
+from flask import Flask, session as flask_session, request, abort
 from sqlalchemy import inspect, text
 
-from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS, UPLOAD_FOLDER
+from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS, UPLOAD_FOLDER, SECRET_KEY
 from models import db, TimeKeeper, User
 
 
@@ -12,10 +13,12 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = SQLALCHEMY_TRACK_MODIFICATIONS
     app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-    app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
+    app.config["SECRET_KEY"] = SECRET_KEY
 
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs(os.path.dirname(SQLALCHEMY_DATABASE_URI.replace("sqlite:///", "")), exist_ok=True)
+    db_dir = SQLALCHEMY_DATABASE_URI.replace("sqlite:///", "")
+    if db_dir:
+        os.makedirs(os.path.dirname(db_dir), exist_ok=True)
 
     db.init_app(app)
 
@@ -27,19 +30,42 @@ def create_app():
         _seed_time_keepers()
         _seed_admin()
 
-    # Context processor: inject current_user into all templates
+    # Context processor: inject current_user and csrf_token into all templates
     @app.context_processor
-    def inject_current_user():
+    def inject_globals():
         user_id = flask_session.get("user_id")
         user = None
         if user_id:
             user = db.session.get(User, user_id)
-        return dict(current_user=user)
+        # Eagerly generate CSRF token so it's always available
+        if "_csrf_token" not in flask_session:
+            flask_session["_csrf_token"] = secrets.token_hex(32)
+        return dict(current_user=user, csrf_token=flask_session["_csrf_token"])
+
+    # CSRF protection for all POST requests
+    @app.before_request
+    def csrf_protect():
+        if request.method != "POST":
+            return
+        # Skip CSRF for API endpoints (token-based, no session)
+        if request.path.startswith("/api/"):
+            return
+        token = request.form.get("_csrf_token") or request.headers.get("X-CSRF-Token")
+        if not token or not _verify_csrf_token(token):
+            abort(403)
 
     from routes import bp
     app.register_blueprint(bp)
 
     return app
+
+
+def _verify_csrf_token(token: str) -> bool:
+    """Verify a CSRF token against the session token."""
+    expected = flask_session.get("_csrf_token")
+    if not expected or not token:
+        return False
+    return secrets.compare_digest(token, expected)
 
 
 def _ensure_session_sort_order_column():

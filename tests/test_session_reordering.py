@@ -1,5 +1,6 @@
 import importlib
 import os
+import secrets
 import tempfile
 import unittest
 
@@ -30,6 +31,15 @@ class SessionReorderingTestCase(unittest.TestCase):
         if os.path.exists(self.tmp_db.name):
             os.remove(self.tmp_db.name)
 
+    def _login_and_get_csrf(self, user):
+        """Login as user and make a GET request to initialize the CSRF token."""
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = user.id
+        # Make a GET request so the context processor generates the CSRF token
+        self.client.get("/")
+        with self.client.session_transaction() as sess:
+            return sess.get("_csrf_token", "")
+
     def test_admin_can_reorder_sessions(self):
         admin = User(username="reorder-admin", is_admin=True)
         admin.set_password("secret123")
@@ -45,12 +55,11 @@ class SessionReorderingTestCase(unittest.TestCase):
         db.session.add_all([session_a, session_b])
         db.session.commit()
 
-        with self.client.session_transaction() as sess:
-            sess["user_id"] = admin.id
+        csrf = self._login_and_get_csrf(admin)
 
         response = self.client.post(
             f"/events/{event.id}/sessions/reorder",
-            data={"session_ids": [str(session_b.id), str(session_a.id)]},
+            data={"session_ids": [str(session_b.id), str(session_a.id)], "_csrf_token": csrf},
             follow_redirects=False,
         )
 
@@ -73,12 +82,11 @@ class SessionReorderingTestCase(unittest.TestCase):
         db.session.add(session)
         db.session.commit()
 
-        with self.client.session_transaction() as sess:
-            sess["user_id"] = user.id
+        csrf = self._login_and_get_csrf(user)
 
         response = self.client.post(
             f"/events/{event.id}/sessions/reorder",
-            data={"session_ids": [str(session.id)]},
+            data={"session_ids": [str(session.id)], "_csrf_token": csrf},
             follow_redirects=False,
         )
 

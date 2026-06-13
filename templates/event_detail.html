@@ -44,6 +44,7 @@
         </a>
         <form method="POST" action="{{ url_for('main.event_delete', event_id=event.id) }}"
               onsubmit="return confirm('Delete this event and all its sessions?');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn-danger p-2">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
@@ -65,6 +66,7 @@
         {% if current_user and current_user.is_admin %}
         <button type="button" id="reorder-toggle" class="btn-ghost" onclick="toggleSessionReorder()">Manual sort</button>
         <form id="reorder-form" method="POST" action="{{ url_for('main.reorder_event_sessions', event_id=event.id) }}" class="hidden">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="session_ids" id="session-order-input">
             <button type="submit" class="btn-primary-green px-3 py-1.5 rounded-md">Save order</button>
         </form>
@@ -98,6 +100,7 @@
             </a>
             <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
                   onsubmit="event.stopPropagation(); return confirm('Delete this session?');">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn-danger p-1.5">
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                 </button>

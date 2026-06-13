@@ -36,6 +36,7 @@
         {% if current_user and current_user.is_admin %}
         <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
               onsubmit="return confirm('Delete this session?');" class="ml-1">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn-danger p-1.5">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
