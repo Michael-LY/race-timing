@@ -45,12 +45,12 @@
                             </td>
                             <td class="py-2 pr-2">
                                 <div class="flex items-center gap-2">
-                                    <input type="color" name="series_color[]" value="{{ car.series_color or '#64748b' }}"
+                                    <input type="color" name="series_color[]" value="{{ car.series_color or car.effective_color }}"
                                            class="w-8 h-8 rounded cursor-pointer border border-default p-0.5"
                                            title="Pick a color">
                                     <input type="text" name="series_color_text[]" value="{{ car.series_color }}"
                                            class="themed-input w-20 text-xs px-1 py-1 rounded font-mono"
-                                           placeholder="#rrggbb" maxlength="7"
+                                           placeholder="{{ car.effective_color }}" maxlength="7"
                                            oninput="this.previousElementSibling.value=this.value"
                                            onchange="this.previousElementSibling.value=this.value">
                                 </div>

@@ -61,10 +61,11 @@ function getModelColor(model) {
 }
 
 function getCarColor(carNum, carModel) {
+    // Check explicit series_color override first (applies to both modes)
+    var explicitColor = window._carColorMap[carNum];
+    if (explicitColor && explicitColor.match(/^#[0-9a-f]{6}$/i)) return explicitColor;
+
     if (window.colorMode === 'model') {
-        // Use explicit series_color if set
-        var explicitColor = window._carColorMap[carNum];
-        if (explicitColor && explicitColor.match(/^#[0-9a-f]{6}$/i)) return explicitColor;
         // Fall back to hash from model name
         var model = carModel || window._carModelMap[carNum] || '';
         return getModelColor(model);

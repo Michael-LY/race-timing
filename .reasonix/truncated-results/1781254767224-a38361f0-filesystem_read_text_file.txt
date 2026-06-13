@@ -5,7 +5,7 @@ from functools import wraps
 from flask import (Blueprint, render_template, request, redirect, url_for,
                    flash, jsonify, current_app, session as flask_session)
 from werkzeug.utils import secure_filename
-from models import db, Event, Session, LapRecord, Standing, TimeKeeper, User, CarConfig
+from models import db, Event, Session, LapRecord, Standing, TimeKeeper, User
 from parsers import get_parser, list_parsers
 from datetime import datetime
 
@@ -445,11 +445,7 @@ def upload(event_id):
         db.session.flush()
 
         # Insert standings (from Classification)
-        car_model_map: dict[str, str] = {}
         for s in data.get("standings", []):
-            cm = s.get("car_model", "") or ""
-            if cm:
-                car_model_map[str(s.get("car_number", ""))] = cm
             standing = Standing(
                 session_id=session.id,
                 position=s.get("position", 0),
@@ -457,7 +453,6 @@ def upload(event_id):
                 team_name=s.get("team_name", ""),
                 class_name=s.get("class_name", ""),
                 nationality=s.get("nationality", ""),
-                car_model=cm,
                 total_time=s.get("total_time"),
                 gap=s.get("gap"),
                 diff=s.get("diff"),
@@ -487,16 +482,11 @@ def upload(event_id):
                 if key in best_times and l["lap_time"] == best_times[key]:
                     is_best = True
 
-            lap_cm = l.get("car_model", "") or ""
-            if not lap_cm:
-                lap_cm = car_model_map.get(str(l.get("car_number", "")), "")
-
             lap = LapRecord(
                 session_id=session.id,
                 car_number=l.get("car_number", ""),
                 driver_name=l.get("driver_name", ""),
                 category=l.get("category", ""),
-                car_model=lap_cm,
                 lap_number=l.get("lap_number", 0),
                 lap_time=l.get("lap_time"),
                 sector_1=l.get("sector_1"),
@@ -756,186 +746,6 @@ def session_delete(session_id):
 
 
 # ---------------------------------------------------------------------------
-# Event-level car configuration editor
-# ---------------------------------------------------------------------------
-@bp.route("/events/<int:event_id>/car-config", methods=["GET", "POST"])
-@admin_required
-def event_car_config(event_id):
-    """Admin page to configure car-level settings (model, color, team, class) per event."""
-    from sqlalchemy import distinct
-
-    # Must match static/js/charts.js COLORS array order
-    CHART_COLORS = [
-        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
-        '#f97316', '#6366f1', '#14b8a6', '#e11d48', '#a855f7', '#0891b2',
-        '#dc2626', '#0d9488', '#78716c', '#eab308', '#475569', '#ec4899',
-        '#22d3ee', '#fb923c', '#78350f', '#64748b', '#059669', '#84cc16',
-    ]
-
-    def _car_chart_color(car_number: str, series_color: str) -> str:
-        """Replicate charts.js getCarColor logic for fallback display."""
-        if series_color and len(series_color) == 7 and series_color.startswith("#"):
-            return series_color
-        try:
-            idx = int(car_number) % len(CHART_COLORS)
-        except (ValueError, TypeError):
-            idx = 0
-        return CHART_COLORS[idx]
-    event = Event.query.get_or_404(event_id)
-
-    # Collect unique car numbers across all sessions in this event
-    session_ids = [s.id for s in event.sessions]
-    if not session_ids:
-        flash("No sessions in this event. Upload data first.", "warning")
-        return redirect(url_for("main.event_detail", event_id=event_id))
-
-    if request.method == "POST":
-        car_numbers = request.form.getlist("car_number[]")
-        car_models = request.form.getlist("car_model[]")
-        colors = request.form.getlist("series_color[]")
-        teams = request.form.getlist("team_name[]")
-        classes = request.form.getlist("class_name[]")
-
-        updated_count = 0
-        for i, cn in enumerate(car_numbers):
-            cn = cn.strip()
-            if not cn:
-                continue
-            model = (car_models[i] if i < len(car_models) else "").strip()
-            color = (colors[i] if i < len(colors) else "").strip()
-            team = (teams[i] if i < len(teams) else "").strip()
-            cls_ = (classes[i] if i < len(classes) else "").strip()
-
-            # Upsert CarConfig
-            cfg = CarConfig.query.filter_by(event_id=event.id, car_number=cn).first()
-            if not cfg:
-                cfg = CarConfig(event_id=event.id, car_number=cn)
-                db.session.add(cfg)
-            cfg.car_model = model
-            cfg.series_color = color
-            cfg.team_name = team
-            cfg.class_name = cls_
-
-            # Propagate to all standings in this event
-            Standing.query.filter(
-                Standing.session_id.in_(session_ids),
-                Standing.car_number == cn
-            ).update({
-                "car_model": model,
-                "series_color": color,
-                "team_name": team,
-                "class_name": cls_,
-            })
-
-            # Propagate to all lap records in this event
-            LapRecord.query.filter(
-                LapRecord.session_id.in_(session_ids),
-                LapRecord.car_number == cn
-            ).update({
-                "car_model": model,
-                "series_color": color,
-            })
-
-            updated_count += 1
-
-        db.session.commit()
-        # Invalidate analytics caches for all sessions
-        for sid in session_ids:
-            _invalidate_analytics_cache(sid)
-
-        flash(f"Saved {updated_count} car(s)", "success")
-        return redirect(url_for("main.event_car_config", event_id=event_id))
-
-    # GET: gather unique cars from all sessions in the event
-    car_numbers: list[str] = []
-    seen = set()
-    for s in event.sessions:
-        for st in s.standings:
-            cn = str(st.car_number)
-            if cn and cn not in seen:
-                seen.add(cn)
-                car_numbers.append(cn)
-    car_numbers.sort(key=lambda x: (len(x), x))  # numeric-ish sort
-
-    # Build car list with values from CarConfig (fallback to latest Standing)
-    cars = []
-    for cn in car_numbers:
-        cfg = CarConfig.query.filter_by(event_id=event.id, car_number=cn).first()
-        if cfg:
-            cars.append({
-                "car_number": cn,
-                "car_model": cfg.car_model,
-                "series_color": cfg.series_color,
-                "effective_color": _car_chart_color(cn, cfg.series_color),
-                "team_name": cfg.team_name,
-                "class_name": cfg.class_name,
-            })
-        else:
-            # Fallback: get latest standing for this car
-            st = Standing.query.filter(
-                Standing.session_id.in_(session_ids),
-                Standing.car_number == cn
-            ).order_by(Standing.id.desc()).first()
-            cars.append({
-                "car_number": cn,
-                "car_model": st.car_model if st else "",
-                "series_color": st.series_color if st else "",
-                "effective_color": _car_chart_color(cn, st.series_color if st else ""),
-                "team_name": st.team_name if st else "",
-                "class_name": st.class_name if st else "",
-            })
-
-    # Collect class and team options from standings for dropdown hints
-    class_options = sorted(set(
-        st.class_name for s in event.sessions for st in s.standings if st.class_name
-    ))
-    team_options = sorted(set(
-        st.team_name for s in event.sessions for st in s.standings if st.team_name
-    ))
-
-    # Collect all car_model values from the entire database for autocomplete
-    db_models: set[str] = set()
-    for row in Standing.query.with_entities(Standing.car_model).distinct():
-        if row.car_model:
-            db_models.add(row.car_model)
-    for row in CarConfig.query.with_entities(CarConfig.car_model).distinct():
-        if row.car_model:
-            db_models.add(row.car_model)
-    car_model_options = sorted(db_models, key=str.casefold)
-
-    return render_template("event_car_config.html", event=event, cars=cars,
-                           class_options=class_options, team_options=team_options,
-                           car_model_options=car_model_options)
-
-
-# ---------------------------------------------------------------------------
-# API — batch update car models
-# ---------------------------------------------------------------------------
-@bp.route("/api/sessions/<int:session_id>/car-models", methods=["POST"])
-@admin_required
-def api_update_car_models(session_id):
-    """Batch update car models for a session.
-    JSON body: { "models": { "car_number": "model_name", ... } }
-    Updates both Standing and LapRecord.
-    """
-    session = Session.query.get_or_404(session_id)
-    data = request.get_json(silent=True)
-    if not data or "models" not in data:
-        return jsonify({"ok": False, "error": "Missing 'models'"}), 400
-    models = data["models"]
-    updated = 0
-    for car_num, model in models.items():
-        model = (model or "").strip()
-        cnt = Standing.query.filter_by(session_id=session.id, car_number=str(car_num)).update({"car_model": model})
-        cnt += LapRecord.query.filter_by(session_id=session.id, car_number=str(car_num)).update({"car_model": model})
-        if cnt > 0:
-            updated += 1
-    db.session.commit()
-    _invalidate_analytics_cache(session_id)
-    return jsonify({"ok": True, "updated_cars": updated})
-
-
-# ---------------------------------------------------------------------------
 # Edit session
 # ---------------------------------------------------------------------------
 SESSION_TYPES = ["Paid-Test", "Practice", "Bronze-Session", "Pre-Qualifying", "Qualifying", "Warm-up", "Race"]
@@ -970,297 +780,11 @@ def session_edit(session_id):
         session.name = name
         session.session_type = session_type
         db.session.commit()
-        flash(f'Session "{session.name}" updated', "success")
-        return redirect(url_for("main.event_detail", event_id=session.event_id))
+        flash(f'Session "{session.name}" u
 
-    return render_template("session_edit.html", session=session, session_types=SESSION_TYPES)
+[…truncated 11075 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
 
-
-# ---------------------------------------------------------------------------
-# API — lap data for charts
-# ---------------------------------------------------------------------------
-@bp.route("/api/sessions/<int:session_id>/laps")
-def api_session_laps(session_id):
-    session = Session.query.get_or_404(session_id)
-    laps = []
-    for l in session.laps:
-        laps.append({
-            "car_number": l.car_number,
-            "driver_name": l.driver_name,
-            "lap_number": l.lap_number,
-            "lap_time": l.lap_time,
-            "sector_1": l.sector_1,
-            "sector_2": l.sector_2,
-            "sector_3": l.sector_3,
-            "is_best": l.is_best,
-            "out_lap": l.out_lap,
-            "in_lap": l.in_lap,
-            "session_time": l.session_time,
-        })
-    return jsonify({"session_name": session.name, "session_type": session.session_type, "laps": laps})
-
-
-# ---------------------------------------------------------------------------
-# API — analytics data for charts
-# ---------------------------------------------------------------------------
-# Safety car lap detection threshold: lap_time > median_clean * SC_THRESHOLD → flagged as SC
-SC_THRESHOLD = 1.35
-
-
-@bp.route("/api/sessions/<int:session_id>/analytics")
-def api_session_analytics(session_id):
-    cached = _get_analytics_cache(session_id)
-    if cached is not None:
-        return jsonify(cached)
-
-    session = Session.query.get_or_404(session_id)
-    laps = session.laps
-
-    # Group by car
-    car_groups: dict[str, list[LapRecord]] = {}
-    for l in laps:
-        car_groups.setdefault(l.car_number, []).append(l)
-
-    # Pre-compute per-car median clean lap time for SC detection
-    car_median_clean: dict[str, float] = {}
-    for car_num, car_laps in car_groups.items():
-        clean = sorted([
-            l.lap_time for l in car_laps
-            if l.lap_time and l.lap_time > 0 and not l.out_lap and not l.in_lap
-        ])
-        if clean:
-            car_median_clean[car_num] = clean[len(clean) // 2]
-
-    # Build car_model map and series_color map from standings
-    car_model_map: dict[str, str] = {}
-    car_color_map: dict[str, str] = {}
-    for s in session.standings:
-        cn = str(s.car_number)
-        if s.car_model:
-            car_model_map[cn] = s.car_model
-        if s.series_color:
-            car_color_map[cn] = s.series_color
-
-    # Per-car stats
-    per_car = []
-    for car_num, car_laps in car_groups.items():
-        median = car_median_clean.get(car_num)
-        valid = [l for l in car_laps if l.lap_time and l.lap_time > 0
-                 and not l.out_lap and not l.in_lap
-                 and not (median and l.lap_time > median * SC_THRESHOLD)]
-        if not valid:
-            valid = [l for l in car_laps if l.lap_time and l.lap_time > 0]
-
-        best_lap = min(valid, key=lambda l: l.lap_time) if valid else None
-        best_s1 = min((l.sector_1 for l in valid if l.sector_1 and l.sector_1 > 0), default=None)
-        best_s2 = min((l.sector_2 for l in valid if l.sector_2 and l.sector_2 > 0), default=None)
-        best_s3 = min((l.sector_3 for l in valid if l.sector_3 and l.sector_3 > 0), default=None)
-        theoretical = (best_s1 + best_s2 + best_s3) if (best_s1 and best_s2 and best_s3) else None
-        top_speed = max((l.speed_trap_4 for l in car_laps if l.speed_trap_4 and l.speed_trap_4 > 0), default=None)
-
-        times = sorted([l.lap_time for l in valid])
-        lap_count = len(times)
-        if times:
-            avg_lap = sum(times) / len(times)
-            min_lap = times[0]
-            max_lap = times[-1]
-            q1 = times[int(len(times) * 0.25)] if len(times) >= 4 else min_lap
-            median = times[int(len(times) * 0.5)] if len(times) >= 2 else times[0]
-            q3 = times[int(len(times) * 0.75)] if len(times) >= 4 else max_lap
-        else:
-            avg_lap = min_lap = max_lap = q1 = median = q3 = None
-
-        drivers = list(dict.fromkeys(l.driver_name for l in car_laps if l.driver_name))
-        cm = car_model_map.get(str(car_num), car_laps[0].car_model if car_laps else "") or ""
-        sc = car_color_map.get(str(car_num), car_laps[0].series_color if car_laps else "") or ""
-        per_car.append({
-            "car_number": car_num,
-            "car_model": cm,
-            "series_color": sc,
-            "driver_name": ", ".join(drivers),
-            "category": car_laps[0].category if car_laps else "",
-            "lap_count": lap_count,
-            "best_lap": best_lap.lap_time if best_lap else None,
-            "best_s1": best_s1,
-            "best_s2": best_s2,
-            "best_s3": best_s3,
-            "theoretical": theoretical,
-            "top_speed": top_speed,
-            "avg_lap": avg_lap,
-            "min_lap": min_lap,
-            "max_lap": max_lap,
-            "q1": q1,
-            "median": median,
-            "q3": q3,
-        })
-    per_car.sort(key=lambda c: c["best_lap"] if c["best_lap"] else 99999)
-
-    # All valid lap times (for line charts)
-    lap_times = []
-    for l in laps:
-        if l.lap_time and l.lap_time > 0:
-            median = car_median_clean.get(l.car_number)
-            sc_lap = (l.lap_time > median * SC_THRESHOLD) if (median and not l.out_lap and not l.in_lap) else False
-            lap_times.append({
-                "car_number": l.car_number,
-                "driver_name": l.driver_name,
-                "lap_number": l.lap_number,
-                "lap_time": l.lap_time,
-                "sector_1": l.sector_1,
-                "sector_2": l.sector_2,
-                "sector_3": l.sector_3,
-                "speed_trap_4": l.speed_trap_4,
-                "is_best": l.is_best,
-                "out_lap": l.out_lap,
-                "in_lap": l.in_lap,
-                "sc_lap": sc_lap,
-                "session_time": l.session_time,
-            })
-
-    # Overall best lap (exclude pit/SC laps)
-    all_valid = [
-        l for l in laps if l.lap_time and l.lap_time > 0
-        and not l.out_lap and not l.in_lap
-    ]
-    # Further filter SC laps for overall best
-    clean_for_best = []
-    for l in all_valid:
-        median = car_median_clean.get(l.car_number)
-        if not (median and l.lap_time > median * SC_THRESHOLD):
-            clean_for_best.append(l)
-    overall_best = min((l.lap_time for l in clean_for_best), default=None)
-
-    # Pit stops
-    pit_stops = []
-    for car_num, car_laps in car_groups.items():
-        clean = [l.lap_time for l in car_laps
-                 if l.lap_time and l.lap_time > 0 and not l.out_lap and not l.in_lap]
-        if not clean:
-            clean = [l.lap_time for l in car_laps if l.lap_time and l.lap_time > 0]
-        if not clean:
-            continue
-        clean_sorted = sorted(clean)
-        median_clean = clean_sorted[len(clean_sorted) // 2]
-
-        sorted_laps = sorted(car_laps, key=lambda x: x.lap_number)
-        for i in range(len(sorted_laps) - 1):
-            curr = sorted_laps[i]
-            next_lap = sorted_laps[i + 1]
-            if curr.in_lap and next_lap.out_lap:
-                pit_time = _calculate_pit_stop_time(curr, next_lap)
-                pit_stops.append({
-                    "car_number": car_num,
-                    "driver_name": curr.driver_name or "",
-                    "in_lap": curr.lap_number,
-                    "out_lap": next_lap.lap_number,
-                    "pit_time": pit_time,
-                })
-
-    # Position progression (Race only)
-    position_progression = None
-    if session.session_type == "Race":
-        lap_numbers = sorted(set(l.lap_number for l in all_valid))
-        car_positions: dict[str, list] = {cn: [] for cn in car_groups}
-
-        # Pre-build lookup: (car_number, lap_number) → driver_name
-        lap_driver_map: dict[tuple[str, int], str] = {}
-        for l in lap_times:
-            lap_driver_map[(l["car_number"], l["lap_number"])] = l["driver_name"]
-
-        for lap_num in lap_numbers:
-            lap_entries = [l for l in all_valid if l.lap_number == lap_num]
-            lap_entries.sort(key=lambda l: l.session_time if l.session_time else 999999)
-            for pos, l in enumerate(lap_entries, 1):
-                car_positions.setdefault(l.car_number, []).append({
-                    "lap": lap_num,
-                    "position": pos,
-                })
-
-        position_progression = {
-            "lap_numbers": lap_numbers,
-            "cars": {cn: car_positions[cn] for cn in car_positions if car_positions[cn]},
-        }
-
-    # Per-driver consistency (standard deviation of clean lap times)
-    driver_laps_for_consistency: dict[str, list[float]] = {}
-    for l in lap_times:
-        if l["out_lap"] or l["in_lap"] or l["sc_lap"]:
-            continue
-        if not l["lap_time"] or l["lap_time"] <= 0:
-            continue
-        name = l["driver_name"] or "Unknown"
-        driver_laps_for_consistency.setdefault(name, []).append(l["lap_time"])
-
-    driver_consistency = []
-    for driver_name, times in driver_laps_for_consistency.items():
-        if len(times) < 2:
-            continue
-        mean = sum(times) / len(times)
-        variance = sum((t - mean) ** 2 for t in times) / len(times)
-        std_dev = variance ** 0.5
-        driver_consistency.append({
-            "driver_name": driver_name,
-            "std_dev": round(std_dev, 4),
-            "lap_count": len(times),
-            "avg_lap": round(mean, 4),
-        })
-    driver_consistency.sort(key=lambda d: d["std_dev"])
-
-    # ── Car stints for strategy chart ───────────────────────────────
-    standings_q = Standing.query.filter_by(session_id=session.id).all()
-    standings_order: dict[str, dict] = {}
-    for s in standings_q:
-        standings_order[str(s.car_number)] = {
-            "position": s.position,
-            "is_classified": s.is_classified,
-        }
-
-    car_stints = []
-    for car_num, car_laps in car_groups.items():
-        sorted_laps = sorted(car_laps, key=lambda x: (x.lap_number or 0, x.session_time or 0))
-
-        # Split into stints by out_lap
-        stints: list[list[LapRecord]] = []
-        current: list[LapRecord] = []
-        for l in sorted_laps:
-            if l.out_lap and current:
-                stints.append(current)
-                current = []
-            current.append(l)
-        if current:
-            stints.append(current)
-
-        stint_data = []
-        for stint in stints:
-            valid = [l for l in stint if l.lap_time and l.lap_time > 0]
-            if not valid:
-                continue
-            driver = stint[0].driver_name or "Unknown"
-            lap_count = len(stint)
-            fastest_lap = min(l.lap_time for l in valid)
-
-            # Determine stint time window from session_time
-            times = [l.session_time for l in stint if l.session_time is not None]
-            start_time = min(times) if times else None
-            end_time = max(times) if times else None
-
-            stint_data.append({
-                "driver": driver,
-                "lap_count": lap_count,
-                "fastest_lap": fastest_lap,
-                "start_time": start_time,
-                "end_time": end_time,
-            })
-
-        if not stint_data:
-            continue
-
-        # Compute pit stop times between consecutive stints
-        for i in range(1, len(stint_data)):
-            prev_end = stint_data[i - 1]["end_time"]
-            curr_start = stint_data[i]["start_time"]
-            stint_data[i]["pit_time"] = (
-                (curr_start - prev_end) if (prev_end and curr_start) else None
+ and curr_start) else None
             )
 
         entry = standings_order.get(str(car_num))
@@ -1270,8 +794,6 @@ def api_session_analytics(session_id):
             display_pos = None
         car_stints.append({
             "car_number": car_num,
-            "car_model": car_model_map.get(str(car_num), car_laps[0].car_model if car_laps else "") or "",
-            "series_color": car_color_map.get(str(car_num), car_laps[0].series_color if car_laps else "") or "",
             "position": display_pos,
             "stints": stint_data,
         })
