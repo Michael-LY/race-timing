@@ -107,7 +107,7 @@
                 {% if nc %}
                 <tr class="bg-nc-separator" data-sort-ignore="true"><td colspan="13" class="text-center text-sm py-2 text-theme-secondary">-- Not Classified --</td></tr>
                 {% for s in nc %}
-                <tr class="text-theme-secondary" data-sort-group="nc" data-sort-value="999999" data-sort-laps="{{ s.laps_completed if s.laps_completed is not none else -1 }}" data-classification-row="true" data-class="{{ s.class_name or '' }}" data-car-number="{{ s.car_number or '' }}">
+                <tr class="text-theme-secondary" data-sort-group="nc" data-sort-value="999999" data-sort-laps="{{ s.laps_completed if s.laps_completed is not none else -1 }}" data-classification-row="true" data-class="{{ s.class_name or '' }}" data-car-number="{{ s.car_number or '' }}" data-car-color="{{ car_colors.get(s.car_number|string, '') }}">
                     <td class="sticky-col sticky-col-1"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-500 text-white">NC</span></td>
                     <td class="sticky-col sticky-col-2"><strong>#{{ s.car_number }}</strong></td>
                     <td>{{ s.team_name }}</td>
