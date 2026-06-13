@@ -606,24 +606,14 @@ document.querySelectorAll('.car-color-toggle').forEach(function(btn) {
             ? '<i data-lucide="palette" class="w-3 h-3"></i> Color ON'
             : '<i data-lucide="palette" class="w-3 h-3"></i> Color';
 
-        // Apply or remove row colors
-        if (active) {
-            // Master ON: color rows that are not individually OFF
-            container.querySelectorAll('tr[data-car-color]').forEach(function(row) {
-                if (row.dataset.dblOff !== 'true') {
-                    applyRowCarColor(row);
-                }
-            });
-        } else {
-            // Master OFF: remove color from rows that are not individually ON
-            container.querySelectorAll('tr[data-car-color]').forEach(function(row) {
-                if (row.dataset.dblOn === 'true') {
-                    applyRowCarColor(row);
-                } else {
-                    removeRowCarColor(row);
-                }
-            });
-        }
+        // Apply or remove row colors for ALL rows (master toggle)
+        container.querySelectorAll('tr[data-car-color]').forEach(function(row) {
+            if (active) {
+                applyRowCarColor(row);
+            } else {
+                removeRowCarColor(row);
+            }
+        });
 
         // Re-create lucide icons for the updated button text
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -648,14 +638,8 @@ function removeRowCarColor(row) {
 
 function toggleRowCarColor(row) {
     if (row.classList.contains('car-color-row')) {
-        // Currently colored → turn off individually
         removeRowCarColor(row);
-        delete row.dataset.dblOn;
-        row.dataset.dblOff = 'true';
     } else {
-        // Not colored → turn on individually
-        delete row.dataset.dblOff;
-        row.dataset.dblOn = 'true';
         applyRowCarColor(row);
     }
 }
