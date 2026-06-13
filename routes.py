@@ -19,6 +19,30 @@ _analytics_cache: dict[int, tuple[float, dict]] = {}
 _ANALYTICS_CACHE_TTL = 300  # 5 minutes
 _ANALYTICS_CACHE_MAX = 50
 
+# Chart color palette (must match static/js/charts.js COLORS array order)
+CHART_COLORS = [
+    '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
+    '#f97316', '#6366f1', '#14b8a6', '#e11d48', '#a855f7', '#0891b2',
+    '#dc2626', '#0d9488', '#78716c', '#eab308', '#475569', '#ec4899',
+    '#22d3ee', '#fb923c', '#78350f', '#64748b', '#059669', '#84cc16',
+]
+
+
+def model_to_color(model: str) -> str:
+    """Hash a car model name into a chart color (replicates JS getModelColor)."""
+    if not model:
+        return "#64748b"
+    h = 0
+    for ch in model:
+        h = ((h << 5) - h) + ord(ch)
+        h &= 0xFFFFFFFF
+        if h > 0x7FFFFFFF:
+            h -= 0x100000000
+        elif h < -0x80000000:
+            h += 0x100000000
+    idx = abs(h) % len(CHART_COLORS)
+    return CHART_COLORS[idx]
+
 
 def _get_analytics_cache(session_id: int) -> dict | None:
     if session_id in _analytics_cache:
@@ -515,6 +539,7 @@ def upload(event_id):
                 class_name=s.get("class_name", ""),
                 nationality=s.get("nationality", ""),
                 car_model=cm,
+                model_color=model_to_color(cm),
                 total_time=s.get("total_time"),
                 gap=s.get("gap"),
                 diff=s.get("diff"),
@@ -554,6 +579,7 @@ def upload(event_id):
                 driver_name=l.get("driver_name", ""),
                 category=l.get("category", ""),
                 car_model=lap_cm,
+                model_color=model_to_color(lap_cm),
                 lap_number=l.get("lap_number", 0),
                 lap_time=l.get("lap_time"),
                 sector_1=l.get("sector_1"),
@@ -821,14 +847,6 @@ def event_car_config(event_id):
     """Admin page to configure car-level settings (model, color, team, class) per event."""
     from sqlalchemy import distinct
 
-    # Must match static/js/charts.js COLORS array order
-    CHART_COLORS = [
-        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
-        '#f97316', '#6366f1', '#14b8a6', '#e11d48', '#a855f7', '#0891b2',
-        '#dc2626', '#0d9488', '#78716c', '#eab308', '#475569', '#ec4899',
-        '#22d3ee', '#fb923c', '#78350f', '#64748b', '#059669', '#84cc16',
-    ]
-
     def _car_chart_color(car_number: str, series_color: str) -> str:
         """Replicate charts.js getCarColor logic for fallback display."""
         if series_color and len(series_color) == 7 and series_color.startswith("#"):
@@ -837,21 +855,6 @@ def event_car_config(event_id):
             idx = int(car_number) % len(CHART_COLORS)
         except (ValueError, TypeError):
             idx = 0
-        return CHART_COLORS[idx]
-
-    def _model_to_color(model: str) -> str:
-        """Replicate charts.js getModelColor — Java-style string hash into COLORS array."""
-        if not model:
-            return "#64748b"
-        h = 0
-        for ch in model:
-            h = ((h << 5) - h) + ord(ch)
-            h &= 0xFFFFFFFF  # 32-bit signed int emulation
-            if h > 0x7FFFFFFF:
-                h -= 0x100000000
-            elif h < -0x80000000:
-                h += 0x100000000
-        idx = abs(h) % len(CHART_COLORS)
         return CHART_COLORS[idx]
     event = Event.query.get_or_404(event_id)
 
@@ -884,7 +887,7 @@ def event_car_config(event_id):
                 cfg = CarConfig(event_id=event.id, car_number=cn)
                 db.session.add(cfg)
             cfg.car_model = model
-            model_color = _model_to_color(model)
+            model_color = model_to_color(model)
             cfg.model_color = model_color
             cfg.series_color = color
             cfg.team_name = team
@@ -942,7 +945,7 @@ def event_car_config(event_id):
                 "car_number": cn,
                 "car_model": cfg.car_model,
                 "series_color": cfg.series_color,
-                "model_color": cfg.model_color or _model_to_color(cfg.car_model),
+                "model_color": cfg.model_color or model_to_color(cfg.car_model),
                 "effective_color": _car_chart_color(cn, cfg.series_color),
                 "team_name": cfg.team_name,
                 "class_name": cfg.class_name,
@@ -957,7 +960,7 @@ def event_car_config(event_id):
                 "car_number": cn,
                 "car_model": st.car_model if st else "",
                 "series_color": st.series_color if st else "",
-                "model_color": (st.model_color if st else "") or _model_to_color(st.car_model if st else ""),
+                "model_color": (st.model_color if st else "") or model_to_color(st.car_model if st else ""),
                 "effective_color": _car_chart_color(cn, st.series_color if st else ""),
                 "team_name": st.team_name if st else "",
                 "class_name": st.class_name if st else "",
