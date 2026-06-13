@@ -304,11 +304,44 @@
     </div>
 </div>
 
+<!-- Car Model Editor Modal -->
+<div id="carModelEditor" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm"
+     style="display:none;" onclick="if(event.target===this)closeCarModelEditor()">
+    <div class="bg-surface card rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto"
+         style="background:var(--bg-surface);" onclick="event.stopPropagation()">
+        <div class="card-header rounded-t-lg flex justify-between items-center">
+            <span>Car Models</span>
+            <button onclick="closeCarModelEditor()" class="btn-ghost p-1 text-xs">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div class="p-4" id="carModelEditorBody">
+            <p class="text-xs text-theme-secondary mb-3">Set car model/name for each car. Same model = same color in Model color mode.</p>
+            <div id="carModelForm" class="space-y-2"></div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="saveCarModels()" class="btn-primary-green px-4 py-2 text-sm rounded-md">
+                    <i data-lucide="check" class="w-4 h-4"></i> Save
+                </button>
+                <button onclick="closeCarModelEditor()" class="btn-ghost px-4 py-2 text-sm">Cancel</button>
+                <span id="carModelSaveStatus" class="text-sm text-green-600 hidden ml-2 self-center">Saved!</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- CHART -->
 <div class="card rounded-lg mb-4 hidden overflow-hidden" id="chartCard" data-session-id="{{ session.id }}">
     <div class="card-header rounded-t-lg flex flex-col sm:flex-row sm:flex justify-between items-start sm:items-center gap-2">
         <span>Lap Time Analysis</span>
         <div class="chart-checkboxes flex flex-wrap gap-x-3 gap-y-1 items-center">
+            <button id="colorModeToggle" onclick="toggleColorMode()"
+                    class="btn-ghost text-xs px-2 py-0.5 whitespace-nowrap" title="Switch color mode">
+                By Car #
+            </button>
+            <button onclick="openCarModelEditor()"
+                    class="btn-ghost text-xs px-2 py-0.5 whitespace-nowrap" title="Edit car models">
+                <i data-lucide="settings" class="w-3 h-3"></i> Models
+            </button>
             <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
                 <input type="checkbox" class="chart-cb rounded" data-chart="lapTime" checked> Lap Times
             </label>
@@ -425,6 +458,105 @@ if (classificationClassFilter && classificationCarHighlight) {
     classificationClassFilter.addEventListener('change', applyClassificationFilters);
     classificationCarHighlight.addEventListener('input', applyClassificationFilters);
 }
+
+// ── Car model editor ──────────────────────────────────────────────
+var _carModelsData = null;
+
+window.openCarModelEditor = function() {
+    var el = document.getElementById('carModelEditor');
+    if (!el) return;
+    el.style.display = 'flex';
+    el.classList.remove('hidden');
+
+    var form = document.getElementById('carModelForm');
+    if (!form) return;
+
+    // Get unique cars from standings (via session detail data attributes)
+    var cars = [];
+    var rows = document.querySelectorAll('#classificationCard tbody tr[data-classification-row="true"]');
+    rows.forEach(function(row) {
+        var carNum = row.dataset.carNumber || '';
+        if (carNum && !cars.some(function(c) { return c.num === carNum; })) {
+            var teamCell = row.querySelector('td:nth-child(3)');
+            var teamName = teamCell ? teamCell.textContent.trim() : '';
+            cars.push({ num: carNum, team: teamName });
+        }
+    });
+
+    // Also get from lap data if available
+    if (cachedData && cachedData.per_car) {
+        cachedData.per_car.forEach(function(c) {
+            if (!cars.some(function(x) { return x.num === c.car_number; })) {
+                cars.push({ num: c.car_number, team: c.driver_name || '' });
+            }
+        });
+    }
+
+    cars.sort(function(a, b) { return parseInt(a.num) - parseInt(b.num); });
+
+    var html = '';
+    _carModelsData = {};
+    cars.forEach(function(car) {
+        var model = (window._carModelMap[car.num] || '');
+        _carModelsData[car.num] = model;
+        html += '<div class="flex items-center gap-2 py-1.5 border-b border-default" style="border-color:var(--border-default)">';
+        html += '<span class="text-sm font-semibold w-16 shrink-0" style="color:var(--text-primary)">#' + escapeHtml(car.num) + '</span>';
+        html += '<span class="text-xs text-theme-secondary truncate w-24 shrink-0">' + escapeHtml(car.team) + '</span>';
+        html += '<input type="text" class="themed-input text-sm flex-1" data-car="' + escapeHtml(car.num) + '" value="' + escapeHtml(model) + '" placeholder="e.g. Porsche 911 GT3 R">';
+        html += '</div>';
+    });
+    form.innerHTML = html;
+
+    // Re-create lucide icons
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+};
+
+window.closeCarModelEditor = function() {
+    var el = document.getElementById('carModelEditor');
+    if (el) {
+        el.style.display = 'none';
+        el.classList.add('hidden');
+    }
+};
+
+window.saveCarModels = function() {
+    var sessionId = document.getElementById('chartCard').dataset.sessionId;
+    if (!sessionId) return;
+
+    var models = {};
+    document.querySelectorAll('#carModelForm input[data-car]').forEach(function(input) {
+        var val = input.value.trim();
+        if (val) {
+            models[input.dataset.car] = val;
+        }
+    });
+
+    fetch('/api/sessions/' + sessionId + '/car-models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ models: models })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var status = document.getElementById('carModelSaveStatus');
+        if (status) {
+            status.textContent = 'Saved! (' + (data.updated_cars || 0) + ' cars)';
+            status.classList.remove('hidden');
+            setTimeout(function() { status.classList.add('hidden'); }, 3000);
+        }
+        // Refresh cache to get updated car_model values
+        cachedData = null;
+        if (typeof loadChart === 'function') loadChart();
+    })
+    .catch(function(err) {
+        var status = document.getElementById('carModelSaveStatus');
+        if (status) {
+            status.textContent = 'Error: ' + err;
+            status.style.color = 'var(--text-danger, #ef4444)';
+            status.classList.remove('hidden');
+        }
+    });
+};
 
 // ── Table sorting (shared) ─────────────────────────────────────
 initTableSort();

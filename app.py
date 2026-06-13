@@ -23,6 +23,7 @@ def create_app():
         db.create_all()
         _ensure_session_sort_order_column()
         _ensure_lap_record_time_columns()
+        _ensure_car_model_columns()
         _seed_time_keepers()
         _seed_admin()
 
@@ -64,6 +65,22 @@ def _ensure_lap_record_time_columns():
     if "time_in_lap" not in columns:
         with db.engine.begin() as connection:
             connection.execute(text("ALTER TABLE lap_records ADD COLUMN time_in_lap FLOAT"))
+
+
+def _ensure_car_model_columns():
+    inspector = inspect(db.engine)
+    # standings.car_model
+    if "standings" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("standings")}
+        if "car_model" not in columns:
+            with db.engine.begin() as connection:
+                connection.execute(text("ALTER TABLE standings ADD COLUMN car_model VARCHAR(100) DEFAULT ''"))
+    # lap_records.car_model
+    if "lap_records" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("lap_records")}
+        if "car_model" not in columns:
+            with db.engine.begin() as connection:
+                connection.execute(text("ALTER TABLE lap_records ADD COLUMN car_model VARCHAR(100) DEFAULT ''"))
 
 
 def _seed_time_keepers():

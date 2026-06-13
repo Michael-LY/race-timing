@@ -92,6 +92,7 @@ class Standing(db.Model):
     fastest_lap_speed = db.Column(db.Float, nullable=True)
     pit_stops = db.Column(db.Integer, default=0)
     is_classified = db.Column(db.Boolean, default=True)
+    car_model = db.Column(db.String(100), default="")
 
     session = db.relationship("Session", back_populates="standings")
 
@@ -123,5 +124,6 @@ class LapRecord(db.Model):
     time_in_lap = db.Column(db.Float, nullable=True)
     time_of_day = db.Column(db.String(20), default="")
     session_time = db.Column(db.Float, nullable=True)
+    car_model = db.Column(db.String(100), default="")
 
     session = db.relationship("Session", back_populates="laps")

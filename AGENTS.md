@@ -19,7 +19,8 @@ rm instance/timing.db && python run.py            # fresh start (Linux)
 - **parsers/** — CSV parsers inheriting from `parsers/base.py`. Register new parsers in `parsers/__init__.py` `PARSER_REGISTRY`.
 - **routes.py** — All routes; upload endpoint shows parser-specific file inputs dynamically.
 - **templates/** — Server-rendered Jinja2 + Tailwind CSS CDN + Chart.js CDN. No frontend build step.
-- **app.py** — `create_app()` factory; runs inline `ALTER TABLE` migrations via `_ensure_*()` functions on first boot.
+- **static/** — `theme.css` (light/dark CSS vars), `theme.js` (localStorage toggle), `charts.js` (Chart.js rendering for all 7 chart types), `table-sort.js` (client-side column sorting).
+- **app.py** — `create_app()` factory; runs inline `ALTER TABLE` migrations via `_ensure_*()` functions on first boot (`_ensure_session_sort_order_column`, `_ensure_lap_record_time_columns`, `_ensure_car_model_columns`).
 
 ## Key conventions
 
@@ -44,3 +45,4 @@ rm instance/timing.db && python run.py            # fresh start (Linux)
 - Production: Ubuntu + Nginx reverse proxy → Gunicorn on 127.0.0.1:8000
 - Configs in `deploy/` (systemd service, Nginx conf)
 - Docker: `Dockerfile` builds Python 3.12-slim image
+- `scripts/` — `build_release.sh` (tar.gz archive), `deploy.sh` (SSH push + remote install), `repair_swiss_timing_driver_names.py` (data repair utility)

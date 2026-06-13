@@ -445,7 +445,11 @@ def upload(event_id):
         db.session.flush()
 
         # Insert standings (from Classification)
+        car_model_map: dict[str, str] = {}
         for s in data.get("standings", []):
+            cm = s.get("car_model", "") or ""
+            if cm:
+                car_model_map[str(s.get("car_number", ""))] = cm
             standing = Standing(
                 session_id=session.id,
                 position=s.get("position", 0),
@@ -453,6 +457,7 @@ def upload(event_id):
                 team_name=s.get("team_name", ""),
                 class_name=s.get("class_name", ""),
                 nationality=s.get("nationality", ""),
+                car_model=cm,
                 total_time=s.get("total_time"),
                 gap=s.get("gap"),
                 diff=s.get("diff"),
@@ -482,11 +487,16 @@ def upload(event_id):
                 if key in best_times and l["lap_time"] == best_times[key]:
                     is_best = True
 
+            lap_cm = l.get("car_model", "") or ""
+            if not lap_cm:
+                lap_cm = car_model_map.get(str(l.get("car_number", "")), "")
+
             lap = LapRecord(
                 session_id=session.id,
                 car_number=l.get("car_number", ""),
                 driver_name=l.get("driver_name", ""),
                 category=l.get("category", ""),
+                car_model=lap_cm,
                 lap_number=l.get("lap_number", 0),
                 lap_time=l.get("lap_time"),
                 sector_1=l.get("sector_1"),
@@ -746,6 +756,33 @@ def session_delete(session_id):
 
 
 # ---------------------------------------------------------------------------
+# API — batch update car models
+# ---------------------------------------------------------------------------
+@bp.route("/api/sessions/<int:session_id>/car-models", methods=["POST"])
+@admin_required
+def api_update_car_models(session_id):
+    """Batch update car models for a session.
+    JSON body: { "models": { "car_number": "model_name", ... } }
+    Updates both Standing and LapRecord.
+    """
+    session = Session.query.get_or_404(session_id)
+    data = request.get_json(silent=True)
+    if not data or "models" not in data:
+        return jsonify({"ok": False, "error": "Missing 'models'"}), 400
+    models = data["models"]
+    updated = 0
+    for car_num, model in models.items():
+        model = (model or "").strip()
+        cnt = Standing.query.filter_by(session_id=session.id, car_number=str(car_num)).update({"car_model": model})
+        cnt += LapRecord.query.filter_by(session_id=session.id, car_number=str(car_num)).update({"car_model": model})
+        if cnt > 0:
+            updated += 1
+    db.session.commit()
+    _invalidate_analytics_cache(session_id)
+    return jsonify({"ok": True, "updated_cars": updated})
+
+
+# ---------------------------------------------------------------------------
 # Edit session
 # ---------------------------------------------------------------------------
 SESSION_TYPES = ["Paid-Test", "Practice", "Bronze-Session", "Pre-Qualifying", "Qualifying", "Warm-up", "Race"]
@@ -841,6 +878,12 @@ def api_session_analytics(session_id):
         if clean:
             car_median_clean[car_num] = clean[len(clean) // 2]
 
+    # Build car_model map from standings
+    car_model_map: dict[str, str] = {}
+    for s in session.standings:
+        if s.car_model:
+            car_model_map[str(s.car_number)] = s.car_model
+
     # Per-car stats
     per_car = []
     for car_num, car_laps in car_groups.items():
@@ -871,8 +914,10 @@ def api_session_analytics(session_id):
             avg_lap = min_lap = max_lap = q1 = median = q3 = None
 
         drivers = list(dict.fromkeys(l.driver_name for l in car_laps if l.driver_name))
+        cm = car_model_map.get(str(car_num), car_laps[0].car_model if car_laps else "") or ""
         per_car.append({
             "car_number": car_num,
+            "car_model": cm,
             "driver_name": ", ".join(drivers),
             "category": car_laps[0].category if car_laps else "",
             "lap_count": lap_count,
@@ -1066,6 +1111,7 @@ def api_session_analytics(session_id):
             display_pos = None
         car_stints.append({
             "car_number": car_num,
+            "car_model": car_model_map.get(str(car_num), car_laps[0].car_model if car_laps else "") or "",
             "position": display_pos,
             "stints": stint_data,
         })

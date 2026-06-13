@@ -215,6 +215,19 @@ class SwissTimingParser(BaseParser):
         if not result["standings"]:
             result["standings"] = self._build_standings_from_laps(result["laps"])
 
+        # Propagate car_model from standings to laps
+        if result["standings"]:
+            model_map: dict[str, str] = {}
+            for s in result["standings"]:
+                cn = str(s.get("car_number", ""))
+                cm = s.get("car_model", "")
+                if cn and cm:
+                    model_map[cn] = cm
+            for lap in result["laps"]:
+                cn = str(lap.get("car_number", ""))
+                if cn in model_map:
+                    lap["car_model"] = model_map[cn]
+
         if not result["session_name"]:
             result["session_name"] = result["session_type"]
 
@@ -412,12 +425,16 @@ class SwissTimingParser(BaseParser):
             else:
                 is_classified = False
 
+            car_model = get_col(row, "carname")
+            if not car_model:
+                car_model = get_col(row, "car")
             standings.append({
                 "position": position,
                 "car_number": bib,
                 "team_name": get_col(row, "teamname"),
                 "class_name": get_col(row, "classname"),
                 "nationality": "",
+                "car_model": car_model,
                 "total_time": self._to_seconds(get_col(row, "totaltime")),
                 "gap": self._to_seconds(get_col(row, "gaptime")),
                 "diff": None,
@@ -744,6 +761,7 @@ class SwissTimingParser(BaseParser):
                 "team_name": "",
                 "class_name": cd["category"],
                 "nationality": "",
+                "car_model": "",
                 "total_time": cd["total_time"] if cd["total_time"] > 0 else None,
                 "gap": gap,
                 "diff": None,

@@ -32,8 +32,36 @@ function fmtTime(seconds) {
     return m + ':' + s.padStart(6, '0');
 }
 
-function getCarColor(carNum) {
-    const idx = parseInt(carNum) || 0;
+// Color mode state
+window.colorMode = 'number'; // 'number' | 'model'
+window._carModelMap = {}; // car_number → car_model
+
+function buildCarModelMap(data) {
+    window._carModelMap = {};
+    (data.per_car || []).forEach(function(c) {
+        if (c.car_model) window._carModelMap[c.car_number] = c.car_model;
+    });
+    (data.car_stints || []).forEach(function(c) {
+        if (c.car_model && !window._carModelMap[c.car_number]) window._carModelMap[c.car_number] = c.car_model;
+    });
+}
+
+function getModelColor(model) {
+    if (!model) return '#64748b';
+    var hash = 0;
+    for (var i = 0; i < model.length; i++) {
+        hash = ((hash << 5) - hash) + model.charCodeAt(i);
+        hash |= 0;
+    }
+    return COLORS[Math.abs(hash) % COLORS.length];
+}
+
+function getCarColor(carNum, carModel) {
+    if (window.colorMode === 'model') {
+        var model = carModel || window._carModelMap[carNum] || '';
+        return getModelColor(model);
+    }
+    var idx = parseInt(carNum) || 0;
     return COLORS[idx % COLORS.length];
 }
 
@@ -273,6 +301,7 @@ function buildDriverBoxChart(ctx, data, field, title, yTitle, chartKey) {
 }
 
 function renderCheckedCharts(data) {
+    buildCarModelMap(data);
     document.querySelectorAll('.chart-cb').forEach(cb => {
         const type = cb.dataset.chart;
         if (cb.checked) {
@@ -855,5 +884,16 @@ document.querySelectorAll('.chart-cb').forEach(cb => {
 
 // Theme change → re-render charts
 window.updateChartTheme = function() {
+    if (cachedData) renderCheckedCharts(cachedData);
+};
+
+// Color mode toggle
+window.toggleColorMode = function() {
+    window.colorMode = (window.colorMode === 'number') ? 'model' : 'number';
+    var btn = document.getElementById('colorModeToggle');
+    if (btn) {
+        btn.textContent = (window.colorMode === 'number') ? 'By Car #' : 'By Model';
+        btn.classList.toggle('btn-ghost-active', window.colorMode === 'model');
+    }
     if (cachedData) renderCheckedCharts(cachedData);
 };
