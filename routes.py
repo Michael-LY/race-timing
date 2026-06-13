@@ -40,6 +40,10 @@ def _invalidate_analytics_cache(session_id: int) -> None:
     _analytics_cache.pop(session_id, None)
 
 
+def _invalidate_all_analytics_caches() -> None:
+    _analytics_cache.clear()
+
+
 def _coerce_position(position):
     try:
         return int(position)
@@ -220,6 +224,7 @@ def car_model_colors():
             entry.model_color = color
             saved += 1
         db.session.commit()
+        _invalidate_all_analytics_caches()
         flash(f"Saved {saved} model color(s)", "success")
         return redirect(url_for("main.car_model_colors"))
 
