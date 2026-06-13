@@ -42,6 +42,9 @@
         <a href="{{ url_for('main.upload', event_id=event.id) }}" class="btn-primary-green px-4 py-2 rounded-md">
             <i data-lucide="upload" class="w-4 h-4"></i> Upload CSV
         </a>
+        <a href="{{ url_for('main.event_car_config', event_id=event.id) }}" class="btn-ghost px-4 py-2 rounded-md" title="Car Configuration">
+            <i data-lucide="settings" class="w-4 h-4"></i> Cars
+        </a>
         <form method="POST" action="{{ url_for('main.event_delete', event_id=event.id) }}"
               onsubmit="return confirm('Delete this event and all its sessions?');">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

@@ -93,8 +93,24 @@ class Standing(db.Model):
     pit_stops = db.Column(db.Integer, default=0)
     is_classified = db.Column(db.Boolean, default=True)
     car_model = db.Column(db.String(100), default="")
+    series_color = db.Column(db.String(20), default="")
 
     session = db.relationship("Session", back_populates="standings")
+
+
+class CarConfig(db.Model):
+    """Event-level car display configuration (one row per car per event)."""
+    __tablename__ = "car_configs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
+    car_number = db.Column(db.String(20), nullable=False)
+    car_model = db.Column(db.String(100), default="")
+    series_color = db.Column(db.String(20), default="")
+    team_name = db.Column(db.String(200), default="")
+    class_name = db.Column(db.String(100), default="")
+
+    event = db.relationship("Event", backref="car_configs")
 
 
 class LapRecord(db.Model):
@@ -125,5 +141,6 @@ class LapRecord(db.Model):
     time_of_day = db.Column(db.String(20), default="")
     session_time = db.Column(db.Float, nullable=True)
     car_model = db.Column(db.String(100), default="")
+    series_color = db.Column(db.String(20), default="")
 
     session = db.relationship("Session", back_populates="laps")

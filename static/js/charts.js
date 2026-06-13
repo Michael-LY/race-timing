@@ -35,14 +35,18 @@ function fmtTime(seconds) {
 // Color mode state
 window.colorMode = 'number'; // 'number' | 'model'
 window._carModelMap = {}; // car_number → car_model
+window._carColorMap = {}; // car_number → series_color (explicit)
 
 function buildCarModelMap(data) {
     window._carModelMap = {};
+    window._carColorMap = {};
     (data.per_car || []).forEach(function(c) {
         if (c.car_model) window._carModelMap[c.car_number] = c.car_model;
+        if (c.series_color) window._carColorMap[c.car_number] = c.series_color;
     });
     (data.car_stints || []).forEach(function(c) {
         if (c.car_model && !window._carModelMap[c.car_number]) window._carModelMap[c.car_number] = c.car_model;
+        if (c.series_color && !window._carColorMap[c.car_number]) window._carColorMap[c.car_number] = c.series_color;
     });
 }
 
@@ -58,6 +62,10 @@ function getModelColor(model) {
 
 function getCarColor(carNum, carModel) {
     if (window.colorMode === 'model') {
+        // Use explicit series_color if set
+        var explicitColor = window._carColorMap[carNum];
+        if (explicitColor && explicitColor.match(/^#[0-9a-f]{6}$/i)) return explicitColor;
+        // Fall back to hash from model name
         var model = carModel || window._carModelMap[carNum] || '';
         return getModelColor(model);
     }

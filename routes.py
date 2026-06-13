@@ -5,7 +5,7 @@ from functools import wraps
 from flask import (Blueprint, render_template, request, redirect, url_for,
                    flash, jsonify, current_app, session as flask_session)
 from werkzeug.utils import secure_filename
-from models import db, Event, Session, LapRecord, Standing, TimeKeeper, User
+from models import db, Event, Session, LapRecord, Standing, TimeKeeper, User, CarConfig
 from parsers import get_parser, list_parsers
 from datetime import datetime
 
@@ -756,6 +756,128 @@ def session_delete(session_id):
 
 
 # ---------------------------------------------------------------------------
+# Event-level car configuration editor
+# ---------------------------------------------------------------------------
+@bp.route("/events/<int:event_id>/car-config", methods=["GET", "POST"])
+@admin_required
+def event_car_config(event_id):
+    """Admin page to configure car-level settings (model, color, team, class) per event."""
+    from sqlalchemy import distinct
+    event = Event.query.get_or_404(event_id)
+
+    # Collect unique car numbers across all sessions in this event
+    session_ids = [s.id for s in event.sessions]
+    if not session_ids:
+        flash("No sessions in this event. Upload data first.", "warning")
+        return redirect(url_for("main.event_detail", event_id=event_id))
+
+    if request.method == "POST":
+        car_numbers = request.form.getlist("car_number[]")
+        car_models = request.form.getlist("car_model[]")
+        colors = request.form.getlist("series_color[]")
+        teams = request.form.getlist("team_name[]")
+        classes = request.form.getlist("class_name[]")
+
+        updated_count = 0
+        for i, cn in enumerate(car_numbers):
+            cn = cn.strip()
+            if not cn:
+                continue
+            model = (car_models[i] if i < len(car_models) else "").strip()
+            color = (colors[i] if i < len(colors) else "").strip()
+            team = (teams[i] if i < len(teams) else "").strip()
+            cls_ = (classes[i] if i < len(classes) else "").strip()
+
+            # Upsert CarConfig
+            cfg = CarConfig.query.filter_by(event_id=event.id, car_number=cn).first()
+            if not cfg:
+                cfg = CarConfig(event_id=event.id, car_number=cn)
+                db.session.add(cfg)
+            cfg.car_model = model
+            cfg.series_color = color
+            cfg.team_name = team
+            cfg.class_name = cls_
+
+            # Propagate to all standings in this event
+            Standing.query.filter(
+                Standing.session_id.in_(session_ids),
+                Standing.car_number == cn
+            ).update({
+                "car_model": model,
+                "series_color": color,
+                "team_name": team,
+                "class_name": cls_,
+            })
+
+            # Propagate to all lap records in this event
+            LapRecord.query.filter(
+                LapRecord.session_id.in_(session_ids),
+                LapRecord.car_number == cn
+            ).update({
+                "car_model": model,
+                "series_color": color,
+            })
+
+            updated_count += 1
+
+        db.session.commit()
+        # Invalidate analytics caches for all sessions
+        for sid in session_ids:
+            _invalidate_analytics_cache(sid)
+
+        flash(f"Saved {updated_count} car(s)", "success")
+        return redirect(url_for("main.event_car_config", event_id=event_id))
+
+    # GET: gather unique cars from all sessions in the event
+    car_numbers: list[str] = []
+    seen = set()
+    for s in event.sessions:
+        for st in s.standings:
+            cn = str(st.car_number)
+            if cn and cn not in seen:
+                seen.add(cn)
+                car_numbers.append(cn)
+    car_numbers.sort(key=lambda x: (len(x), x))  # numeric-ish sort
+
+    # Build car list with values from CarConfig (fallback to latest Standing)
+    cars = []
+    for cn in car_numbers:
+        cfg = CarConfig.query.filter_by(event_id=event.id, car_number=cn).first()
+        if cfg:
+            cars.append({
+                "car_number": cn,
+                "car_model": cfg.car_model,
+                "series_color": cfg.series_color,
+                "team_name": cfg.team_name,
+                "class_name": cfg.class_name,
+            })
+        else:
+            # Fallback: get latest standing for this car
+            st = Standing.query.filter(
+                Standing.session_id.in_(session_ids),
+                Standing.car_number == cn
+            ).order_by(Standing.id.desc()).first()
+            cars.append({
+                "car_number": cn,
+                "car_model": st.car_model if st else "",
+                "series_color": st.series_color if st else "",
+                "team_name": st.team_name if st else "",
+                "class_name": st.class_name if st else "",
+            })
+
+    # Collect class and team options from standings for dropdown hints
+    class_options = sorted(set(
+        st.class_name for s in event.sessions for st in s.standings if st.class_name
+    ))
+    team_options = sorted(set(
+        st.team_name for s in event.sessions for st in s.standings if st.team_name
+    ))
+
+    return render_template("event_car_config.html", event=event, cars=cars,
+                           class_options=class_options, team_options=team_options)
+
+
+# ---------------------------------------------------------------------------
 # API — batch update car models
 # ---------------------------------------------------------------------------
 @bp.route("/api/sessions/<int:session_id>/car-models", methods=["POST"])
@@ -878,11 +1000,15 @@ def api_session_analytics(session_id):
         if clean:
             car_median_clean[car_num] = clean[len(clean) // 2]
 
-    # Build car_model map from standings
+    # Build car_model map and series_color map from standings
     car_model_map: dict[str, str] = {}
+    car_color_map: dict[str, str] = {}
     for s in session.standings:
+        cn = str(s.car_number)
         if s.car_model:
-            car_model_map[str(s.car_number)] = s.car_model
+            car_model_map[cn] = s.car_model
+        if s.series_color:
+            car_color_map[cn] = s.series_color
 
     # Per-car stats
     per_car = []
@@ -915,9 +1041,11 @@ def api_session_analytics(session_id):
 
         drivers = list(dict.fromkeys(l.driver_name for l in car_laps if l.driver_name))
         cm = car_model_map.get(str(car_num), car_laps[0].car_model if car_laps else "") or ""
+        sc = car_color_map.get(str(car_num), car_laps[0].series_color if car_laps else "") or ""
         per_car.append({
             "car_number": car_num,
             "car_model": cm,
+            "series_color": sc,
             "driver_name": ", ".join(drivers),
             "category": car_laps[0].category if car_laps else "",
             "lap_count": lap_count,
@@ -1112,6 +1240,7 @@ def api_session_analytics(session_id):
         car_stints.append({
             "car_number": car_num,
             "car_model": car_model_map.get(str(car_num), car_laps[0].car_model if car_laps else "") or "",
+            "series_color": car_color_map.get(str(car_num), car_laps[0].series_color if car_laps else "") or "",
             "position": display_pos,
             "stints": stint_data,
         })

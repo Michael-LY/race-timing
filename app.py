@@ -27,6 +27,7 @@ def create_app():
         _ensure_session_sort_order_column()
         _ensure_lap_record_time_columns()
         _ensure_car_model_columns()
+        _ensure_series_color_columns()
         _seed_time_keepers()
         _seed_admin()
 
@@ -107,6 +108,22 @@ def _ensure_car_model_columns():
         if "car_model" not in columns:
             with db.engine.begin() as connection:
                 connection.execute(text("ALTER TABLE lap_records ADD COLUMN car_model VARCHAR(100) DEFAULT ''"))
+
+
+def _ensure_series_color_columns():
+    inspector = inspect(db.engine)
+    # standings.series_color
+    if "standings" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("standings")}
+        if "series_color" not in columns:
+            with db.engine.begin() as connection:
+                connection.execute(text("ALTER TABLE standings ADD COLUMN series_color VARCHAR(20) DEFAULT ''"))
+    # lap_records.series_color
+    if "lap_records" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("lap_records")}
+        if "series_color" not in columns:
+            with db.engine.begin() as connection:
+                connection.execute(text("ALTER TABLE lap_records ADD COLUMN series_color VARCHAR(20) DEFAULT ''"))
 
 
 def _seed_time_keepers():
