@@ -305,6 +305,7 @@
     </div>
 </div>
 
+{% if current_user and current_user.is_admin %}
 <!-- Car Model Editor Modal -->
 <div id="carModelEditor" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm"
      style="display:none;" onclick="if(event.target===this)closeCarModelEditor()">
@@ -329,6 +330,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- CHART -->
 <div class="card rounded-lg mb-4 hidden overflow-hidden" id="chartCard" data-session-id="{{ session.id }}">
@@ -339,10 +341,12 @@
                     class="btn-ghost text-xs px-2 py-0.5 whitespace-nowrap" title="Switch color mode">
                 By Car #
             </button>
+            {% if current_user and current_user.is_admin %}
             <button onclick="openCarModelEditor()"
                     class="btn-ghost text-xs px-2 py-0.5 whitespace-nowrap" title="Edit car models">
                 <i data-lucide="settings" class="w-3 h-3"></i> Models
             </button>
+            {% endif %}
             <label class="inline-flex items-center gap-1 text-xs cursor-pointer select-none">
                 <input type="checkbox" class="chart-cb rounded" data-chart="lapTime" checked> Lap Times
             </label>
