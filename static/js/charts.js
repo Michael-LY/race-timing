@@ -36,17 +36,21 @@ function fmtTime(seconds) {
 window.colorMode = 'number'; // 'number' | 'model'
 window._carModelMap = {}; // car_number → car_model
 window._carColorMap = {}; // car_number → series_color (explicit)
+window._carModelColorMap = {}; // car_number → model_color (from DB, derived from model)
 
 function buildCarModelMap(data) {
     window._carModelMap = {};
     window._carColorMap = {};
+    window._carModelColorMap = {};
     (data.per_car || []).forEach(function(c) {
         if (c.car_model) window._carModelMap[c.car_number] = c.car_model;
         if (c.series_color) window._carColorMap[c.car_number] = c.series_color;
+        if (c.model_color) window._carModelColorMap[c.car_number] = c.model_color;
     });
     (data.car_stints || []).forEach(function(c) {
         if (c.car_model && !window._carModelMap[c.car_number]) window._carModelMap[c.car_number] = c.car_model;
         if (c.series_color && !window._carColorMap[c.car_number]) window._carColorMap[c.car_number] = c.series_color;
+        if (c.model_color && !window._carModelColorMap[c.car_number]) window._carModelColorMap[c.car_number] = c.model_color;
     });
 }
 
@@ -66,6 +70,9 @@ function getCarColor(carNum, carModel) {
     if (explicitColor && explicitColor.match(/^#[0-9a-f]{6}$/i)) return explicitColor;
 
     if (window.colorMode === 'model') {
+        // Use stored model_color from DB (derived from model name hash)
+        var mc = window._carModelColorMap[carNum];
+        if (mc && mc.match(/^#[0-9a-f]{6}$/i)) return mc;
         // Fall back to hash from model name
         var model = carModel || window._carModelMap[carNum] || '';
         return getModelColor(model);

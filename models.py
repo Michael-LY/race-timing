@@ -94,6 +94,7 @@ class Standing(db.Model):
     is_classified = db.Column(db.Boolean, default=True)
     car_model = db.Column(db.String(100), default="")
     series_color = db.Column(db.String(20), default="")
+    model_color = db.Column(db.String(20), default="")
 
     session = db.relationship("Session", back_populates="standings")
 
@@ -107,6 +108,7 @@ class CarConfig(db.Model):
     car_number = db.Column(db.String(20), nullable=False)
     car_model = db.Column(db.String(100), default="")
     series_color = db.Column(db.String(20), default="")
+    model_color = db.Column(db.String(20), default="")
     team_name = db.Column(db.String(200), default="")
     class_name = db.Column(db.String(100), default="")
 
@@ -142,5 +144,6 @@ class LapRecord(db.Model):
     session_time = db.Column(db.Float, nullable=True)
     car_model = db.Column(db.String(100), default="")
     series_color = db.Column(db.String(20), default="")
+    model_color = db.Column(db.String(20), default="")
 
     session = db.relationship("Session", back_populates="laps")

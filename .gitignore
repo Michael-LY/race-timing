@@ -4,3 +4,6 @@ instance/
 uploads/
 .env
 *.db
+.reasonix/
+.codegraph/
+cookie.txt

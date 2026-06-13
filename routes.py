@@ -781,6 +781,21 @@ def event_car_config(event_id):
         except (ValueError, TypeError):
             idx = 0
         return CHART_COLORS[idx]
+
+    def _model_to_color(model: str) -> str:
+        """Replicate charts.js getModelColor — Java-style string hash into COLORS array."""
+        if not model:
+            return "#64748b"
+        h = 0
+        for ch in model:
+            h = ((h << 5) - h) + ord(ch)
+            h &= 0xFFFFFFFF  # 32-bit signed int emulation
+            if h > 0x7FFFFFFF:
+                h -= 0x100000000
+            elif h < -0x80000000:
+                h += 0x100000000
+        idx = abs(h) % len(CHART_COLORS)
+        return CHART_COLORS[idx]
     event = Event.query.get_or_404(event_id)
 
     # Collect unique car numbers across all sessions in this event
@@ -812,6 +827,8 @@ def event_car_config(event_id):
                 cfg = CarConfig(event_id=event.id, car_number=cn)
                 db.session.add(cfg)
             cfg.car_model = model
+            model_color = _model_to_color(model)
+            cfg.model_color = model_color
             cfg.series_color = color
             cfg.team_name = team
             cfg.class_name = cls_
@@ -822,6 +839,7 @@ def event_car_config(event_id):
                 Standing.car_number == cn
             ).update({
                 "car_model": model,
+                "model_color": model_color,
                 "series_color": color,
                 "team_name": team,
                 "class_name": cls_,
@@ -833,6 +851,7 @@ def event_car_config(event_id):
                 LapRecord.car_number == cn
             ).update({
                 "car_model": model,
+                "model_color": model_color,
                 "series_color": color,
             })
 
@@ -866,6 +885,7 @@ def event_car_config(event_id):
                 "car_number": cn,
                 "car_model": cfg.car_model,
                 "series_color": cfg.series_color,
+                "model_color": cfg.model_color or _model_to_color(cfg.car_model),
                 "effective_color": _car_chart_color(cn, cfg.series_color),
                 "team_name": cfg.team_name,
                 "class_name": cfg.class_name,
@@ -880,6 +900,7 @@ def event_car_config(event_id):
                 "car_number": cn,
                 "car_model": st.car_model if st else "",
                 "series_color": st.series_color if st else "",
+                "model_color": (st.model_color if st else "") or _model_to_color(st.car_model if st else ""),
                 "effective_color": _car_chart_color(cn, st.series_color if st else ""),
                 "team_name": st.team_name if st else "",
                 "class_name": st.class_name if st else "",
@@ -1031,15 +1052,18 @@ def api_session_analytics(session_id):
         if clean:
             car_median_clean[car_num] = clean[len(clean) // 2]
 
-    # Build car_model map and series_color map from standings
+    # Build car_model map, series_color map, and model_color map from standings
     car_model_map: dict[str, str] = {}
     car_color_map: dict[str, str] = {}
+    car_model_color_map: dict[str, str] = {}
     for s in session.standings:
         cn = str(s.car_number)
         if s.car_model:
             car_model_map[cn] = s.car_model
         if s.series_color:
             car_color_map[cn] = s.series_color
+        if s.model_color:
+            car_model_color_map[cn] = s.model_color
 
     # Per-car stats
     per_car = []
@@ -1077,6 +1101,7 @@ def api_session_analytics(session_id):
             "car_number": car_num,
             "car_model": cm,
             "series_color": sc,
+            "model_color": car_model_color_map.get(str(car_num), "") or "",
             "driver_name": ", ".join(drivers),
             "category": car_laps[0].category if car_laps else "",
             "lap_count": lap_count,
@@ -1272,6 +1297,7 @@ def api_session_analytics(session_id):
             "car_number": car_num,
             "car_model": car_model_map.get(str(car_num), car_laps[0].car_model if car_laps else "") or "",
             "series_color": car_color_map.get(str(car_num), car_laps[0].series_color if car_laps else "") or "",
+            "model_color": car_model_color_map.get(str(car_num), car_laps[0].model_color if car_laps else "") or "",
             "position": display_pos,
             "stints": stint_data,
         })
