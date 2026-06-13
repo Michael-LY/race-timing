@@ -256,8 +256,19 @@ function buildDriverBoxChart(ctx, data, field, title, yTitle, chartKey) {
         return;
     }
 
-    const labels = entries.map(e => e.name);
-    const colors = entries.map((_, i) => COLORS[i % COLORS.length]);
+    // Build driver → car_number map for per-car coloring
+    var driverCarMap = {};
+    (data.lap_times || []).forEach(function(l) {
+        if (l.driver_name && l.car_number && !driverCarMap[l.driver_name]) {
+            driverCarMap[l.driver_name] = l.car_number;
+        }
+    });
+
+    var labels = entries.map(function(e) { return e.name; });
+    var colors = entries.map(function(e) {
+        var cn = driverCarMap[e.name] || '';
+        return getCarColor(cn);
+    });
 
     const minVals = entries.map(e => e.stats.min);
     const whiskerLow = entries.map(e => e.stats.q1 - e.stats.min);
@@ -723,7 +734,17 @@ const renderers = {
 
         const labels = entries.map(d => d.driver_name);
         const stdDevs = entries.map(d => d.std_dev);
-        const colors = entries.map((_, i) => COLORS[i % COLORS.length]);
+        // Build driver → car_number map for per-car coloring
+        var consistencyCarMap = {};
+        (data.lap_times || []).forEach(function(l) {
+            if (l.driver_name && l.car_number && !consistencyCarMap[l.driver_name]) {
+                consistencyCarMap[l.driver_name] = l.car_number;
+            }
+        });
+        const colors = entries.map(function(d) {
+            var cn = consistencyCarMap[d.driver_name] || '';
+            return getCarColor(cn);
+        });
 
         chartInstances.consistency = new Chart(ctx, {
             type: 'bar',
@@ -965,6 +986,44 @@ function updateAllChartColors() {
                 if (chart.data.datasets[3]) {
                     chart.data.datasets[3].backgroundColor = carColors.map(function(c) { return c + '66'; });
                     chart.data.datasets[3].borderColor = carColors;
+                }
+            }
+            chart.update('none');
+            return;
+        }
+
+        // Driver box charts (driverS1/S2/S3/driverLap): same boxPlot structure but
+        // colors driven by driver→car_number mapping
+        // Consistency chart: single dataset with per-bar color arrays
+        var driverTypes = ['driverS1', 'driverS2', 'driverS3', 'driverLap', 'consistency'];
+        if (driverTypes.indexOf(type) !== -1) {
+            // Build driver→car_number map from cachedData.lap_times
+            var drvCarMap = {};
+            (cachedData.lap_times || []).forEach(function(l) {
+                if (l.driver_name && l.car_number && !drvCarMap[l.driver_name]) {
+                    drvCarMap[l.driver_name] = l.car_number;
+                }
+            });
+            // Rebuild colors in chart label order
+            var newDriverColors = (chart.data.labels || []).map(function(label) {
+                var cn = drvCarMap[label] || '';
+                return getCarColor(cn);
+            });
+            if (type === 'consistency') {
+                // Single dataset
+                if (chart.data.datasets[0]) {
+                    chart.data.datasets[0].backgroundColor = newDriverColors.map(function(c) { return c + '99'; });
+                    chart.data.datasets[0].borderColor = newDriverColors;
+                }
+            } else {
+                // Driver box: datasets[2] (boxLow) and datasets[3] (boxHigh)
+                if (chart.data.datasets[2]) {
+                    chart.data.datasets[2].backgroundColor = newDriverColors.map(function(c) { return c + '99'; });
+                    chart.data.datasets[2].borderColor = newDriverColors;
+                }
+                if (chart.data.datasets[3]) {
+                    chart.data.datasets[3].backgroundColor = newDriverColors.map(function(c) { return c + '66'; });
+                    chart.data.datasets[3].borderColor = newDriverColors;
                 }
             }
             chart.update('none');
