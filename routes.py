@@ -5,7 +5,7 @@ from functools import wraps
 from flask import (Blueprint, render_template, request, redirect, url_for,
                    flash, jsonify, current_app, session as flask_session)
 from werkzeug.utils import secure_filename
-from models import db, Event, Session, LapRecord, Standing, TimeKeeper, User, CarConfig
+from models import db, Event, Session, LapRecord, Standing, TimeKeeper, User, CarConfig, CarModelColor
 from parsers import get_parser, list_parsers
 from datetime import datetime
 
@@ -181,6 +181,58 @@ def register():
             return redirect(url_for("main.index"))
 
     return render_template("register.html")
+
+
+# ---------------------------------------------------------------------------
+# Global Car Model Colors (admin)
+# ---------------------------------------------------------------------------
+@bp.route("/car-model-colors", methods=["GET", "POST"])
+@admin_required
+def car_model_colors():
+    """Global admin page to set colors for car models (affects all events)."""
+    # Collect all known car models from the database
+    known_models: set[str] = set()
+    for row in Standing.query.with_entities(Standing.car_model).distinct():
+        if row.car_model:
+            known_models.add(row.car_model)
+    for row in CarConfig.query.with_entities(CarConfig.car_model).distinct():
+        if row.car_model:
+            known_models.add(row.car_model)
+    for row in CarModelColor.query.with_entities(CarModelColor.car_model).distinct():
+        if row.car_model:
+            known_models.add(row.car_model)
+
+    known_models = sorted(known_models, key=str.casefold)
+
+    if request.method == "POST":
+        models = request.form.getlist("car_model[]")
+        colors = request.form.getlist("model_color[]")
+        saved = 0
+        for i, model in enumerate(models):
+            model = model.strip()
+            if not model:
+                continue
+            color = (colors[i] if i < len(colors) else "").strip()
+            entry = CarModelColor.query.filter_by(car_model=model).first()
+            if not entry:
+                entry = CarModelColor(car_model=model)
+                db.session.add(entry)
+            entry.model_color = color
+            saved += 1
+        db.session.commit()
+        flash(f"Saved {saved} model color(s)", "success")
+        return redirect(url_for("main.car_model_colors"))
+
+    # Build model list with existing colors
+    models_data = []
+    for model in known_models:
+        entry = CarModelColor.query.filter_by(car_model=model).first()
+        models_data.append({
+            "car_model": model,
+            "model_color": entry.model_color if entry else "",
+        })
+
+    return render_template("car_model_colors.html", models=models_data)
 
 
 def allowed_file(filename):
@@ -1064,6 +1116,17 @@ def api_session_analytics(session_id):
             car_color_map[cn] = s.series_color
         if s.model_color:
             car_model_color_map[cn] = s.model_color
+
+    # Global CarModelColor overrides — if a global color is set for a car's model,
+    # use it instead of the per-row model_color (hash-based)
+    global_model_colors: dict[str, str] = {}
+    for g in CarModelColor.query.all():
+        if g.model_color:
+            global_model_colors[g.car_model] = g.model_color
+    if global_model_colors:
+        for cn, cm in car_model_map.items():
+            if cm in global_model_colors:
+                car_model_color_map[cn] = global_model_colors[cm]
 
     # Per-car stats
     per_car = []

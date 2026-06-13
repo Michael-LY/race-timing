@@ -115,6 +115,15 @@ class CarConfig(db.Model):
     event = db.relationship("Event", backref="car_configs")
 
 
+class CarModelColor(db.Model):
+    """Global car model → color mapping. Used by 'By Model' chart mode."""
+    __tablename__ = "car_model_colors"
+
+    id = db.Column(db.Integer, primary_key=True)
+    car_model = db.Column(db.String(100), unique=True, nullable=False)
+    model_color = db.Column(db.String(20), default="")
+
+
 class LapRecord(db.Model):
     __tablename__ = "lap_records"
 
