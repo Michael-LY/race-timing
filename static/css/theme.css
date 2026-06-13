@@ -37,6 +37,7 @@
     --chart-tooltip-text: #e2e8f0;
     --pit-in-bg: rgba(253, 224, 71, 0.18);
     --pit-out-bg: rgba(34, 211, 238, 0.15);
+    --car-color-bg: rgba(128, 128, 128, 0.08);
     --shadow-glow-cyan: 0 0 20px rgba(0, 229, 255, 0.12);
     --glass-bg: rgba(255, 255, 255, 0.6);
     --glass-border: rgba(255, 255, 255, 0.25);
@@ -80,6 +81,7 @@
     --chart-tooltip-text: #e2e8f0;
     --pit-in-bg: rgba(250, 204, 21, 0.1);
     --pit-out-bg: rgba(34, 211, 238, 0.08);
+    --car-color-bg: rgba(128, 128, 128, 0.12);
     --shadow-glow-cyan: 0 0 25px rgba(0, 229, 255, 0.15);
     --glass-bg: rgba(17, 24, 39, 0.7);
     --glass-border: rgba(48, 60, 80, 0.4);
@@ -286,6 +288,18 @@ a:hover { color: var(--accent-cyan-hover); }
 .lap-row[style*="pit-in-bg"] .sticky-col,
 .lap-row[style*="pit-out-bg"] .sticky-col {
     background: inherit !important;
+}
+
+/* Car color row background (semi-transparent, applied via JS toggle) */
+.car-color-row {
+    background: var(--row-car-color, var(--car-color-bg)) !important;
+}
+.car-color-row .sticky-col {
+    background: var(--row-car-color, var(--car-color-bg)) !important;
+}
+.car-color-row.bg-winner,
+.car-color-row.bg-winner .sticky-col {
+    background: var(--highlight-winner-bg) !important;
 }
 
 .bg-nc-separator {

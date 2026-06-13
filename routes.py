@@ -819,6 +819,33 @@ def session_detail(session_id):
 
     drivers, driver_overall_s1, driver_overall_s2, driver_overall_s3 = _compute_driver_analysis(laps)
 
+    # Compute car colors for table row backgrounds
+    car_colors: dict[str, str] = {}
+    # From standings (preferred)
+    for s in session.standings:
+        cn = str(s.car_number)
+        if cn not in car_colors:
+            color = s.series_color or s.model_color or ""
+            if color:
+                car_colors[cn] = color
+    # From global CarModelColor table (fallback per model)
+    for cn, c in car_colors.items():
+        if not c:
+            st = next((st for st in session.standings if str(st.car_number) == cn), None)
+            if st and st.car_model:
+                gmc = CarModelColor.query.filter_by(car_model=st.car_model).first()
+                if gmc and gmc.model_color:
+                    car_colors[cn] = gmc.model_color
+                else:
+                    car_colors[cn] = model_to_color(st.car_model)
+            else:
+                car_colors[cn] = "#64748b"
+    # Ensure every standing car has a color
+    for s in session.standings:
+        cn = str(s.car_number)
+        if cn not in car_colors or not car_colors[cn]:
+            car_colors[cn] = model_to_color(s.car_model if s.car_model else "")
+
     return render_template("session_detail.html",
                            session=session,
                            standings=standings,
@@ -832,7 +859,8 @@ def session_detail(session_id):
                            driver_overall_s2=driver_overall_s2,
                            driver_overall_s3=driver_overall_s3,
                            stint_bests=stint_bests,
-                           overall_best_theoretical=overall_best_theoretical)
+                           overall_best_theoretical=overall_best_theoretical,
+                           car_colors=car_colors)
 
 
 # ---------------------------------------------------------------------------
