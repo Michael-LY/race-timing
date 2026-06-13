@@ -525,10 +525,41 @@ def upload(event_id):
         db.session.add(session)
         db.session.flush()
 
+        # --- Fallback: find car_model from same championship + year ---
+        fallback_models: dict[str, str] = {}
+        if event.championship and event.year:
+            sibling_events = Event.query.filter(
+                Event.id != event.id,
+                Event.championship == event.championship,
+                Event.year == event.year,
+            ).all()
+            sibling_event_ids = [e.id for e in sibling_events]
+            if sibling_event_ids:
+                sibling_session_ids = [
+                    row[0] for row in Session.query.with_entities(Session.id).filter(
+                        Session.event_id.in_(sibling_event_ids)
+                    ).all()
+                ]
+                # From CarConfig
+                for cc in CarConfig.query.filter(CarConfig.event_id.in_(sibling_event_ids)):
+                    if cc.car_model and cc.car_number not in fallback_models:
+                        fallback_models[cc.car_number] = cc.car_model
+                # From Standing (latest per car_number)
+                if sibling_session_ids:
+                    for st in Standing.query.filter(
+                        Standing.session_id.in_(sibling_session_ids),
+                        Standing.car_model != "",
+                        Standing.car_model.isnot(None),
+                    ).order_by(Standing.id.desc()).all():
+                        if st.car_number not in fallback_models:
+                            fallback_models[st.car_number] = st.car_model
+
         # Insert standings (from Classification)
         car_model_map: dict[str, str] = {}
         for s in data.get("standings", []):
             cm = s.get("car_model", "") or ""
+            if not cm:
+                cm = fallback_models.get(str(s.get("car_number", "")), "")
             if cm:
                 car_model_map[str(s.get("car_number", ""))] = cm
             standing = Standing(
