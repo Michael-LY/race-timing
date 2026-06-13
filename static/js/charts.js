@@ -920,19 +920,16 @@ function updateAllChartColors() {
 
     Object.keys(chartInstances).forEach(function(type) {
         var chart = chartInstances[type];
-        if (!chart || !chart.data || !chart.data.datasets) return;
+        if (!chart) return;
 
-        // Strategy is HTML-based, needs full re-render
+        // Strategy is HTML-based (not a Chart.js instance), needs full re-render
         if (type === 'strategy') {
-            var canvas = document.getElementById('chartCanvas-strategy');
-            if (canvas) {
-                var ctx = canvas.getContext('2d');
-                renderers.strategy(ctx, cachedData);
-            }
+            renderers.strategy(null, cachedData);
             return;
         }
 
-        // Speed / pitStops: single dataset with per-bar color arrays
+        if (!chart.data || !chart.data.datasets) return;
+
         if (type === 'speed') {
             var ds = chart.data.datasets[0];
             if (ds && cachedData.per_car) {
