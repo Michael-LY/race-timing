@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Users - Race Timing{% endblock %}
+
+{% block content %}
+<div class="mt-3 mb-4">
+    <a href="{{ url_for('main.index') }}" class="no-underline text-theme-secondary hover:text-theme-primary inline-flex items-center gap-1 text-sm">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Events
+    </a>
+</div>
+
+<div class="card rounded-lg mb-4">
+    <div class="card-header rounded-t-lg flex justify-between items-center">
+        <span>Users</span>
+        <a href="{{ url_for('main.register') }}" class="btn-primary-green px-3 py-1.5 text-sm rounded-md">
+            <i data-lucide="user-plus" class="w-4 h-4"></i> New User
+        </a>
+    </div>
+    <div class="overflow-x-auto p-2 sm:p-0">
+        <table class="themed-table">
+            <thead>
+                <tr>
+                    <th class="text-left">ID</th>
+                    <th class="text-left">Username</th>
+                    <th class="text-left">Admin</th>
+                    <th class="text-left">Created</th>
+                    <th class="text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr class="border-b border-default hover:bg-theme-hover transition-colors">
+                    <td>{{ u.id }}</td>
+                    <td><strong>{{ u.username }}</strong></td>
+                    <td>{% if u.is_admin %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-600 text-white">Admin</span>{% else %}<span class="text-theme-secondary">No</span>{% endif %}</td>
+                    <td class="text-theme-secondary text-sm">{{ u.created_at.strftime('%Y-%m-%d %H:%M') if u.created_at else '-' }}</td>
+                    <td>
+                        <div class="flex gap-1.5 items-center">
+                            <a href="{{ url_for('main.user_edit', user_id=u.id) }}" class="btn-ghost p-1.5" title="Edit">
+                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                            </a>
+                            <a href="{{ url_for('main.user_password', user_id=u.id) }}" class="btn-ghost p-1.5" title="Change password">
+                                <i data-lucide="key" class="w-3.5 h-3.5"></i>
+                            </a>
+                            {% if u.id != session.get('user_id') %}
+                            <form method="POST" action="{{ url_for('main.user_delete', user_id=u.id) }}"
+                                  onsubmit="return confirm('Delete user &quot;{{ u.username }}&quot;?');">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn-danger p-1.5" title="Delete">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

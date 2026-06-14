@@ -206,9 +206,97 @@ def register():
             db.session.add(user)
             db.session.commit()
             flash(f'User "{username}" created', "success")
-            return redirect(url_for("main.index"))
+            return redirect(url_for("main.user_list"))
 
     return render_template("register.html")
+
+
+# ---------------------------------------------------------------------------
+# User management (admin)
+# ---------------------------------------------------------------------------
+@bp.route("/users")
+@login_required
+@admin_required
+def user_list():
+    """List all users."""
+    users = User.query.order_by(User.created_at).all()
+    return render_template("users.html", users=users)
+
+
+@bp.route("/users/<int:user_id>/edit", methods=["GET", "POST"])
+@login_required
+@admin_required
+def user_edit(user_id):
+    """Edit username and admin flag."""
+    user = User.query.get_or_404(user_id)
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        is_admin = request.form.get("is_admin") == "on"
+
+        if not username:
+            flash("Username is required", "danger")
+        elif username != user.username and User.query.filter_by(username=username).first():
+            flash("Username already exists", "danger")
+        else:
+            user.username = username
+            user.is_admin = is_admin
+            db.session.commit()
+            flash(f'User "{username}" updated', "success")
+            return redirect(url_for("main.user_list"))
+
+    return render_template("user_edit.html", user=user)
+
+
+@bp.route("/users/<int:user_id>/password", methods=["GET", "POST"])
+@login_required
+def user_password(user_id):
+    """Change password. Admins can change any user's password; regular users
+    can only change their own."""
+    user = User.query.get_or_404(user_id)
+    current_user_id = flask_session.get("user_id")
+    current_user_obj = db.session.get(User, current_user_id) if current_user_id else None
+
+    # Only allow if admin or the user themselves
+    if not current_user_obj or (current_user_obj.id != user.id and not current_user_obj.is_admin):
+        flash("You don't have permission to change this password", "danger")
+        return redirect(url_for("main.index"))
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm", "")
+
+        if not password:
+            flash("Password is required", "danger")
+        elif len(password) < 6:
+            flash("Password must be at least 6 characters", "danger")
+        elif password != confirm:
+            flash("Passwords do not match", "danger")
+        else:
+            user.set_password(password)
+            db.session.commit()
+            flash(f'Password changed for "{user.username}"', "success")
+            return redirect(url_for("main.user_list" if current_user_obj.is_admin else "main.index"))
+
+    return render_template("user_password.html", user=user)
+
+
+@bp.route("/users/<int:user_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def user_delete(user_id):
+    """Delete a user. Cannot delete yourself."""
+    user = User.query.get_or_404(user_id)
+    current_user_id = flask_session.get("user_id")
+
+    if user.id == current_user_id:
+        flash("You cannot delete your own account", "danger")
+        return redirect(url_for("main.user_list"))
+
+    name = user.username
+    db.session.delete(user)
+    db.session.commit()
+    flash(f'User "{name}" deleted', "success")
+    return redirect(url_for("main.user_list"))
 
 
 # ---------------------------------------------------------------------------

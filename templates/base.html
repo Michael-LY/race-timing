@@ -74,6 +74,9 @@
             <a class="nav-link flex items-center gap-1" href="{{ url_for('main.register') }}">
                 <i data-lucide="user-plus" class="w-4 h-4"></i> Register
             </a>
+            <a class="nav-link flex items-center gap-1" href="{{ url_for('main.user_list') }}">
+                <i data-lucide="users" class="w-4 h-4"></i> Users
+            </a>
             {% endif %}
             <button id="themeToggle" onclick="toggleTheme()"
                 class="p-1.5 rounded hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
