@@ -80,6 +80,7 @@
             {% if event.event_date %}
             <p class="text-sm text-theme-secondary mb-1 flex items-center gap-1">
                 <i data-lucide="calendar" class="w-3.5 h-3.5"></i> {{ event.event_date }}
+                <span class="text-xs px-1.5 py-0.5 rounded bg-theme-hover">CW {{ event.event_date | isoweek }}</span>
             </p>
             {% endif %}
             <p class="mt-2">

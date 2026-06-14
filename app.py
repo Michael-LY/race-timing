@@ -60,6 +60,13 @@ def create_app():
     from routes import bp
     app.register_blueprint(bp)
 
+    # Template filter: extract ISO week number from a date
+    @app.template_filter("isoweek")
+    def _iso_week_filter(date):
+        if date is None:
+            return None
+        return date.isocalendar()[1]
+
     return app
 
 
