@@ -377,7 +377,7 @@ def index():
     if track:
         query = query.filter(Event.track == track)
 
-    events = query.order_by(Event.created_at.desc()).all()
+    events = query.order_by(Event.event_date.desc().nullslast()).all()
 
     all_events = Event.query.all()
     years = sorted({e.year for e in all_events if e.year}, reverse=True)
