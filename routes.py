@@ -366,6 +366,7 @@ def index():
     year = request.args.get("year", "").strip()
     championship = request.args.get("championship", "").strip()
     track = request.args.get("track", "").strip()
+    sort_dir = request.args.get("sort", "desc")
 
     if year:
         try:
@@ -377,7 +378,10 @@ def index():
     if track:
         query = query.filter(Event.track == track)
 
-    events = query.order_by(Event.event_date.desc().nullslast()).all()
+    if sort_dir == "asc":
+        events = query.order_by(Event.event_date.asc().nullslast()).all()
+    else:
+        events = query.order_by(Event.event_date.desc().nullslast()).all()
 
     all_events = Event.query.all()
     years = sorted({e.year for e in all_events if e.year}, reverse=True)
@@ -387,7 +391,7 @@ def index():
     return render_template("index.html", events=events,
                            years=years, championships=championships, tracks=tracks,
                            selected_year=year, selected_championship=championship,
-                           selected_track=track)
+                           selected_track=track, sort_dir=sort_dir)
 
 
 # ---------------------------------------------------------------------------

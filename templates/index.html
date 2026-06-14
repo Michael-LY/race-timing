@@ -49,11 +49,21 @@
     </div>
     {% endif %}
     {% if selected_year or selected_championship or selected_track %}
-    <a href="{{ url_for('main.index') }}" class="text-sm text-theme-secondary hover:text-theme-primary no-underline inline-flex items-center gap-1 pb-0.5">
+    <a href="{{ url_for('main.index', sort=sort_dir) }}" class="text-sm text-theme-secondary hover:text-theme-primary no-underline inline-flex items-center gap-1 pb-0.5">
         <i data-lucide="x" class="w-3.5 h-3.5"></i> Clear
     </a>
     {% endif %}
 </form>
+<div class="mb-4 flex items-center gap-2">
+    <a href="{{ url_for('main.index', year=selected_year, championship=selected_championship, track=selected_track, sort='asc' if sort_dir == 'desc' else 'desc') }}"
+       class="btn-ghost text-xs px-2 py-1 inline-flex items-center gap-1 rounded-md" title="Toggle sort order">
+        {% if sort_dir == 'desc' %}
+        <i data-lucide="arrow-down-wide-narrow" class="w-3.5 h-3.5"></i> Newest first
+        {% else %}
+        <i data-lucide="arrow-up-narrow-wide" class="w-3.5 h-3.5"></i> Oldest first
+        {% endif %}
+    </a>
+</div>
 {% endif %}
 
 {% if events %}
