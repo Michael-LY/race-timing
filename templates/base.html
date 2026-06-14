@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Race Timing{% endblock %}</title>
+    <title>{% block title %}Race Result Analysis{% endblock %}</title>
 
     <!-- Fonts: JetBrains Mono (data) + Syne (headings) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,7 +55,7 @@
 <nav class="nav-main fixed top-0 w-full z-50">
     <div class="container flex items-center justify-between h-14">
         <a class="nav-brand text-lg tracking-tight flex items-center gap-1.5 no-underline text-white shrink-0" href="{{ url_for('main.index') }}">
-            <i data-lucide="stopwatch" class="w-5 h-5 text-cyan-400"></i> <span class="hidden sm:inline">Race Timing</span><span class="sm:hidden">RT</span>
+            <i data-lucide="stopwatch" class="w-5 h-5 text-cyan-400"></i> <span class="hidden sm:inline">Race Result Analysis</span><span class="sm:hidden">RRA</span>
         </a>
         <div class="flex items-center gap-2 sm:gap-4 overflow-x-auto scrollbar-hide">
             <a class="nav-link flex items-center gap-1" href="{{ url_for('main.index') }}">
