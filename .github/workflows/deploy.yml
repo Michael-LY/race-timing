@@ -169,17 +169,17 @@ jobs:
           ln -sfn $DEPLOY_PATH/shared/uploads $DEPLOY_PATH/current/uploads
 
           echo "--- Remote: install systemd + nginx config ---"
-          install -m 0644 /tmp/race-timing.service /etc/systemd/system/race-timing.service
-          install -m 0644 /tmp/race-timing.conf /etc/nginx/sites-available/race-timing.conf
-          ln -sfn /etc/nginx/sites-available/race-timing.conf /etc/nginx/sites-enabled/race-timing.conf
-          rm -f /etc/nginx/sites-enabled/default
+          sudo install -m 0644 /tmp/race-timing.service /etc/systemd/system/race-timing.service
+          sudo install -m 0644 /tmp/race-timing.conf /etc/nginx/sites-available/race-timing.conf
+          sudo ln -sfn /etc/nginx/sites-available/race-timing.conf /etc/nginx/sites-enabled/race-timing.conf
+          sudo rm -f /etc/nginx/sites-enabled/default
 
           echo "--- Remote: restart services ---"
-          systemctl daemon-reload
-          systemctl enable race-timing || true
-          systemctl restart race-timing
-          nginx -t
-          systemctl reload nginx || true
+          sudo systemctl daemon-reload
+          sudo systemctl enable race-timing || true
+          sudo systemctl restart race-timing
+          sudo nginx -t
+          sudo systemctl reload nginx || true
 
           echo "--- Remote: verify ---"
           echo "race-timing service status: \$(systemctl is-active race-timing 2>/dev/null || echo 'unknown')"
