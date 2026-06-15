@@ -179,7 +179,7 @@ jobs:
           sudo systemctl enable race-timing || true
           sudo systemctl restart race-timing
           sudo nginx -t
-          sudo systemctl reload nginx || true
+          sudo systemctl restart nginx || true
 
           echo "--- Remote: verify ---"
           echo "race-timing service status: \$(systemctl is-active race-timing 2>/dev/null || echo 'unknown')"
