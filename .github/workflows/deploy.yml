@@ -106,19 +106,22 @@ jobs:
           ssh-add ~/.ssh/deploy_key
           ssh-keyscan -H -p "${DEPLOY_PORT:-22}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-          # ── 2. SCP 上传文件 ────────────────────────────────
+          # ── 2. 上传文件（cat pipe → SSH，替代 scp）─────────
           SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p "${DEPLOY_PORT:-22}")
           ARTIFACT="$GITHUB_WORKSPACE/dist/race-timing-release.tar.gz"
           ARCHIVE_NAME="race-timing-release.tar.gz"
 
-          echo "=== scp artifact ==="
-          scp -v "${SSH_OPTS[@]}" "$ARTIFACT" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/$ARCHIVE_NAME"
+          echo "=== upload artifact ==="
+          cat "$ARTIFACT" | ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "cat > /tmp/$ARCHIVE_NAME"
+          echo "upload artifact: exit code $?"
 
-          echo "=== scp service config ==="
-          scp "${SSH_OPTS[@]}" "$GITHUB_WORKSPACE/deploy/race-timing.service" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/race-timing.service"
+          echo "=== upload service config ==="
+          cat "$GITHUB_WORKSPACE/deploy/race-timing.service" | ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "cat > /tmp/race-timing.service"
+          echo "upload service: exit code $?"
 
-          echo "=== scp nginx config ==="
-          scp "${SSH_OPTS[@]}" "$GITHUB_WORKSPACE/deploy/nginx/race-timing.conf" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/race-timing.conf"
+          echo "=== upload nginx config ==="
+          cat "$GITHUB_WORKSPACE/deploy/nginx/race-timing.conf" | ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "cat > /tmp/race-timing.conf"
+          echo "upload nginx: exit code $?"
 
           # ── 3. SSH 远程执行安装 ────────────────────────────
           echo "=== Running remote install ==="
