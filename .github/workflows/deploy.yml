@@ -65,19 +65,6 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set up SSH agent
-        if: steps.check-secrets.outputs.ready == 'true'
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
-
-      - name: Add remote host to known_hosts
-        if: steps.check-secrets.outputs.ready == 'true'
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-        run: ssh-keyscan -H -p ${DEPLOY_PORT:-22} "$DEPLOY_HOST" >> ~/.ssh/known_hosts
-
       - name: Deploy to remote server
         if: steps.check-secrets.outputs.ready == 'true'
         env:
@@ -85,4 +72,19 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-        run: ./scripts/deploy.sh dist/race-timing-release.tar.gz
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          # 1) 写入 SSH 私钥并启动 ssh-agent
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+
+          # 2) 添加服务器指纹到 known_hosts
+          ssh-keyscan -H -p "${DEPLOY_PORT:-22}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # 3) 执行部署
+          ./scripts/deploy.sh dist/race-timing-release.tar.gz

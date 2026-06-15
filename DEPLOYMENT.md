@@ -256,7 +256,27 @@ cp /opt/race-timing/shared/instance/timing.db /opt/race-timing/shared/instance/t
 - 服务器是否已开启：`ping 你的服务器IP`
 - SSH 端口是否正确：`ssh -p 22 deploy@你的服务器IP`
 - 防火墙是否放行：`sudo ufw status`
-- Secret 中的 DEPLOY_SSH_KEY 格式是否正确（以 `-----BEGIN` 开头，换行为 `\n`）
+
+### Q: SSH key 认证失败（"ssh-add -" 或 "Permission denied"）
+
+最常见的原因是 SSH 密钥格式或换行问题。
+
+**1. 确认密钥未设置密码：**
+```bash
+# 重新生成不带密码的部署专用密钥
+ssh-keygen -t ed25519 -f ~/.ssh/race-timing-deploy -N "" -C "github-actions-deploy"
+```
+
+**2. 确认 GitHub Secret 中的换行正确：**
+- 进入 GitHub Settings → Secrets → `DEPLOY_SSH_KEY`
+- 把本地 `cat ~/.ssh/race-timing-deploy` 的**全部内容**（包括 `-----BEGIN...` 和 `-----END...`）完整粘贴
+- 粘贴框中的换行必须是**真实换行**（直接回车），而不是 `\n` 字符串
+
+**3. 如仍失败，将密钥转为 PEM 格式：**
+```bash
+ssh-keygen -p -m PEM -f ~/.ssh/race-timing-deploy
+```
+然后重新复制到 GitHub Secret 中。
 
 ### Q: 部署成功但页面无法访问
 
