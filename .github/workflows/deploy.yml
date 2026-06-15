@@ -35,9 +35,6 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests
 
-      - name: Make scripts executable
-        run: chmod +x scripts/build_release.sh scripts/deploy.sh
-
       - name: Build release archive
         run: ./scripts/build_release.sh
 
@@ -53,7 +50,7 @@ jobs:
         with:
           files: dist/race-timing-release.tar.gz
 
-      # ─── Deploy steps ───────────────────────────────────────
+      # ─── Deploy ─────────────────────────────────────────────
       - name: Check deployment secrets
         id: check-secrets
         run: |
@@ -85,10 +82,6 @@ jobs:
           ssh-add ~/.ssh/deploy_key
           ssh-keyscan -H -p "${DEPLOY_PORT:-22}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Verify artifact
-        if: steps.check-secrets.outputs.ready == 'true'
-        run: ls -la "$GITHUB_WORKSPACE/dist/"
-
       - name: Deploy to remote server
         if: steps.check-secrets.outputs.ready == 'true'
         env:
@@ -96,6 +89,63 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-        run: >
-          ./scripts/deploy.sh
-          "$GITHUB_WORKSPACE/dist/race-timing-release.tar.gz"
+        run: |
+          set -euo pipefail
+          SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p "${DEPLOY_PORT:-22}")
+          ARTIFACT="$GITHUB_WORKSPACE/dist/race-timing-release.tar.gz"
+          ARCHIVE_NAME="race-timing-release.tar.gz"
+
+          # 上传构建产物和系统服务配置
+          scp "${SSH_OPTS[@]}" "$ARTIFACT" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/$ARCHIVE_NAME"
+          scp "${SSH_OPTS[@]}" "$GITHUB_WORKSPACE/deploy/race-timing.service" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/race-timing.service"
+          scp "${SSH_OPTS[@]}" "$GITHUB_WORKSPACE/deploy/nginx/race-timing.conf" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/race-timing.conf"
+
+          # 远程执行安装脚本
+          # <<REMOTE (无引号) → 本地展开 $DEPLOY_PATH 等变量
+          # \$() / \$var → 转义后原样送到远端执行
+          ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<REMOTE
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+
+          if [ "\$(id -u)" -eq 0 ]; then
+            apt-get update
+            apt-get install -y python3 python3-venv python3-pip nginx
+          else
+            sudo apt-get update
+            sudo apt-get install -y python3 python3-venv python3-pip nginx
+          fi
+
+          mkdir -p $DEPLOY_PATH/current $DEPLOY_PATH/shared/instance $DEPLOY_PATH/shared/uploads
+          rm -rf $DEPLOY_PATH/current/* $DEPLOY_PATH/current/.[!.]* 2>/dev/null || true
+          tar -xzf /tmp/$ARCHIVE_NAME -C $DEPLOY_PATH/current
+          rm -f /tmp/$ARCHIVE_NAME
+
+          if [ ! -f $DEPLOY_PATH/shared/.env ]; then
+            GENERATED_KEY=\$(python3 -c "import secrets; print(secrets.token_hex(32))")
+            cat > $DEPLOY_PATH/shared/.env <<ENVEOF
+          SECRET_KEY=\$GENERATED_KEY
+          DATABASE_URL=sqlite:///$DEPLOY_PATH/shared/instance/timing.db
+          ENVEOF
+            chmod 600 $DEPLOY_PATH/shared/.env
+          fi
+
+          python3 -m venv $DEPLOY_PATH/current/.venv
+          $DEPLOY_PATH/current/.venv/bin/pip install --upgrade pip
+          $DEPLOY_PATH/current/.venv/bin/pip install -r $DEPLOY_PATH/current/requirements.txt
+
+          ln -sfn $DEPLOY_PATH/shared/instance $DEPLOY_PATH/current/instance
+          ln -sfn $DEPLOY_PATH/shared/uploads $DEPLOY_PATH/current/uploads
+
+          install -m 0644 /tmp/race-timing.service /etc/systemd/system/race-timing.service
+          install -m 0644 /tmp/race-timing.conf /etc/nginx/sites-available/race-timing.conf
+          ln -sfn /etc/nginx/sites-available/race-timing.conf /etc/nginx/sites-enabled/race-timing.conf
+          rm -f /etc/nginx/sites-enabled/default
+
+          systemctl daemon-reload
+          systemctl enable race-timing || true
+          systemctl restart race-timing
+          nginx -t
+          systemctl reload nginx || true
+          REMOTE
+
+          echo "Deployment completed successfully."
