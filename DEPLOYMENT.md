@@ -157,6 +157,11 @@ base64 -w0 ~/.ssh/race-timing-deploy
 # 复制输出的全部内容
 ```
 
+```powershell
+# Windows (PowerShell)
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:USERPROFILE\.ssh\race-timing-deploy")) | Set-Clipboard
+```
+
 把复制的内容粘贴到 GitHub Secret 的值中——这是**一整行文本**，没有换行，不会出现格式问题。
 
 > ⚠️ **不要**使用`~/.ssh/id_rsa`或其他个人密钥。单独生成一把部署专用密钥，方便吊销。
@@ -276,6 +281,10 @@ ssh-keygen -p -m PEM -f ~/.ssh/race-timing-deploy
 # 然后重新获取 base64
 base64 -w0 ~/.ssh/race-timing-deploy | pbcopy   # macOS
 base64 -w0 ~/.ssh/race-timing-deploy              # Linux，复制输出
+```
+```powershell
+# Windows (PowerShell)
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:USERPROFILE\.ssh\race-timing-deploy")) | Set-Clipboard
 ```
 更新 GitHub Secret 后重新推送。
 
