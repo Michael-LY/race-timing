@@ -31,6 +31,16 @@ sudo passwd deploy
 sudo usermod -aG sudo deploy
 ```
 
+> **部署需要免密码 sudo**：GitHub Actions 是非交互式环境，无法输入密码。配置 NOPASSWD：
+>
+> ```bash
+> # 在服务器上执行
+> echo 'deploy ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/deploy
+> sudo chmod 440 /etc/sudoers.d/deploy
+> ```
+>
+> 这仅为 `deploy` 用户配置免密码 sudo，不影响其他用户。建议单独文件（`/etc/sudoers.d/deploy`），比直接改 `/etc/sudoers` 更安全。
+
 ### 1.2 安装必要软件
 
 ```bash
@@ -287,6 +297,16 @@ base64 -w0 ~/.ssh/race-timing-deploy              # Linux，复制输出
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:USERPROFILE\.ssh\race-timing-deploy")) | Set-Clipboard
 ```
 更新 GitHub Secret 后重新推送。
+
+### Q: 远程部署卡在 "sudo: a terminal is required to read the password"
+
+说明 `deploy` 用户没有配置免密码 sudo。在服务器上执行：
+
+```bash
+ssh root@你的服务器IP "echo 'deploy ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/deploy && sudo chmod 440 /etc/sudoers.d/deploy"
+```
+
+只需执行一次，重新推送 workflow 即可。
 
 ### Q: 部署成功但页面无法访问
 
