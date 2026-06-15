@@ -36,7 +36,9 @@ jobs:
         run: python -m unittest discover -s tests
 
       - name: Build release archive
-        run: ./scripts/build_release.sh
+        run: |
+          chmod +x scripts/build_release.sh
+          ./scripts/build_release.sh
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
