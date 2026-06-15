@@ -144,15 +144,20 @@ sudo systemctl status nginx
 | `DEPLOY_PATH` | 部署路径 | `/opt/race-timing` |
 | `DEPLOY_PORT` | SSH 端口（默认 22） | `22` |
 
-**获取 DEPLOY_SSH_KEY 的值：**
+**获取 DEPLOY_SSH_KEY 的值（base64 编码，避免换行问题）：**
 
 在本地开发机上执行：
 
 ```bash
-cat ~/.ssh/race-timing-deploy
+# macOS
+base64 -w0 ~/.ssh/race-timing-deploy | pbcopy
+
+# Linux
+base64 -w0 ~/.ssh/race-timing-deploy
+# 复制输出的全部内容
 ```
 
-复制全部内容（包括 `-----BEGIN OPENSSH PRIVATE KEY-----` 和 `-----END OPENSSH PRIVATE KEY-----`），粘贴到 Secret 的值中。
+把复制的内容粘贴到 GitHub Secret 的值中——这是**一整行文本**，没有换行，不会出现格式问题。
 
 > ⚠️ **不要**使用`~/.ssh/id_rsa`或其他个人密钥。单独生成一把部署专用密钥，方便吊销。
 
@@ -257,26 +262,22 @@ cp /opt/race-timing/shared/instance/timing.db /opt/race-timing/shared/instance/t
 - SSH 端口是否正确：`ssh -p 22 deploy@你的服务器IP`
 - 防火墙是否放行：`sudo ufw status`
 
-### Q: SSH key 认证失败（"ssh-add -" 或 "Permission denied"）
+### Q: SSH key 认证失败（"error in libcrypto" 或 "Permission denied"）
 
-最常见的原因是 SSH 密钥格式或换行问题。
+**根本原因：** GitHub Actions 的多行环境变量会把 SSH 私钥的换行符破坏掉，导致 OpenSSL 无法解析。
 
-**1. 确认密钥未设置密码：**
-```bash
-# 重新生成不带密码的部署专用密钥
-ssh-keygen -t ed25519 -f ~/.ssh/race-timing-deploy -N "" -C "github-actions-deploy"
-```
+**解决方案（已内置在 worklow 中）：**
+1. 私钥用 base64 编码后存入 `DEPLOY_SSH_KEY` Secret（见上方「获取 DEPLOY_SSH_KEY 的值」章节）
+2. 部署时 workflow 会自动 `base64 -d` 解码成原始密钥文件
 
-**2. 确认 GitHub Secret 中的换行正确：**
-- 进入 GitHub Settings → Secrets → `DEPLOY_SSH_KEY`
-- 把本地 `cat ~/.ssh/race-timing-deploy` 的**全部内容**（包括 `-----BEGIN...` 和 `-----END...`）完整粘贴
-- 粘贴框中的换行必须是**真实换行**（直接回车），而不是 `\n` 字符串
-
-**3. 如仍失败，将密钥转为 PEM 格式：**
+**如果仍失败，把密钥转为 PEM 格式（兼容性最好）：**
 ```bash
 ssh-keygen -p -m PEM -f ~/.ssh/race-timing-deploy
+# 然后重新获取 base64
+base64 -w0 ~/.ssh/race-timing-deploy | pbcopy   # macOS
+base64 -w0 ~/.ssh/race-timing-deploy              # Linux，复制输出
 ```
-然后重新复制到 GitHub Secret 中。
+更新 GitHub Secret 后重新推送。
 
 ### Q: 部署成功但页面无法访问
 

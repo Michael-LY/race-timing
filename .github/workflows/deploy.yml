@@ -78,7 +78,7 @@ jobs:
           # 1) 写入 SSH 私钥并启动 ssh-agent
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          echo "$DEPLOY_SSH_KEY" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/deploy_key
