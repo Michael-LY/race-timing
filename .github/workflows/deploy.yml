@@ -75,21 +75,33 @@ jobs:
         with:
           files: dist/race-timing-release.tar.gz
 
+      # ─── Deploy steps ───────────────────────────────────────
+      # GitHub Actions 的 if: 条件中不能直接访问 secrets，
+      # 因此用前置步骤检查并输出标记，后续步骤依赖该标记。
+      - name: Check deployment secrets
+        id: check-secrets
+        run: |
+          if [ -n "${{ secrets.DEPLOY_HOST }}" ] && [ -n "${{ secrets.DEPLOY_USER }}" ] && [ -n "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up SSH agent
-        if: ${{ secrets.DEPLOY_SSH_KEY != '' && secrets.DEPLOY_HOST != '' }}
+        if: steps.check-secrets.outputs.ready == 'true'
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
       - name: Add remote host to known_hosts
-        if: ${{ secrets.DEPLOY_HOST != '' }}
+        if: steps.check-secrets.outputs.ready == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
         run: ssh-keyscan -H -p ${DEPLOY_PORT:-22} "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
       - name: Deploy to remote server
-        if: ${{ secrets.DEPLOY_HOST != '' && secrets.DEPLOY_USER != '' && secrets.DEPLOY_SSH_KEY != '' }}
+        if: steps.check-secrets.outputs.ready == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
