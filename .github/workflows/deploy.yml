@@ -15,9 +15,11 @@ env:
   APP_NAME: race-timing
 
 jobs:
-  build-and-deploy:
+  # ═══════════════════════════════════════════════════════════
+  # Job 1: 构建 + 测试 + 上传 artifact
+  # ═══════════════════════════════════════════════════════════
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -52,31 +54,51 @@ jobs:
         with:
           files: dist/race-timing-release.tar.gz
 
-      # ─── Deploy ─────────────────────────────────────────────
-      - name: Check deployment secrets
-        id: check-secrets
+  # ═══════════════════════════════════════════════════════════
+  # Job 2: 部署到远程服务器
+  # ═══════════════════════════════════════════════════════════
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build release archive (fresh)
         run: |
-          if [ -n "${{ secrets.DEPLOY_HOST }}" ] && [ -n "${{ secrets.DEPLOY_USER }}" ] && [ -n "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          fi
+          chmod +x scripts/build_release.sh
+          ./scripts/build_release.sh
 
-      - name: Download build artifact
-        if: steps.check-secrets.outputs.ready == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: race-timing-release
-          path: dist/
-
-      - name: Set up SSH key
-        if: steps.check-secrets.outputs.ready == 'true'
+      - name: Deploy to remote server
         env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           set -euo pipefail
+
+          # ── 0. 调试输出 ────────────────────────────────────
+          echo "=== Debug: workspace ==="
+          echo "PWD=$(pwd)"
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          echo "DEPLOY_HOST=$DEPLOY_HOST"
+          echo "DEPLOY_USER=$DEPLOY_USER"
+          echo "DEPLOY_PATH=$DEPLOY_PATH"
+          echo "DEPLOY_PORT=$DEPLOY_PORT"
+
+          echo "=== Debug: listing dist/ ==="
+          ls -la "$GITHUB_WORKSPACE/dist/" || echo "dist/ NOT FOUND"
+
+          echo "=== Debug: listing deploy/ ==="
+          ls -la "$GITHUB_WORKSPACE/deploy/" || echo "deploy/ NOT FOUND"
+
+          echo "=== Debug: stat artifact ==="
+          stat "$GITHUB_WORKSPACE/dist/race-timing-release.tar.gz" || echo "stat failed"
+          file "$GITHUB_WORKSPACE/dist/race-timing-release.tar.gz" || echo "file failed"
+
+          # ── 1. SSH 私钥 → ssh-agent ───────────────────────
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           echo "$DEPLOY_SSH_KEY" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
@@ -84,31 +106,27 @@ jobs:
           ssh-add ~/.ssh/deploy_key
           ssh-keyscan -H -p "${DEPLOY_PORT:-22}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Deploy to remote server
-        if: steps.check-secrets.outputs.ready == 'true'
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-        run: |
-          set -euo pipefail
+          # ── 2. SCP 上传文件 ────────────────────────────────
           SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p "${DEPLOY_PORT:-22}")
           ARTIFACT="$GITHUB_WORKSPACE/dist/race-timing-release.tar.gz"
           ARCHIVE_NAME="race-timing-release.tar.gz"
 
-          # 上传构建产物和系统服务配置
-          scp "${SSH_OPTS[@]}" "$ARTIFACT" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/$ARCHIVE_NAME"
+          echo "=== scp artifact ==="
+          scp -v "${SSH_OPTS[@]}" "$ARTIFACT" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/$ARCHIVE_NAME"
+
+          echo "=== scp service config ==="
           scp "${SSH_OPTS[@]}" "$GITHUB_WORKSPACE/deploy/race-timing.service" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/race-timing.service"
+
+          echo "=== scp nginx config ==="
           scp "${SSH_OPTS[@]}" "$GITHUB_WORKSPACE/deploy/nginx/race-timing.conf" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/race-timing.conf"
 
-          # 远程执行安装脚本
-          # <<REMOTE (无引号) → 本地展开 $DEPLOY_PATH 等变量
-          # \$() / \$var → 转义后原样送到远端执行
+          # ── 3. SSH 远程执行安装 ────────────────────────────
+          echo "=== Running remote install ==="
           ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<REMOTE
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
 
+          echo "--- Remote: install system packages ---"
           if [ "\$(id -u)" -eq 0 ]; then
             apt-get update
             apt-get install -y python3 python3-venv python3-pip nginx
@@ -117,11 +135,15 @@ jobs:
             sudo apt-get install -y python3 python3-venv python3-pip nginx
           fi
 
+          echo "--- Remote: create directories ---"
           mkdir -p $DEPLOY_PATH/current $DEPLOY_PATH/shared/instance $DEPLOY_PATH/shared/uploads
+
+          echo "--- Remote: extract archive ---"
           rm -rf $DEPLOY_PATH/current/* $DEPLOY_PATH/current/.[!.]* 2>/dev/null || true
           tar -xzf /tmp/$ARCHIVE_NAME -C $DEPLOY_PATH/current
           rm -f /tmp/$ARCHIVE_NAME
 
+          echo "--- Remote: generate .env if needed ---"
           if [ ! -f $DEPLOY_PATH/shared/.env ]; then
             GENERATED_KEY=\$(python3 -c "import secrets; print(secrets.token_hex(32))")
             cat > $DEPLOY_PATH/shared/.env <<ENVEOF
@@ -129,25 +151,40 @@ jobs:
           DATABASE_URL=sqlite:///$DEPLOY_PATH/shared/instance/timing.db
           ENVEOF
             chmod 600 $DEPLOY_PATH/shared/.env
+            echo "Created .env with generated SECRET_KEY"
+          else
+            echo "Using existing .env"
           fi
 
+          echo "--- Remote: install Python deps ---"
           python3 -m venv $DEPLOY_PATH/current/.venv
           $DEPLOY_PATH/current/.venv/bin/pip install --upgrade pip
           $DEPLOY_PATH/current/.venv/bin/pip install -r $DEPLOY_PATH/current/requirements.txt
 
+          echo "--- Remote: symlink shared dirs ---"
           ln -sfn $DEPLOY_PATH/shared/instance $DEPLOY_PATH/current/instance
           ln -sfn $DEPLOY_PATH/shared/uploads $DEPLOY_PATH/current/uploads
 
+          echo "--- Remote: install systemd + nginx config ---"
           install -m 0644 /tmp/race-timing.service /etc/systemd/system/race-timing.service
           install -m 0644 /tmp/race-timing.conf /etc/nginx/sites-available/race-timing.conf
           ln -sfn /etc/nginx/sites-available/race-timing.conf /etc/nginx/sites-enabled/race-timing.conf
           rm -f /etc/nginx/sites-enabled/default
 
+          echo "--- Remote: restart services ---"
           systemctl daemon-reload
           systemctl enable race-timing || true
           systemctl restart race-timing
           nginx -t
           systemctl reload nginx || true
+
+          echo "--- Remote: verify ---"
+          echo "race-timing service status: \$(systemctl is-active race-timing 2>/dev/null || echo 'unknown')"
+          HTTP_CODE=\$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/ 2>/dev/null || echo "unreachable")
+          echo "HTTP 127.0.0.1:8000 → \$HTTP_CODE"
           REMOTE
 
-          echo "Deployment completed successfully."
+          echo ""
+          echo "═══════════════════════════════════════════════"
+          echo "  Deployment completed successfully."
+          echo "═══════════════════════════════════════════════"
