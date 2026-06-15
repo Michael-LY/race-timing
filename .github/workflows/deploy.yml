@@ -65,6 +65,13 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Download build artifact
+        if: steps.check-secrets.outputs.ready == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: race-timing-release
+          path: dist/
+
       - name: Deploy to remote server
         if: steps.check-secrets.outputs.ready == 'true'
         env:
@@ -86,5 +93,5 @@ jobs:
           # 2) 添加服务器指纹到 known_hosts
           ssh-keyscan -H -p "${DEPLOY_PORT:-22}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-          # 3) 执行部署
-          ./scripts/deploy.sh dist/race-timing-release.tar.gz
+          # 3) 执行部署（使用绝对路径，避免工作目录问题）
+          ./scripts/deploy.sh "$GITHUB_WORKSPACE/dist/race-timing-release.tar.gz"
