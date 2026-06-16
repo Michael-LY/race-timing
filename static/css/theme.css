@@ -583,9 +583,9 @@ a:hover { color: var(--accent-cyan-hover); }
 
 /* -- Bottom Navigation (mobile, floating) -- */
 .bottom-nav {
-    left: 0.75rem;
-    right: 0.75rem;
-    bottom: 0.625rem;
+    left: 1rem;
+    right: 1rem;
+    bottom: 0.75rem;
     width: auto;
     background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
@@ -738,8 +738,8 @@ a:hover { color: var(--accent-cyan-hover); }
 /* -- FAB (Floating Action Button) -- */
 .fab-container {
     position: fixed;
-    bottom: 4.75rem;
-    right: 1rem;
+    bottom: 5.25rem;
+    right: 1.25rem;
     z-index: 51;
 }
 
