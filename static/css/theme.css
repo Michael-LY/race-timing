@@ -768,10 +768,13 @@ a:hover { color: var(--accent-cyan-hover); }
 }
 
 .fab-open .fab-main {
-    transform: rotate(45deg);
     box-shadow: var(--glass-inner-glow),
                 0 6px 24px rgba(0, 0, 0, 0.25),
                 0 0 30px rgba(0, 229, 255, 0.25);
+}
+
+.fab-open .fab-icon {
+    transform: rotate(45deg);
 }
 
 .fab-icon {
