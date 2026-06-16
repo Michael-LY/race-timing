@@ -60,11 +60,24 @@
     <h4 class="font-semibold text-theme-primary">Sessions</h4>
     <div class="flex items-center gap-1.5 text-xs">
         {% if event.sessions %}
-        <span class="text-theme-secondary">Sort:</span>
-        <button onclick="sortSessions('default')" class="btn-ghost" data-sort="default">Default</button>
-        <button onclick="sortSessions('type')" class="btn-ghost" data-sort="type">Type</button>
-        <button onclick="sortSessions('name')" class="btn-ghost" data-sort="name">Name</button>
-        <button onclick="sortSessions('laps')" class="btn-ghost" data-sort="laps">Laps</button>
+        <!-- Desktop sort buttons -->
+        <span class="text-theme-secondary hidden md:inline">Sort:</span>
+        <button onclick="sortSessions('default')" class="btn-ghost hidden md:inline-flex" data-sort="default">Default</button>
+        <button onclick="sortSessions('type')" class="btn-ghost hidden md:inline-flex" data-sort="type">Type</button>
+        <button onclick="sortSessions('name')" class="btn-ghost hidden md:inline-flex" data-sort="name">Name</button>
+        <button onclick="sortSessions('laps')" class="btn-ghost hidden md:inline-flex" data-sort="laps">Laps</button>
+        <!-- Mobile sort dropdown -->
+        <div class="sort-dropdown md:hidden" id="sortDropdown">
+            <button class="sort-dropdown-toggle" id="sortDropdownToggle" type="button">
+                <i data-lucide="arrow-up-down" class="w-3.5 h-3.5"></i> Sort
+            </button>
+            <div class="sort-dropdown-menu" id="sortDropdownMenu">
+                <button class="sort-dropdown-item active" data-sort="default" onclick="sortSessions('default'); closeSortDropdown();">Default</button>
+                <button class="sort-dropdown-item" data-sort="type" onclick="sortSessions('type'); closeSortDropdown();">Type</button>
+                <button class="sort-dropdown-item" data-sort="name" onclick="sortSessions('name'); closeSortDropdown();">Name</button>
+                <button class="sort-dropdown-item" data-sort="laps" onclick="sortSessions('laps'); closeSortDropdown();">Laps</button>
+            </div>
+        </div>
         {% endif %}
         {% if current_user and current_user.is_admin %}
         <button type="button" id="reorder-toggle" class="btn-ghost" onclick="toggleSessionReorder()">Manual sort</button>
@@ -261,6 +274,11 @@ function sortSessions(key) {
             btn.classList.remove('btn-ghost-active');
             btn.classList.add('btn-ghost');
         });
+        document.querySelectorAll('.sort-dropdown-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        var defaultItem = document.querySelector('.sort-dropdown-item[data-sort="default"]');
+        if (defaultItem) defaultItem.classList.add('active');
         updateSessionOrderInput();
         return;
     }
@@ -294,19 +312,47 @@ function sortSessions(key) {
     items.forEach(el => container.appendChild(el));
     updateSessionOrderInput();
 
-    document.querySelectorAll('[data-sort]').forEach(btn => {
+    // Desktop buttons
+    document.querySelectorAll('.btn-ghost[data-sort]').forEach(btn => {
         btn.classList.remove('btn-ghost-active');
         btn.classList.add('btn-ghost');
     });
-    const active = document.querySelector(`[data-sort="${key}"]`);
+    const active = document.querySelector(`.btn-ghost[data-sort="${key}"]`);
     if (active) {
         active.classList.remove('btn-ghost');
         active.classList.add('btn-ghost-active');
         active.textContent = key.charAt(0).toUpperCase() + key.slice(1) + (sortAsc ? ' ▲' : ' ▼');
     }
+    // Mobile dropdown items
+    document.querySelectorAll('.sort-dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    const activeItem = document.querySelector(`.sort-dropdown-item[data-sort="${key}"]`);
+    if (activeItem) activeItem.classList.add('active');
 }
 
 attachSessionReorderHandlers();
+
+// Sort dropdown (mobile)
+var sortDropdownToggle = document.getElementById('sortDropdownToggle');
+var sortDropdown = document.getElementById('sortDropdown');
+
+if (sortDropdownToggle) {
+    sortDropdownToggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        sortDropdown.classList.toggle('open');
+    });
+}
+
+function closeSortDropdown() {
+    if (sortDropdown) sortDropdown.classList.remove('open');
+}
+
+document.addEventListener('click', function(e) {
+    if (sortDropdown && sortDropdown.classList.contains('open') && !sortDropdown.contains(e.target)) {
+        sortDropdown.classList.remove('open');
+    }
+});
 
 // FAB toggle
 var fabToggle = document.getElementById('fabToggle');
