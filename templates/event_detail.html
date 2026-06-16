@@ -34,7 +34,7 @@
             {% endif %}
         </div>
     </div>
-    <div class="flex gap-2 items-center">
+    <div class="hidden md:flex gap-2 items-center">
         {% if current_user and current_user.is_admin %}
         <a href="{{ url_for('main.event_edit', event_id=event.id) }}" class="btn-ghost p-2" title="Edit Event">
             <i data-lucide="pencil" class="w-4 h-4"></i>
@@ -90,7 +90,7 @@
                 <i data-lucide="grip-vertical" class="w-4 h-4"></i>
             </span>
             {% endif %}
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type|replace(' ', '-') }}">{{ session.session_type|replace('Paid Test', 'Paid-Test')|replace('Bronze Session', 'Bronze-Session') }}</span>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold text-white session-badge-{{ session.session_type|replace(' ', '-') }}"><span class="md:hidden">{% if session.session_type == 'Paid-Test' or session.session_type == 'Paid Test' %}PT{% elif session.session_type == 'Practice' %}FP{% elif session.session_type == 'Bronze-Session' or session.session_type == 'Bronze Session' %}BT{% elif session.session_type == 'Pre-Qualifying' %}PQ{% elif session.session_type == 'Qualifying' %}QU{% elif session.session_type == 'Warm-up' or session.session_type == 'Warm_Up' %}WU{% elif session.session_type == 'Race' %}RA{% else %}{{ session.session_type[:2]|upper }}{% endif %}</span><span class="hidden md:inline">{{ session.session_type|replace('Paid Test', 'Paid-Test')|replace('Bronze Session', 'Bronze-Session') }}</span></span>
             <strong class="text-theme-primary">{{ session.name }}</strong>
             <small class="text-theme-secondary ml-2">{{ session.laps|length }} laps</small>
         </div>
@@ -122,6 +122,32 @@
         <i data-lucide="upload" class="w-4 h-4"></i> Upload CSV
     </a>
     {% endif %}
+</div>
+{% endif %}
+
+<!-- Mobile FAB (admin only) -->
+{% if current_user and current_user.is_admin %}
+<div class="fab-container md:hidden">
+    <div class="fab-actions" id="fabActions">
+        <button type="button" class="fab-action fab-action-danger" onclick="fabDeleteEvent()">
+            <i data-lucide="trash-2" class="w-5 h-5"></i>
+        </button>
+        <form method="POST" action="{{ url_for('main.event_delete', event_id=event.id) }}" class="hidden" id="fabDeleteForm">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+        <a href="{{ url_for('main.event_car_config', event_id=event.id) }}" class="fab-action">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+        </a>
+        <a href="{{ url_for('main.upload', event_id=event.id) }}" class="fab-action fab-action-green">
+            <i data-lucide="upload" class="w-5 h-5"></i>
+        </a>
+        <a href="{{ url_for('main.event_edit', event_id=event.id) }}" class="fab-action">
+            <i data-lucide="pencil" class="w-5 h-5"></i>
+        </a>
+    </div>
+    <button class="fab-main" id="fabToggle" onclick="toggleFab()">
+        <i data-lucide="plus" class="w-6 h-6 fab-icon" id="fabIcon"></i>
+    </button>
 </div>
 {% endif %}
 {% endblock %}
@@ -281,5 +307,31 @@ function sortSessions(key) {
 }
 
 attachSessionReorderHandlers();
+
+// FAB toggle
+function toggleFab() {
+    var container = document.querySelector('.fab-container');
+    var icon = document.getElementById('fabIcon');
+    var isOpen = container.classList.toggle('fab-open');
+    icon.setAttribute('data-lucide', isOpen ? 'x' : 'plus');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function fabDeleteEvent() {
+    if (confirm('Delete this event and all its sessions?')) {
+        document.getElementById('fabDeleteForm').submit();
+    }
+}
+
+// Close FAB when clicking outside
+document.addEventListener('click', function(e) {
+    var container = document.querySelector('.fab-container');
+    if (container && container.classList.contains('fab-open') && !container.contains(e.target)) {
+        container.classList.remove('fab-open');
+        var icon = document.getElementById('fabIcon');
+        icon.setAttribute('data-lucide', 'plus');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+});
 </script>
 {% endblock %}
