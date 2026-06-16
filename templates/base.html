@@ -49,7 +49,7 @@
 
     {% block head %}{% endblock %}
 </head>
-<body style="padding-top: 3.5rem;">
+<body style="padding-top: 3.5rem;" class="pb-16 md:pb-0">
 
 <!-- Navbar -->
 <nav class="nav-main fixed top-0 w-full z-50">
@@ -125,6 +125,37 @@
 
     {% block content %}{% endblock %}
 </div>
+
+<!-- Bottom Navigation (mobile only) -->
+<nav class="bottom-nav fixed bottom-0 left-0 right-0 z-50 md:hidden">
+    <div class="flex items-center justify-around h-16 px-2">
+        <a href="{{ url_for('main.index') }}" class="bottom-nav-item {% if request.endpoint == 'main.index' %}active{% endif %}">
+            <i data-lucide="flag" class="w-5 h-5"></i>
+            <span>Events</span>
+        </a>
+        {% if current_user and current_user.is_admin %}
+        <a href="{{ url_for('main.car_model_colors') }}" class="bottom-nav-item {% if request.endpoint == 'main.car_model_colors' %}active{% endif %}">
+            <i data-lucide="palette" class="w-5 h-5"></i>
+            <span>Colors</span>
+        </a>
+        <a href="{{ url_for('main.user_list') }}" class="bottom-nav-item {% if request.endpoint == 'main.user_list' %}active{% endif %}">
+            <i data-lucide="users" class="w-5 h-5"></i>
+            <span>Users</span>
+        </a>
+        {% endif %}
+        {% if current_user %}
+        <a href="{{ url_for('main.logout') }}" class="bottom-nav-item">
+            <i data-lucide="log-out" class="w-5 h-5"></i>
+            <span>Logout</span>
+        </a>
+        {% else %}
+        <a href="{{ url_for('main.login') }}" class="bottom-nav-item {% if request.endpoint == 'main.login' %}active{% endif %}">
+            <i data-lucide="log-in" class="w-5 h-5"></i>
+            <span>Login</span>
+        </a>
+        {% endif %}
+    </div>
+</nav>
 
 <script>lucide.createIcons();</script>
 {% block scripts %}{% endblock %}
