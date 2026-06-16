@@ -17,25 +17,60 @@
         <p class="text-theme-secondary text-sm mb-0">{{ session.event.name }} &middot;
             {{ standings|length }} entries &middot; {{ session.laps|length }} laps</p>
     </div>
-    <div class="flex gap-1 items-center overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-        <button class="btn-ghost whitespace-nowrap" id="btnClassification">
-            <i data-lucide="trophy" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">Classification</span><span class="sm:hidden">Class</span>
-        </button>
-        <button class="btn-ghost whitespace-nowrap" id="btnLapSummary">
-            <i data-lucide="table-2" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">Lap Summary</span><span class="sm:hidden">Summary</span>
-        </button>
-        <button class="btn-ghost whitespace-nowrap" id="btnLapDetail">
-            <i data-lucide="list" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">Lap-by-Lap</span><span class="sm:hidden">Laps</span>
-        </button>
-        <button class="btn-ghost whitespace-nowrap" id="btnDrivers">
-            <i data-lucide="user" class="w-3.5 h-3.5"></i> Drivers
-        </button>
-        <button class="btn-ghost whitespace-nowrap" id="btnChart">
-            <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i> Chart
-        </button>
+    <div class="flex gap-1 items-center">
+        <!-- Desktop view buttons -->
+        <div class="hidden md:flex gap-1 items-center overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+            <button class="btn-ghost whitespace-nowrap" id="btnClassification">
+                <i data-lucide="trophy" class="w-3.5 h-3.5"></i> Classification
+            </button>
+            <button class="btn-ghost whitespace-nowrap" id="btnLapSummary">
+                <i data-lucide="table-2" class="w-3.5 h-3.5"></i> Lap Summary
+            </button>
+            <button class="btn-ghost whitespace-nowrap" id="btnLapDetail">
+                <i data-lucide="list" class="w-3.5 h-3.5"></i> Lap-by-Lap
+            </button>
+            <button class="btn-ghost whitespace-nowrap" id="btnDrivers">
+                <i data-lucide="user" class="w-3.5 h-3.5"></i> Drivers
+            </button>
+            <button class="btn-ghost whitespace-nowrap" id="btnChart">
+                <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i> Chart
+            </button>
+            {% if current_user and current_user.is_admin %}
+            <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
+                  onsubmit="return confirm('Delete this session?');" class="ml-1">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn-danger p-1.5">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        <!-- Mobile view dropdown -->
+        <div class="sort-dropdown md:hidden" id="viewDropdown">
+            <button class="sort-dropdown-toggle" id="viewDropdownToggle" type="button">
+                <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> <span id="viewDropdownLabel">Classification</span>
+            </button>
+            <div class="sort-dropdown-menu" id="viewDropdownMenu">
+                <button class="sort-dropdown-item active" data-view="btnClassification" onclick="switchView('btnClassification'); closeViewDropdown();">
+                    <i data-lucide="trophy" class="w-3.5 h-3.5 mr-2"></i> Classification
+                </button>
+                <button class="sort-dropdown-item" data-view="btnLapSummary" onclick="switchView('btnLapSummary'); closeViewDropdown();">
+                    <i data-lucide="table-2" class="w-3.5 h-3.5 mr-2"></i> Lap Summary
+                </button>
+                <button class="sort-dropdown-item" data-view="btnLapDetail" onclick="switchView('btnLapDetail'); closeViewDropdown();">
+                    <i data-lucide="list" class="w-3.5 h-3.5 mr-2"></i> Lap-by-Lap
+                </button>
+                <button class="sort-dropdown-item" data-view="btnDrivers" onclick="switchView('btnDrivers'); closeViewDropdown();">
+                    <i data-lucide="user" class="w-3.5 h-3.5 mr-2"></i> Drivers
+                </button>
+                <button class="sort-dropdown-item" data-view="btnChart" onclick="switchView('btnChart'); closeViewDropdown();">
+                    <i data-lucide="bar-chart-3" class="w-3.5 h-3.5 mr-2"></i> Chart
+                </button>
+            </div>
+        </div>
         {% if current_user and current_user.is_admin %}
         <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
-              onsubmit="return confirm('Delete this session?');" class="ml-1">
+              onsubmit="return confirm('Delete this session?');" class="md:hidden ml-auto">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn-danger p-1.5">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -422,6 +457,48 @@ document.getElementById('btnLapSummary').addEventListener('click', () => showVie
 document.getElementById('btnLapDetail').addEventListener('click', () => showView('lapDetail'));
 document.getElementById('btnDrivers').addEventListener('click', () => showView('driver'));
 document.getElementById('btnChart').addEventListener('click', () => { showView('chart'); loadChart(); });
+
+// ── Mobile view dropdown ──────────────────────────────────────
+var VIEW_MAP = {
+    btnClassification: { label: 'Classification', name: 'classification' },
+    btnLapSummary: { label: 'Lap Summary', name: 'lapSummary' },
+    btnLapDetail: { label: 'Lap-by-Lap', name: 'lapDetail' },
+    btnDrivers: { label: 'Drivers', name: 'driver' },
+    btnChart: { label: 'Chart', name: 'chart' }
+};
+
+function switchView(btnId) {
+    var mapping = VIEW_MAP[btnId];
+    if (!mapping) return;
+    showView(mapping.name);
+    if (btnId === 'btnChart' && typeof loadChart === 'function') loadChart();
+    // Update dropdown label and active state
+    var label = document.getElementById('viewDropdownLabel');
+    if (label) label.textContent = mapping.label;
+    document.querySelectorAll('#viewDropdownMenu .sort-dropdown-item').forEach(function(item) {
+        item.classList.toggle('active', item.dataset.view === btnId);
+    });
+}
+
+var viewDropdown = document.getElementById('viewDropdown');
+var viewDropdownToggle = document.getElementById('viewDropdownToggle');
+
+if (viewDropdownToggle) {
+    viewDropdownToggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        viewDropdown.classList.toggle('open');
+    });
+}
+
+function closeViewDropdown() {
+    if (viewDropdown) viewDropdown.classList.remove('open');
+}
+
+document.addEventListener('click', function(e) {
+    if (viewDropdown && viewDropdown.classList.contains('open') && !viewDropdown.contains(e.target)) {
+        viewDropdown.classList.remove('open');
+    }
+});
 
 // ── Car filter for lap detail ──────────────────────────────────
 document.getElementById('carFilter').addEventListener('change', function() {
