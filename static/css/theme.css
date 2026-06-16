@@ -585,13 +585,13 @@ a:hover { color: var(--accent-cyan-hover); }
 .bottom-nav {
     left: 0.75rem;
     right: 0.75rem;
-    bottom: 0.5rem;
+    bottom: 0.625rem;
     width: auto;
     background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     border: 1px solid var(--glass-border);
-    border-radius: 1.25rem;
+    border-radius: 9999px;
     box-shadow: var(--glass-inner-glow),
                 0 8px 40px rgba(0, 0, 0, 0.18),
                 0 0 0 1px rgba(255, 255, 255, 0.05);
