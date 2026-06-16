@@ -49,15 +49,29 @@
 
     {% block head %}{% endblock %}
 </head>
-<body style="padding-top: 3.5rem;" class="pb-16 md:pb-0">
+<body class="pt-12 md:pt-14 pb-16 md:pb-0">
 
-<!-- Navbar -->
-<nav class="nav-main fixed top-0 w-full z-50">
+<!-- Mobile Header (brand + theme toggle only) -->
+<header class="nav-main fixed top-0 w-full z-50 md:hidden">
+    <div class="flex items-center justify-between h-12 px-4">
+        <a class="nav-brand text-base tracking-tight flex items-center gap-1.5 no-underline text-white shrink-0" href="{{ url_for('main.index') }}">
+            <i data-lucide="stopwatch" class="w-4 h-4 text-cyan-400"></i> RRA
+        </a>
+        <button id="themeToggleMobile" onclick="toggleTheme()"
+            class="p-1.5 rounded hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
+            title="Toggle theme">
+            <i data-lucide="moon" class="w-4 h-4"></i>
+        </button>
+    </div>
+</header>
+
+<!-- Desktop Navbar (hidden on mobile — bottom nav replaces it) -->
+<nav class="nav-main fixed top-0 w-full z-50 hidden md:block">
     <div class="container flex items-center justify-between h-14">
         <a class="nav-brand text-lg tracking-tight flex items-center gap-1.5 no-underline text-white shrink-0" href="{{ url_for('main.index') }}">
-            <i data-lucide="stopwatch" class="w-5 h-5 text-cyan-400"></i> <span class="hidden sm:inline">Race Result Analysis</span><span class="sm:hidden">RRA</span>
+            <i data-lucide="stopwatch" class="w-5 h-5 text-cyan-400"></i> Race Result Analysis
         </a>
-        <div class="flex items-center gap-2 sm:gap-4 overflow-x-auto scrollbar-hide">
+        <div class="flex items-center gap-4 overflow-x-auto scrollbar-hide">
             <a class="nav-link flex items-center gap-1" href="{{ url_for('main.index') }}">
                 <i data-lucide="flag" class="w-4 h-4"></i> Events
             </a>

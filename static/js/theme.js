@@ -16,13 +16,16 @@ window.toggleTheme = function () {
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('race-timing-theme', next);
 
-    var btn = document.getElementById('themeToggle');
-    if (btn) {
-        var icon = btn.querySelector('[data-lucide]');
-        if (icon) {
-            icon.setAttribute('data-lucide', next === 'dark' ? 'sun' : 'moon');
+    // Update both desktop and mobile toggle buttons
+    ['themeToggle', 'themeToggleMobile'].forEach(function (id) {
+        var btn = document.getElementById(id);
+        if (btn) {
+            var icon = btn.querySelector('[data-lucide]');
+            if (icon) {
+                icon.setAttribute('data-lucide', next === 'dark' ? 'sun' : 'moon');
+            }
         }
-    }
+    });
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
@@ -51,13 +54,15 @@ window.getThemeColors = function () {
 
 document.addEventListener('DOMContentLoaded', function () {
     var theme = document.documentElement.getAttribute('data-theme');
-    var btn = document.getElementById('themeToggle');
-    if (btn) {
-        var icon = btn.querySelector('[data-lucide]');
-        if (icon) {
-            icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+    ['themeToggle', 'themeToggleMobile'].forEach(function (id) {
+        var btn = document.getElementById(id);
+        if (btn) {
+            var icon = btn.querySelector('[data-lucide]');
+            if (icon) {
+                icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+            }
         }
-    }
+    });
 
     var items = document.querySelectorAll('.stagger-item');
     items.forEach(function (el, index) {
