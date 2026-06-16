@@ -690,6 +690,13 @@ a:hover { color: var(--accent-cyan-hover); }
     transform: translateY(0) scale(1);
 }
 
+/* Right-aligned variant (for sort dropdown on event page) */
+.sort-dropdown-menu-right {
+    left: auto;
+    right: 0;
+    transform-origin: top right;
+}
+
 .sort-dropdown-item {
     display: flex;
     align-items: center;
