@@ -1,0 +1,1 @@
+- [Git Commit After Work](git-commit-after-work.md) — always commit file changes after completing a task, don't wait for user to ask
