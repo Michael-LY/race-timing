@@ -127,9 +127,9 @@
 
 <!-- Mobile FAB (admin only) -->
 {% if current_user and current_user.is_admin %}
-<div class="fab-container md:hidden">
+<div class="fab-container md:hidden" id="fabContainer">
     <div class="fab-actions" id="fabActions">
-        <button type="button" class="fab-action fab-action-danger" onclick="fabDeleteEvent()">
+        <button type="button" class="fab-action fab-action-danger" id="fabDeleteBtn">
             <i data-lucide="trash-2" class="w-5 h-5"></i>
         </button>
         <form method="POST" action="{{ url_for('main.event_delete', event_id=event.id) }}" class="hidden" id="fabDeleteForm">
@@ -145,7 +145,7 @@
             <i data-lucide="pencil" class="w-5 h-5"></i>
         </a>
     </div>
-    <button class="fab-main" id="fabToggle" onclick="toggleFab()">
+    <button class="fab-main" id="fabToggle" type="button">
         <i data-lucide="plus" class="w-6 h-6 fab-icon" id="fabIcon"></i>
     </button>
 </div>
@@ -309,28 +309,40 @@ function sortSessions(key) {
 attachSessionReorderHandlers();
 
 // FAB toggle
-function toggleFab() {
-    var container = document.querySelector('.fab-container');
-    var icon = document.getElementById('fabIcon');
-    var isOpen = container.classList.toggle('fab-open');
-    icon.setAttribute('data-lucide', isOpen ? 'x' : 'plus');
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+var fabToggle = document.getElementById('fabToggle');
+var fabDeleteBtn = document.getElementById('fabDeleteBtn');
+var fabContainer = document.getElementById('fabContainer');
+
+if (fabToggle) {
+    fabToggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var isOpen = fabContainer.classList.toggle('fab-open');
+        var icon = document.getElementById('fabIcon');
+        if (icon) {
+            icon.setAttribute('data-lucide', isOpen ? 'x' : 'plus');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    });
 }
 
-function fabDeleteEvent() {
-    if (confirm('Delete this event and all its sessions?')) {
-        document.getElementById('fabDeleteForm').submit();
-    }
+if (fabDeleteBtn) {
+    fabDeleteBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (confirm('Delete this event and all its sessions?')) {
+            document.getElementById('fabDeleteForm').submit();
+        }
+    });
 }
 
 // Close FAB when clicking outside
 document.addEventListener('click', function(e) {
-    var container = document.querySelector('.fab-container');
-    if (container && container.classList.contains('fab-open') && !container.contains(e.target)) {
-        container.classList.remove('fab-open');
+    if (fabContainer && fabContainer.classList.contains('fab-open') && !fabContainer.contains(e.target)) {
+        fabContainer.classList.remove('fab-open');
         var icon = document.getElementById('fabIcon');
-        icon.setAttribute('data-lucide', 'plus');
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        if (icon) {
+            icon.setAttribute('data-lucide', 'plus');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
     }
 });
 </script>
