@@ -630,7 +630,7 @@ a:hover { color: var(--accent-cyan-hover); }
     box-shadow: 0 0 16px rgba(0, 229, 255, 0.15);
 }
 
-/* -- Sort Dropdown (mobile) -- */
+/* -- Dropdown Menu (mobile, shared by sort + view) -- */
 .sort-dropdown {
     position: relative;
 }
@@ -667,6 +667,7 @@ a:hover { color: var(--accent-cyan-hover); }
     position: absolute;
     top: calc(100% + 0.375rem);
     left: 0;
+    right: auto;
     min-width: 7rem;
     background: var(--glass-bg);
     backdrop-filter: blur(24px) saturate(180%);
@@ -703,6 +704,7 @@ a:hover { color: var(--accent-cyan-hover); }
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
     -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
 }
 
 .sort-dropdown-item:hover {
