@@ -363,6 +363,11 @@ def allowed_file(filename):
 def index():
     query = Event.query
 
+    user_id = flask_session.get("user_id")
+    current_user_obj = db.session.get(User, user_id) if user_id else None
+    if not current_user_obj or not current_user_obj.is_admin:
+        query = query.filter(Event.is_hidden == False)
+
     year = request.args.get("year", "").strip()
     championship = request.args.get("championship", "").strip()
     track = request.args.get("track", "").strip()
@@ -437,6 +442,12 @@ def event_create():
 @bp.route("/events/<int:event_id>")
 def event_detail(event_id):
     event = Event.query.get_or_404(event_id)
+    if event.is_hidden:
+        user_id = flask_session.get("user_id")
+        current_user_obj = db.session.get(User, user_id) if user_id else None
+        if not current_user_obj or not current_user_obj.is_admin:
+            flash("Event not found", "warning")
+            return redirect(url_for("main.index"))
     return render_template("event_detail.html", event=event)
 
 
@@ -506,6 +517,7 @@ def event_edit(event_id):
         event.name = name
         event.track = track
         event.championship = championship
+        event.is_hidden = request.form.get("is_hidden") == "on"
         if year_str:
             try:
                 event.year = int(year_str)

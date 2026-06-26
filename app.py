@@ -30,6 +30,7 @@ def create_app():
         _ensure_series_color_columns()
         _ensure_model_color_columns()
         _ensure_gap_text_columns()
+        _ensure_event_is_hidden_column()
         _seed_time_keepers()
         _seed_admin()
 
@@ -155,6 +156,16 @@ def _ensure_gap_text_columns():
         if "diff_text" not in columns:
             with db.engine.begin() as connection:
                 connection.execute(text("ALTER TABLE standings ADD COLUMN diff_text VARCHAR(50) DEFAULT ''"))
+
+
+def _ensure_event_is_hidden_column():
+    inspector = inspect(db.engine)
+    if "events" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("events")}
+    if "is_hidden" not in columns:
+        with db.engine.begin() as connection:
+            connection.execute(text("ALTER TABLE events ADD COLUMN is_hidden BOOLEAN NOT NULL DEFAULT 0"))
 
 
 def _seed_time_keepers():

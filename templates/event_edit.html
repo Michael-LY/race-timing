@@ -36,6 +36,15 @@
                     <input type="date" class="themed-input" id="event_date" name="event_date" value="{{ event.event_date or '' }}">
                 </div>
             </div>
+            {% if current_user and current_user.is_admin %}
+            <div class="mb-4">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="is_hidden" class="w-4 h-4 rounded" {% if event.is_hidden %}checked{% endif %}>
+                    <span class="text-sm font-medium text-theme-primary">Hide from non-admin users</span>
+                </label>
+                <p class="text-xs text-theme-secondary mt-1">Hidden events are only visible to admin users on the main page.</p>
+            </div>
+            {% endif %}
             <button type="submit" class="btn-primary px-4 py-2 rounded-md">
                 <i data-lucide="check" class="w-4 h-4"></i> Save Changes
             </button>

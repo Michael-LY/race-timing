@@ -69,12 +69,15 @@
 {% if events %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
     {% for event in events %}
-    <div class="stagger-item card rounded-lg h-full">
+    <div class="stagger-item card rounded-lg h-full {% if event.is_hidden %}opacity-60{% endif %}">
         <div class="p-5">
             <h5 class="text-lg font-semibold">
                 <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="no-underline text-theme-primary hover:text-cyan-400">
                     {{ event.name }}
                 </a>
+                {% if event.is_hidden %}
+                <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-500 text-white">Hidden</span>
+                {% endif %}
             </h5>
             {% if event.championship or event.year %}
             <p class="text-sm text-theme-secondary mb-1 flex items-center gap-1">

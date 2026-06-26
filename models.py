@@ -43,6 +43,7 @@ class Event(db.Model):
     championship = db.Column(db.String(200), default="")
     event_date = db.Column(db.Date, nullable=True)
     time_keeper_id = db.Column(db.Integer, db.ForeignKey("time_keepers.id"), nullable=True)
+    is_hidden = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     time_keeper = db.relationship("TimeKeeper", back_populates="events")
