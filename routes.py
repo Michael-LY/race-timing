@@ -1020,13 +1020,13 @@ def session_refresh_flags(session_id):
             "car_number": l.car_number,
             "lap_number": l.lap_number,
             "lap_time": l.lap_time,
-            "out_lap": False,
+            "out_lap": l.out_lap,    # preserve existing pitstop-derived flags
             "in_lap": False,
             "track_limit": l.track_limit,
             "session_time": l.session_time,
         })
 
-    # Reset and re-detect
+    # Add out_lap for Lap 1, re-detect in_lap
     detect_out_laps(laps_dicts)
     detect_in_laps(laps_dicts)
 
