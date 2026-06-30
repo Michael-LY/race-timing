@@ -9,7 +9,7 @@
                 上传 Swiss Timing TLWlistMessage CSV 文件，系统将自动匹配并标记 track limit lap。
             </p>
             <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <div class="mb-4">
                     <label class="block text-sm font-medium mb-1">TLW CSV 文件</label>
                     <input type="file" name="tlw_file" accept=".csv,.txt"

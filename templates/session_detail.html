@@ -38,7 +38,7 @@
             {% if current_user and current_user.is_admin %}
             <div class="flex gap-1 ml-1">
                 <form method="POST" action="{{ url_for('main.session_refresh_flags', session_id=session.id) }}" class="inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="btn-ghost p-1.5" title="刷新 Out/In Lap 检测">
                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                     </button>
@@ -82,7 +82,7 @@
         {% if current_user and current_user.is_admin %}
         <div class="flex gap-1 ml-auto">
             <form method="POST" action="{{ url_for('main.session_refresh_flags', session_id=session.id) }}" class="inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn-ghost p-1.5" title="刷新 Out/In Lap 检测">
                     <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                 </button>
