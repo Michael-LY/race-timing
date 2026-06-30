@@ -1007,58 +1007,24 @@ def session_delete(session_id):
 @bp.route("/sessions/<int:session_id>/refresh-flags", methods=["POST"])
 @admin_required
 def session_refresh_flags(session_id):
-    """Re-apply out_lap and in_lap detection to existing session laps."""
-    from parsers.detect_laps import detect_out_laps, detect_in_laps
+    """Mark Lap 1 as out_lap for each car. Preserves existing flags."""
+    from parsers.detect_laps import detect_out_laps
 
     session = Session.query.get_or_404(session_id)
     laps = LapRecord.query.filter_by(session_id=session.id).all()
 
-    # Convert to dict format for detection functions
-    laps_dicts = []
-    for l in laps:
-        laps_dicts.append({
-            "car_number": l.car_number,
-            "lap_number": l.lap_number,
-            "lap_time": l.lap_time,
-            "out_lap": l.out_lap,    # preserve existing pitstop-derived flags
-            "in_lap": False,
-            "track_limit": l.track_limit,
-            "session_time": l.session_time,
-        })
+    laps_dicts = [{"car_number": l.car_number, "lap_number": l.lap_number, "out_lap": l.out_lap} for l in laps]
 
-    # Add out_lap for Lap 1, re-detect in_lap
     detect_out_laps(laps_dicts)
-    detect_in_laps(laps_dicts)
 
-    # Write back to DB
     for l in laps:
         d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
         l.out_lap = d["out_lap"]
-        l.in_lap = d["in_lap"]
-
-    # Re-compute is_best (exclude out_lap, in_lap, track_limit)
-    best_times: dict[str, float] = {}
-    for d in laps_dicts:
-        if d.get("lap_time") and d["lap_time"] > 0 and not d.get("out_lap") and not d.get("in_lap") and not d.get("track_limit"):
-            key = d["car_number"]
-            if key not in best_times or d["lap_time"] < best_times[key]:
-                best_times[key] = d["lap_time"]
-
-    for l in laps:
-        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
-        is_best = False
-        if l.lap_time and l.lap_time > 0 and not d.get("out_lap") and not d.get("in_lap") and not l.track_limit:
-            key = l.car_number
-            if key in best_times and l.lap_time == best_times[key]:
-                is_best = True
-        l.is_best = is_best
 
     db.session.commit()
     _invalidate_analytics_cache(session_id)
 
-    n_out = sum(1 for d in laps_dicts if d.get("out_lap"))
-    n_in = sum(1 for d in laps_dicts if d.get("in_lap"))
-    flash(f'Refreshed {session.name}: {n_out} out laps, {n_in} in laps', "success")
+    flash(f"Marked Lap 1 as out lap for {session.name}", "success")
     return redirect(url_for("main.session_detail", session_id=session.id))
 
 
