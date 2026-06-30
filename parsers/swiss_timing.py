@@ -600,11 +600,12 @@ class SwissTimingParser(BaseParser):
         self._assign_driver_names_by_stints(laps, pitstops)
 
     def _detect_out_laps(self, laps: list[dict]) -> None:
-        """Detect out laps from duplicate lap numbers in Swiss Timing data.
+        """Detect out laps: first lap of each stint.
 
-        Some Swiss Timing CSVs have a data error where a stint starts with
-        two consecutive entries for the same lap number. The first is the
-        out lap (leaving pits), the second is the real lap.
+        Stint boundaries are detected by:
+        - Duplicate lap numbers (Swiss Timing data error: first duplicate is out lap)
+        - Gaps in lap numbers (e.g., 1,2,3 then 5,6 — gap indicates new stint)
+        - The very first lap of each car is also an out lap
         """
         car_groups: dict[str, list[dict]] = {}
         for l in laps:
@@ -612,9 +613,21 @@ class SwissTimingParser(BaseParser):
 
         for car_num, car_laps in car_groups.items():
             car_laps.sort(key=lambda x: x["lap_number"])
+            if not car_laps:
+                continue
+
+            # First lap is always out lap
+            car_laps[0]["out_lap"] = True
+
             for i in range(1, len(car_laps)):
-                if car_laps[i]["lap_number"] == car_laps[i - 1]["lap_number"]:
-                    car_laps[i - 1]["out_lap"] = True
+                prev = car_laps[i - 1]
+                curr = car_laps[i]
+                # Duplicate lap number: first one is out lap
+                if curr["lap_number"] == prev["lap_number"]:
+                    prev["out_lap"] = True
+                # Gap in lap numbers: current is start of new stint → out lap
+                elif curr["lap_number"] > prev["lap_number"] + 1:
+                    curr["out_lap"] = True
 
     def _detect_in_laps(self, laps: list[dict]) -> None:
         """Heuristic in-lap detection when no PitStopsCsv is available.
