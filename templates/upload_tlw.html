@@ -1,23 +1,23 @@
 {% extends "base.html" %}
-{% block title %}上传 TLW - {{ session.name }}{% endblock %}
+{% block title %}Upload TLW - {{ session.name }}{% endblock %}
 {% block content %}
 <div class="max-w-xl mx-auto">
     <div class="card rounded-lg mb-4">
-        <div class="card-header rounded-t-lg">上传 TLW 文件 — {{ session.name }}</div>
+        <div class="card-header rounded-t-lg">Upload TLW File — {{ session.name }}</div>
         <div class="p-4">
             <p class="text-sm text-theme-secondary mb-4">
-                上传 Swiss Timing TLWlistMessage CSV 文件，系统将自动匹配并标记 track limit lap。
+                Upload a Swiss Timing TLWlistMessage CSV file. The system will automatically match warnings to laps and flag track limit violations.
             </p>
             <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <div class="mb-4">
-                    <label class="block text-sm font-medium mb-1">TLW CSV 文件</label>
+                    <label class="block text-sm font-medium mb-1">TLW CSV File</label>
                     <input type="file" name="tlw_file" accept=".csv,.txt"
                            class="block w-full text-sm text-theme-primary border border-theme rounded-lg cursor-pointer focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="flex gap-2">
-                    <button type="submit" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium">上传</button>
-                    <a href="{{ url_for('main.session_detail', session_id=session.id) }}" class="btn-ghost px-4 py-2 rounded-lg text-sm font-medium">取消</a>
+                    <button type="submit" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium">Upload</button>
+                    <a href="{{ url_for('main.session_detail', session_id=session.id) }}" class="btn-ghost px-4 py-2 rounded-lg text-sm font-medium">Cancel</a>
                 </div>
             </form>
         </div>

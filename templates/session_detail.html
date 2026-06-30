@@ -39,11 +39,11 @@
             <div class="flex gap-1 ml-1">
                 <form method="POST" action="{{ url_for('main.session_refresh_flags', session_id=session.id) }}" class="inline">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                    <button type="submit" class="btn-ghost p-1.5" title="刷新 Out/In Lap 检测">
+                    <button type="submit" class="btn-ghost p-1.5" title="Refresh Out/In Lap Detection">
                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                     </button>
                 </form>
-                <a href="{{ url_for('main.session_upload_tlw', session_id=session.id) }}" class="btn-ghost p-1.5" title="上传 TLW 文件">
+                <a href="{{ url_for('main.session_upload_tlw', session_id=session.id) }}" class="btn-ghost p-1.5" title="Upload TLW File">
                     <i data-lucide="upload" class="w-3.5 h-3.5"></i>
                 </a>
                 <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
@@ -83,11 +83,11 @@
         <div class="flex gap-1 ml-auto">
             <form method="POST" action="{{ url_for('main.session_refresh_flags', session_id=session.id) }}" class="inline">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                <button type="submit" class="btn-ghost p-1.5" title="刷新 Out/In Lap 检测">
+                <button type="submit" class="btn-ghost p-1.5" title="Refresh Out/In Lap Detection">
                     <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                 </button>
             </form>
-            <a href="{{ url_for('main.session_upload_tlw', session_id=session.id) }}" class="btn-ghost p-1.5" title="上传 TLW 文件">
+            <a href="{{ url_for('main.session_upload_tlw', session_id=session.id) }}" class="btn-ghost p-1.5" title="Upload TLW File">
                 <i data-lucide="upload" class="w-3.5 h-3.5"></i>
             </a>
             <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"

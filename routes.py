@@ -1058,7 +1058,7 @@ def session_refresh_flags(session_id):
 
     n_out = sum(1 for d in laps_dicts if d.get("out_lap"))
     n_in = sum(1 for d in laps_dicts if d.get("in_lap"))
-    flash(f'已刷新 {session.name}: {n_out} 个 out lap, {n_in} 个 in lap', "success")
+    flash(f'Refreshed {session.name}: {n_out} out laps, {n_in} in laps', "success")
     return redirect(url_for("main.session_detail", session_id=session.id))
 
 
@@ -1074,7 +1074,7 @@ def session_upload_tlw(session_id):
     if request.method == "POST":
         tlw_file = request.files.get("tlw_file")
         if not tlw_file or not tlw_file.filename:
-            flash("请选择 TLW 文件", "danger")
+            flash("Please select a TLW file", "danger")
             return redirect(url_for("main.session_upload_tlw", session_id=session.id))
 
         # Save uploaded file
@@ -1086,7 +1086,7 @@ def session_upload_tlw(session_id):
         # Parse TLW
         warnings = parse_tlw_file(filepath)
         if not warnings:
-            flash("TLW 文件为空或格式不正确", "danger")
+            flash("TLW file is empty or has incorrect format", "danger")
             return redirect(url_for("main.session_upload_tlw", session_id=session.id))
 
         # Load existing laps
@@ -1132,7 +1132,7 @@ def session_upload_tlw(session_id):
         _invalidate_analytics_cache(session_id)
 
         n_tl = sum(1 for d in laps_dicts if d.get("track_limit"))
-        flash(f'已上传 TLW: 匹配 {n_tl} 个 track limit lap', "success")
+        flash(f'TLW uploaded: matched {n_tl} track limit laps', "success")
         return redirect(url_for("main.session_detail", session_id=session.id))
 
     return render_template("upload_tlw.html", session=session)
