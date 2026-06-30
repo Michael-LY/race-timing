@@ -53,7 +53,7 @@ Three levels of row/cell highlighting:
    - All charts share a single `<canvas>` — switching destroys/recreates the Chart.js instance
    - Y-axis drag-to-zoom, Shift+drag to pan, double-click to reset (chartjs-plugin-zoom)
 
-Table row color toggle: Color button master ON/OFF controls all rows. Single click (Color ON) or double-click detection via 350ms timer (Color OFF) toggles individual row car color via `--row-car-color` CSS variable at `rgba(r,g,b,0.60)`.
+Table row color toggle: Color button master ON/OFF. Single click (ON) or double-click (OFF, 350ms timer) toggles individual row color via `--row-car-color` CSS variable.
 
 ## Upload & import
 
@@ -95,3 +95,4 @@ Push to `master` auto-deploys via GitHub Actions. See `DEPLOYMENT.md` for full s
 
 - `scripts/repair_swiss_timing_driver_names.py` — re-parses Swiss Timing uploads to fix driver names and pit in/out flags
 - `scripts/build_release.sh` — builds release tarball for deployment
+- `scripts/deploy.sh` — manual deploy via SSH (requires `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PATH` env vars)
