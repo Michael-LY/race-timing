@@ -247,6 +247,7 @@
                     <th class="sortable text-left">S3</th>
                     <th class="sortable text-left">Speed</th>
                     <th class="sortable text-left">Pit</th>
+                    <th class="sortable text-left">TL</th>
                     <th class="sortable text-left">Best</th>
                 </tr>
             </thead>
@@ -286,6 +287,7 @@
                         {% if l.in_lap %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-400 text-gray-900">IN</span>{% endif %}
                         {% if l.out_lap %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-cyan-400 text-gray-900">OUT</span>{% endif %}
                     </td>
+                    <td>{% if l.track_limit %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-400 text-white">TL</span>{% endif %}</td>
                     <td>{% if l.is_best %}<span class="text-green-600 font-bold">BEST</span>{% endif %}</td>
                 </tr>
                 {% endfor %}

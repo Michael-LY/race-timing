@@ -31,6 +31,7 @@ def create_app():
         _ensure_model_color_columns()
         _ensure_gap_text_columns()
         _ensure_event_is_hidden_column()
+        _ensure_track_limit_column()
         _seed_time_keepers()
         _seed_admin()
 
@@ -166,6 +167,16 @@ def _ensure_event_is_hidden_column():
     if "is_hidden" not in columns:
         with db.engine.begin() as connection:
             connection.execute(text("ALTER TABLE events ADD COLUMN is_hidden BOOLEAN NOT NULL DEFAULT 0"))
+
+
+def _ensure_track_limit_column():
+    inspector = inspect(db.engine)
+    if "lap_records" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("lap_records")}
+    if "track_limit" not in columns:
+        with db.engine.begin() as connection:
+            connection.execute(text("ALTER TABLE lap_records ADD COLUMN track_limit BOOLEAN NOT NULL DEFAULT 0"))
 
 
 def _seed_time_keepers():

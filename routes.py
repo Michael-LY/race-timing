@@ -691,17 +691,17 @@ def upload(event_id):
 
         # Insert laps (from Sector Analysis)
         laps_data = data.get("laps", [])
-        # Mark best laps per car
+        # Mark best laps per car (exclude track_limit laps)
         best_times: dict[str, float] = {}
         for l in laps_data:
-            if l.get("lap_time") and l["lap_time"] > 0:
+            if l.get("lap_time") and l["lap_time"] > 0 and not l.get("track_limit"):
                 key = l["car_number"]
                 if key not in best_times or l["lap_time"] < best_times[key]:
                     best_times[key] = l["lap_time"]
 
         for l in laps_data:
             is_best = False
-            if l.get("lap_time") and l["lap_time"] > 0:
+            if l.get("lap_time") and l["lap_time"] > 0 and not l.get("track_limit"):
                 key = l["car_number"]
                 if key in best_times and l["lap_time"] == best_times[key]:
                     is_best = True
@@ -732,6 +732,7 @@ def upload(event_id):
                 is_best=is_best,
                 out_lap=l.get("out_lap", False),
                 in_lap=l.get("in_lap", False),
+                track_limit=l.get("track_limit", False),
                 time_out_lap=l.get("time_out_lap"),
                 time_in_lap=l.get("time_in_lap"),
                 time_of_day=l.get("time_of_day", ""),
@@ -770,18 +771,19 @@ def _calculate_pit_stop_time(in_lap, out_lap):
 def _best_sectors(valid_laps):
     """Compute best S1/S2/S3 and best lap from a list of valid laps.
 
+    Out laps are excluded from S1 best, in laps from S3 best.
     Returns (best_lap, best_s1_lap, best_s2_lap, best_s3_lap) or None for each.
     """
     best_lap = min(valid_laps, key=lambda l: l.lap_time) if valid_laps else None
-    best_s1_lap = min((l for l in valid_laps if l.sector_1 and l.sector_1 > 0), key=lambda l: l.sector_1, default=None)
+    best_s1_lap = min((l for l in valid_laps if l.sector_1 and l.sector_1 > 0 and not l.out_lap), key=lambda l: l.sector_1, default=None)
     best_s2_lap = min((l for l in valid_laps if l.sector_2 and l.sector_2 > 0), key=lambda l: l.sector_2, default=None)
-    best_s3_lap = min((l for l in valid_laps if l.sector_3 and l.sector_3 > 0), key=lambda l: l.sector_3, default=None)
+    best_s3_lap = min((l for l in valid_laps if l.sector_3 and l.sector_3 > 0 and not l.in_lap), key=lambda l: l.sector_3, default=None)
     return best_lap, best_s1_lap, best_s2_lap, best_s3_lap
 
 
 def _compute_session_stats(laps: list[LapRecord]):
     """Compute overall and per-car bests across all sectors."""
-    valid = [l for l in laps if l.lap_time and l.lap_time > 0]
+    valid = [l for l in laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
 
     best_lap, best_s1_lap, best_s2_lap, best_s3_lap = _best_sectors(valid)
 
@@ -803,11 +805,11 @@ def _compute_session_stats(laps: list[LapRecord]):
         car_groups.setdefault(l.car_number, []).append(l)
 
     for car_num, car_laps in car_groups.items():
-        cv = [l for l in car_laps if l.lap_time and l.lap_time > 0]
+        cv = [l for l in car_laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
         per_car_bests[car_num] = {
-            "s1": min((l.sector_1 for l in cv if l.sector_1 and l.sector_1 > 0), default=None),
+            "s1": min((l.sector_1 for l in cv if l.sector_1 and l.sector_1 > 0 and not l.out_lap), default=None),
             "s2": min((l.sector_2 for l in cv if l.sector_2 and l.sector_2 > 0), default=None),
-            "s3": min((l.sector_3 for l in cv if l.sector_3 and l.sector_3 > 0), default=None),
+            "s3": min((l.sector_3 for l in cv if l.sector_3 and l.sector_3 > 0 and not l.in_lap), default=None),
         }
 
     # Per-stint bests (stint = consecutive laps between pit stops / driver changes)
@@ -824,13 +826,13 @@ def _compute_session_stats(laps: list[LapRecord]):
             stints.append(current)
 
         for stint in stints:
-            valid_stint = [l for l in stint if l.lap_time and l.lap_time > 0]
+            valid_stint = [l for l in stint if l.lap_time and l.lap_time > 0 and not l.track_limit]
             if not valid_stint:
                 continue
             best_lap = min(valid_stint, key=lambda l: l.lap_time)
-            best_s1  = min((l for l in valid_stint if l.sector_1 and l.sector_1 > 0), key=lambda l: l.sector_1, default=None)
+            best_s1  = min((l for l in valid_stint if l.sector_1 and l.sector_1 > 0 and not l.out_lap), key=lambda l: l.sector_1, default=None)
             best_s2  = min((l for l in valid_stint if l.sector_2 and l.sector_2 > 0), key=lambda l: l.sector_2, default=None)
-            best_s3  = min((l for l in valid_stint if l.sector_3 and l.sector_3 > 0), key=lambda l: l.sector_3, default=None)
+            best_s3  = min((l for l in valid_stint if l.sector_3 and l.sector_3 > 0 and not l.in_lap), key=lambda l: l.sector_3, default=None)
 
             for l in valid_stint:
                 flags = stint_bests.setdefault(l.id, {})
@@ -854,7 +856,7 @@ def _compute_driver_analysis(laps):
 
     drivers = []
     for name, d_laps in driver_groups.items():
-        valid = [l for l in d_laps if l.lap_time and l.lap_time > 0]
+        valid = [l for l in d_laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
         best_lap, best_s1_lap, best_s2_lap, best_s3_lap = _best_sectors(valid)
         best_s1 = best_s1_lap.sector_1 if best_s1_lap else None
         best_s2 = best_s2_lap.sector_2 if best_s2_lap else None
@@ -872,7 +874,7 @@ def _compute_driver_analysis(laps):
         })
     drivers.sort(key=lambda d: d["best_lap"] if d["best_lap"] else 99999)
 
-    all_valid = [l for l in laps if l.lap_time and l.lap_time > 0]
+    all_valid = [l for l in laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
     _, overall_best_s1_lap, overall_best_s2_lap, overall_best_s3_lap = _best_sectors(all_valid)
     overall_s1 = overall_best_s1_lap.sector_1 if overall_best_s1_lap else None
     overall_s2 = overall_best_s2_lap.sector_2 if overall_best_s2_lap else None
@@ -896,7 +898,7 @@ def session_detail(session_id):
     # Per-car summary
     car_summaries = []
     for car_num, car_laps in car_groups.items():
-        valid = [l for l in car_laps if l.lap_time and l.lap_time > 0]
+        valid = [l for l in car_laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
         best_lap = min(valid, key=lambda x: x.lap_time) if valid else None
         drivers_list = list(dict.fromkeys(l.driver_name for l in car_laps if l.driver_name))
         pcb = per_car_bests.get(car_num, {})
@@ -1267,7 +1269,7 @@ def api_session_analytics(session_id):
     for car_num, car_laps in car_groups.items():
         clean = sorted([
             l.lap_time for l in car_laps
-            if l.lap_time and l.lap_time > 0 and not l.out_lap and not l.in_lap
+            if l.lap_time and l.lap_time > 0 and not l.out_lap and not l.in_lap and not l.track_limit
         ])
         if clean:
             car_median_clean[car_num] = clean[len(clean) // 2]
@@ -1301,15 +1303,15 @@ def api_session_analytics(session_id):
     for car_num, car_laps in car_groups.items():
         median = car_median_clean.get(car_num)
         valid = [l for l in car_laps if l.lap_time and l.lap_time > 0
-                 and not l.out_lap and not l.in_lap
+                 and not l.out_lap and not l.in_lap and not l.track_limit
                  and not (median and l.lap_time > median * SC_THRESHOLD)]
         if not valid:
-            valid = [l for l in car_laps if l.lap_time and l.lap_time > 0]
+            valid = [l for l in car_laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
 
         best_lap = min(valid, key=lambda l: l.lap_time) if valid else None
-        best_s1 = min((l.sector_1 for l in valid if l.sector_1 and l.sector_1 > 0), default=None)
+        best_s1 = min((l.sector_1 for l in valid if l.sector_1 and l.sector_1 > 0 and not l.out_lap), default=None)
         best_s2 = min((l.sector_2 for l in valid if l.sector_2 and l.sector_2 > 0), default=None)
-        best_s3 = min((l.sector_3 for l in valid if l.sector_3 and l.sector_3 > 0), default=None)
+        best_s3 = min((l.sector_3 for l in valid if l.sector_3 and l.sector_3 > 0 and not l.in_lap), default=None)
         theoretical = (best_s1 + best_s2 + best_s3) if (best_s1 and best_s2 and best_s3) else None
         top_speed = max((l.speed_trap_4 for l in car_laps if l.speed_trap_4 and l.speed_trap_4 > 0), default=None)
 
@@ -1369,14 +1371,15 @@ def api_session_analytics(session_id):
                 "is_best": l.is_best,
                 "out_lap": l.out_lap,
                 "in_lap": l.in_lap,
+                "track_limit": l.track_limit,
                 "sc_lap": sc_lap,
                 "session_time": l.session_time,
             })
 
-    # Overall best lap (exclude pit/SC laps)
+    # Overall best lap (exclude pit/SC/TL laps)
     all_valid = [
         l for l in laps if l.lap_time and l.lap_time > 0
-        and not l.out_lap and not l.in_lap
+        and not l.out_lap and not l.in_lap and not l.track_limit
     ]
     # Further filter SC laps for overall best
     clean_for_best = []
@@ -1440,7 +1443,7 @@ def api_session_analytics(session_id):
     # Per-driver consistency (standard deviation of clean lap times)
     driver_laps_for_consistency: dict[str, list[float]] = {}
     for l in lap_times:
-        if l["out_lap"] or l["in_lap"] or l["sc_lap"]:
+        if l["out_lap"] or l["in_lap"] or l["sc_lap"] or l["track_limit"]:
             continue
         if not l["lap_time"] or l["lap_time"] <= 0:
             continue

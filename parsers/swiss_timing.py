@@ -199,12 +199,15 @@ class SwissTimingParser(BaseParser):
         if pitstops_path:
             pit_laps = self._parse_pitstops(pitstops_path)
             self._apply_pitstops(result["laps"], pit_laps)
+        else:
+            # No PitStopsCsv: detect in laps heuristically from sector data
+            self._detect_in_laps(result["laps"])
 
         # 4. Parse TLWlistMessage (optional — track limit warnings)
-        # (Stored for informational purposes; not yet used in lap highlighting)
         if tlw_path:
             tlw_warnings = self._parse_tlw(tlw_path)
             result["_tlw_warnings"] = tlw_warnings
+            self._apply_tlw(result["laps"], tlw_warnings)
 
         # 5. Parse MessageListCSV (optional — race control messages)
         if messages_path:
@@ -345,6 +348,9 @@ class SwissTimingParser(BaseParser):
 
         # Sort by car number then lap number
         laps.sort(key=lambda x: (str(x["car_number"]).zfill(4), x["lap_number"]))
+
+        # Detect out laps from duplicate lap numbers (Swiss Timing data error)
+        self._detect_out_laps(laps)
 
         # Calculate session_time as cumulative lap time per car
         self._compute_session_times(laps)
@@ -593,6 +599,46 @@ class SwissTimingParser(BaseParser):
 
         self._assign_driver_names_by_stints(laps, pitstops)
 
+    def _detect_out_laps(self, laps: list[dict]) -> None:
+        """Detect out laps from duplicate lap numbers in Swiss Timing data.
+
+        Some Swiss Timing CSVs have a data error where a stint starts with
+        two consecutive entries for the same lap number. The first is the
+        out lap (leaving pits), the second is the real lap.
+        """
+        car_groups: dict[str, list[dict]] = {}
+        for l in laps:
+            car_groups.setdefault(l["car_number"], []).append(l)
+
+        for car_num, car_laps in car_groups.items():
+            car_laps.sort(key=lambda x: x["lap_number"])
+            for i in range(1, len(car_laps)):
+                if car_laps[i]["lap_number"] == car_laps[i - 1]["lap_number"]:
+                    car_laps[i - 1]["out_lap"] = True
+
+    def _detect_in_laps(self, laps: list[dict]) -> None:
+        """Heuristic in-lap detection when no PitStopsCsv is available.
+
+        A lap is flagged as in_lap if its lap_time exceeds 1.2x the median
+        of clean laps (excluding the first lap which is a standing start).
+        """
+        car_groups: dict[str, list[dict]] = {}
+        for l in laps:
+            car_groups.setdefault(l["car_number"], []).append(l)
+
+        for car_num, car_laps in car_groups.items():
+            car_laps.sort(key=lambda x: x["lap_number"])
+            clean = sorted([
+                l["lap_time"] for l in car_laps
+                if l["lap_number"] > 1 and l.get("lap_time") and l["lap_time"] > 0
+            ])
+            if len(clean) < 2:
+                continue
+            median = clean[(len(clean) - 1) // 2]
+            for l in car_laps:
+                if l["lap_number"] > 1 and l.get("lap_time") and l["lap_time"] > median * 1.2:
+                    l["in_lap"] = True
+
     # ── TLWlistMessage ────────────────────────────────────────────────────
 
     def _parse_tlw(self, filepath: str) -> list[dict]:
@@ -626,6 +672,68 @@ class SwissTimingParser(BaseParser):
             })
 
         return warnings
+
+    def _apply_tlw(self, laps: list[dict], warnings: list[dict]) -> None:
+        """Match TLW warnings to laps and set track_limit flag.
+
+        Each warning's race_time (cumulative seconds) is matched to the lap
+        whose session_time range contains it.
+        """
+        if not warnings:
+            return
+
+        # Group warnings by car
+        car_warnings: dict[str, list[dict]] = {}
+        for w in warnings:
+            car_warnings.setdefault(w["car_number"], []).append(w)
+
+        # Group laps by car, sorted by lap_number
+        car_laps: dict[str, list[dict]] = {}
+        for lap in laps:
+            car_laps.setdefault(lap["car_number"], []).append(lap)
+
+        for car_num, car_ws in car_warnings.items():
+            c_laps = sorted(car_laps.get(car_num, []), key=lambda x: x["lap_number"])
+            if not c_laps:
+                continue
+
+            # Sort warnings by race_time ascending
+            car_ws_sorted = sorted(car_ws, key=lambda w: w["race_time"])
+
+            for w in car_ws_sorted:
+                rt = w["race_time"]
+                if rt is None:
+                    continue
+
+                matched = False
+                for i, lap in enumerate(c_laps):
+                    st = lap.get("session_time")
+                    if st is None:
+                        continue
+
+                    if i == 0:
+                        # First lap: match if race_time <= end of this lap
+                        if rt <= st:
+                            lap["track_limit"] = True
+                            matched = True
+                            break
+                    else:
+                        prev_st = c_laps[i - 1].get("session_time")
+                        if prev_st is not None and prev_st < rt <= st:
+                            lap["track_limit"] = True
+                            matched = True
+                            break
+                        elif prev_st is None and rt <= st:
+                            lap["track_limit"] = True
+                            matched = True
+                            break
+
+                if not matched and c_laps:
+                    # Fallback: if race_time exceeds all session_times, match last lap
+                    last = c_laps[-1]
+                    last_st = last.get("session_time")
+                    if last_st is not None and rt > last_st:
+                        last["track_limit"] = True
 
     # ── MessageListCSV ─────────────────────────────────────────────────────
 

@@ -190,6 +190,7 @@ function cleanLapTimes(data) {
     return data.lap_times.filter(l => {
         if (l.out_lap || l.in_lap) return false;
         if (l.sc_lap) return false;
+        if (l.track_limit) return false;
         return true;
     });
 }
@@ -236,7 +237,7 @@ function buildDriverBoxChart(ctx, data, field, title, yTitle, chartKey) {
     const useLapTime = field === 'lap_time';
     const drivers = {};
     (data.lap_times || []).forEach(l => {
-        if (l.out_lap || l.in_lap || l.sc_lap) return;
+        if (l.out_lap || l.in_lap || l.sc_lap || l.track_limit) return;
         const val = useLapTime ? l.lap_time : l[field];
         if (!val || val <= 0) return;
         if (!drivers[l.driver_name]) drivers[l.driver_name] = [];

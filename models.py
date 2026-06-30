@@ -150,6 +150,7 @@ class LapRecord(db.Model):
     is_best = db.Column(db.Boolean, default=False)
     out_lap = db.Column(db.Boolean, default=False)
     in_lap = db.Column(db.Boolean, default=False)
+    track_limit = db.Column(db.Boolean, default=False)
     time_out_lap = db.Column(db.Float, nullable=True)
     time_in_lap = db.Column(db.Float, nullable=True)
     time_of_day = db.Column(db.String(20), default="")
