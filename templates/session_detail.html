@@ -80,14 +80,14 @@
             </div>
         </div>
         {% if current_user and current_user.is_admin %}
-        <div class="flex gap-1 ml-auto">
+        <div class="flex gap-1 ml-auto md:hidden">
             <form method="POST" action="{{ url_for('main.session_refresh_flags', session_id=session.id) }}" class="inline">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn-ghost p-1.5" title="Refresh Out/In Lap Detection">
                     <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                 </button>
             </form>
-            <a href="{{ url_for('main.session_upload_tlw', session_id=session.id) }}" class="btn-ghost p-1.5" title="Upload TLW File">
+            <a href="{{ url_for('main.session_reupload', session_id=session.id) }}" class="btn-ghost p-1.5" title="Re-upload CSV">
                 <i data-lucide="upload" class="w-3.5 h-3.5"></i>
             </a>
             <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
