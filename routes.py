@@ -691,17 +691,17 @@ def upload(event_id):
 
         # Insert laps (from Sector Analysis)
         laps_data = data.get("laps", [])
-        # Mark best laps per car (exclude track_limit laps)
+        # Mark best laps per car (exclude track_limit, out_lap, in_lap)
         best_times: dict[str, float] = {}
         for l in laps_data:
-            if l.get("lap_time") and l["lap_time"] > 0 and not l.get("track_limit"):
+            if l.get("lap_time") and l["lap_time"] > 0 and not l.get("track_limit") and not l.get("out_lap") and not l.get("in_lap"):
                 key = l["car_number"]
                 if key not in best_times or l["lap_time"] < best_times[key]:
                     best_times[key] = l["lap_time"]
 
         for l in laps_data:
             is_best = False
-            if l.get("lap_time") and l["lap_time"] > 0 and not l.get("track_limit"):
+            if l.get("lap_time") and l["lap_time"] > 0 and not l.get("track_limit") and not l.get("out_lap") and not l.get("in_lap"):
                 key = l["car_number"]
                 if key in best_times and l["lap_time"] == best_times[key]:
                     is_best = True
@@ -771,10 +771,12 @@ def _calculate_pit_stop_time(in_lap, out_lap):
 def _best_sectors(valid_laps):
     """Compute best S1/S2/S3 and best lap from a list of valid laps.
 
-    Out laps are excluded from S1 best, in laps from S3 best.
+    Out laps are excluded from S1 best and fastest lap.
+    In laps are excluded from S3 best and fastest lap.
     Returns (best_lap, best_s1_lap, best_s2_lap, best_s3_lap) or None for each.
     """
-    best_lap = min(valid_laps, key=lambda l: l.lap_time) if valid_laps else None
+    clean = [l for l in valid_laps if not l.out_lap and not l.in_lap]
+    best_lap = min(clean, key=lambda l: l.lap_time) if clean else None
     best_s1_lap = min((l for l in valid_laps if l.sector_1 and l.sector_1 > 0 and not l.out_lap), key=lambda l: l.sector_1, default=None)
     best_s2_lap = min((l for l in valid_laps if l.sector_2 and l.sector_2 > 0), key=lambda l: l.sector_2, default=None)
     best_s3_lap = min((l for l in valid_laps if l.sector_3 and l.sector_3 > 0 and not l.in_lap), key=lambda l: l.sector_3, default=None)
@@ -829,7 +831,8 @@ def _compute_session_stats(laps: list[LapRecord]):
             valid_stint = [l for l in stint if l.lap_time and l.lap_time > 0 and not l.track_limit]
             if not valid_stint:
                 continue
-            best_lap = min(valid_stint, key=lambda l: l.lap_time)
+            clean_stint = [l for l in valid_stint if not l.out_lap and not l.in_lap]
+            best_lap = min(clean_stint, key=lambda l: l.lap_time) if clean_stint else min(valid_stint, key=lambda l: l.lap_time)
             best_s1  = min((l for l in valid_stint if l.sector_1 and l.sector_1 > 0 and not l.out_lap), key=lambda l: l.sector_1, default=None)
             best_s2  = min((l for l in valid_stint if l.sector_2 and l.sector_2 > 0), key=lambda l: l.sector_2, default=None)
             best_s3  = min((l for l in valid_stint if l.sector_3 and l.sector_3 > 0 and not l.in_lap), key=lambda l: l.sector_3, default=None)
@@ -899,7 +902,8 @@ def session_detail(session_id):
     car_summaries = []
     for car_num, car_laps in car_groups.items():
         valid = [l for l in car_laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
-        best_lap = min(valid, key=lambda x: x.lap_time) if valid else None
+        clean = [l for l in valid if not l.out_lap and not l.in_lap]
+        best_lap = min(clean, key=lambda x: x.lap_time) if clean else (min(valid, key=lambda x: x.lap_time) if valid else None)
         drivers_list = list(dict.fromkeys(l.driver_name for l in car_laps if l.driver_name))
         pcb = per_car_bests.get(car_num, {})
         s1 = pcb.get("s1")
@@ -1308,7 +1312,8 @@ def api_session_analytics(session_id):
         if not valid:
             valid = [l for l in car_laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
 
-        best_lap = min(valid, key=lambda l: l.lap_time) if valid else None
+        clean_for_lap = [l for l in valid if not l.out_lap and not l.in_lap]
+        best_lap = min(clean_for_lap, key=lambda l: l.lap_time) if clean_for_lap else (min(valid, key=lambda l: l.lap_time) if valid else None)
         best_s1 = min((l.sector_1 for l in valid if l.sector_1 and l.sector_1 > 0 and not l.out_lap), default=None)
         best_s2 = min((l.sector_2 for l in valid if l.sector_2 and l.sector_2 > 0), default=None)
         best_s3 = min((l.sector_3 for l in valid if l.sector_3 and l.sector_3 > 0 and not l.in_lap), default=None)
