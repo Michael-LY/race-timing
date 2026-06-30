@@ -36,13 +36,24 @@
                 <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i> Chart
             </button>
             {% if current_user and current_user.is_admin %}
-            <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
-                  onsubmit="return confirm('Delete this session?');" class="ml-1">
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                <button type="submit" class="btn-danger p-1.5">
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                </button>
-            </form>
+            <div class="flex gap-1 ml-1">
+                <form method="POST" action="{{ url_for('main.session_refresh_flags', session_id=session.id) }}" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-ghost p-1.5" title="刷新 Out/In Lap 检测">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    </button>
+                </form>
+                <a href="{{ url_for('main.session_upload_tlw', session_id=session.id) }}" class="btn-ghost p-1.5" title="上传 TLW 文件">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                </a>
+                <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
+                      onsubmit="return confirm('Delete this session?');" class="inline">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn-danger p-1.5">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                </form>
+            </div>
             {% endif %}
         </div>
         <!-- Mobile view dropdown -->
@@ -69,13 +80,24 @@
             </div>
         </div>
         {% if current_user and current_user.is_admin %}
-        <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
-              onsubmit="return confirm('Delete this session?');" class="md:hidden ml-auto">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-            <button type="submit" class="btn-danger p-1.5">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-            </button>
-        </form>
+        <div class="flex gap-1 ml-auto">
+            <form method="POST" action="{{ url_for('main.session_refresh_flags', session_id=session.id) }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-ghost p-1.5" title="刷新 Out/In Lap 检测">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                </button>
+            </form>
+            <a href="{{ url_for('main.session_upload_tlw', session_id=session.id) }}" class="btn-ghost p-1.5" title="上传 TLW 文件">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+            </a>
+            <form method="POST" action="{{ url_for('main.session_delete', session_id=session.id) }}"
+                  onsubmit="return confirm('Delete this session?');" class="inline">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn-danger p-1.5">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+            </form>
+        </div>
         {% endif %}
     </div>
 </div>
