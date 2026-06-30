@@ -61,12 +61,14 @@ def _to_seconds(time_str: str) -> float | None:
 
 
 def detect_out_laps(laps: list[dict]) -> None:
-    """Detect out laps: first lap of each stint.
+    """Detect out laps from duplicate lap numbers in Swiss Timing data.
 
-    Stint boundaries are detected by:
-    - Duplicate lap numbers (first duplicate is out lap)
-    - Gaps in lap numbers (e.g., 1,2,3 then 5,6 — gap indicates new stint)
-    - The very first lap of each car is also an out lap
+    Some Swiss Timing CSVs have a data error where a stint starts with
+    two consecutive entries for the same lap number. The first is the
+    out lap (leaving pits), the second is the real lap.
+
+    Only duplicate lap numbers are used as the signal — gap heuristics
+    are too unreliable without pit stop data.
     """
     car_groups: dict[str, list[dict]] = {}
     for l in laps:
@@ -74,18 +76,9 @@ def detect_out_laps(laps: list[dict]) -> None:
 
     for car_num, car_laps in car_groups.items():
         car_laps.sort(key=lambda x: x["lap_number"])
-        if not car_laps:
-            continue
-
-        car_laps[0]["out_lap"] = True
-
         for i in range(1, len(car_laps)):
-            prev = car_laps[i - 1]
-            curr = car_laps[i]
-            if curr["lap_number"] == prev["lap_number"]:
-                prev["out_lap"] = True
-            elif curr["lap_number"] > prev["lap_number"] + 1:
-                curr["out_lap"] = True
+            if car_laps[i]["lap_number"] == car_laps[i - 1]["lap_number"]:
+                car_laps[i - 1]["out_lap"] = True
 
 
 def detect_in_laps(laps: list[dict]) -> None:

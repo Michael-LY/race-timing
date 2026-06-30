@@ -110,7 +110,7 @@ class SwissTimingOutLapDetectionTestCase(unittest.TestCase):
         self.assertFalse(laps[2].get("out_lap"))
 
     def test_no_duplicates_no_out_laps(self):
-        """Normal lap sequence: lap 1 is out lap, rest are not."""
+        """Normal lap sequence: no out laps detected without duplicates."""
         laps = [
             {"car_number": "10", "lap_number": 1, "lap_time": 105.0},
             {"car_number": "10", "lap_number": 2, "lap_time": 103.0},
@@ -118,7 +118,7 @@ class SwissTimingOutLapDetectionTestCase(unittest.TestCase):
         ]
         self.parser._detect_out_laps(laps)
 
-        self.assertTrue(laps[0].get("out_lap"))
+        self.assertFalse(laps[0].get("out_lap"))
         self.assertFalse(laps[1].get("out_lap"))
         self.assertFalse(laps[2].get("out_lap"))
 
@@ -136,11 +136,11 @@ class SwissTimingOutLapDetectionTestCase(unittest.TestCase):
         car10 = [l for l in laps if l["car_number"] == "10"]
         self.assertTrue(car74[0].get("out_lap"))
         self.assertFalse(car74[1].get("out_lap"))
-        self.assertTrue(car10[0].get("out_lap"))
+        self.assertFalse(car10[0].get("out_lap"))
         self.assertFalse(car10[1].get("out_lap"))
 
-    def test_lap_number_gap_marks_new_stint_out_lap(self):
-        """Gap in lap numbers (e.g. 1,2,3 then 5) marks lap 5 as out lap."""
+    def test_lap_number_gap_does_not_mark_out_lap(self):
+        """Gap in lap numbers alone does NOT mark out lap (only duplicates do)."""
         laps = [
             {"car_number": "20", "lap_number": 1, "lap_time": 140.0},
             {"car_number": "20", "lap_number": 2, "lap_time": 139.0},
@@ -150,11 +150,9 @@ class SwissTimingOutLapDetectionTestCase(unittest.TestCase):
         ]
         self.parser._detect_out_laps(laps)
 
-        self.assertTrue(laps[0].get("out_lap"))   # lap 1
-        self.assertFalse(laps[1].get("out_lap"))  # lap 2
-        self.assertFalse(laps[2].get("out_lap"))  # lap 3
-        self.assertTrue(laps[3].get("out_lap"))   # lap 5 (new stint)
-        self.assertFalse(laps[4].get("out_lap"))  # lap 6
+        # No duplicates → no out laps
+        for l in laps:
+            self.assertFalse(l.get("out_lap"), f"Lap {l['lap_number']} should not be out_lap")
 
 
 class SwissTimingInLapDetectionTestCase(unittest.TestCase):

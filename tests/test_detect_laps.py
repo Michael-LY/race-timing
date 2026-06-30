@@ -5,13 +5,13 @@ from parsers.detect_laps import detect_out_laps, detect_in_laps, apply_tlw, pars
 
 
 class DetectOutLapsTestCase(unittest.TestCase):
-    def test_first_lap_is_out_lap(self):
+    def test_no_duplicates_no_out_laps(self):
         laps = [
             {"car_number": "10", "lap_number": 1, "lap_time": 105.0},
             {"car_number": "10", "lap_number": 2, "lap_time": 103.0},
         ]
         detect_out_laps(laps)
-        self.assertTrue(laps[0]["out_lap"])
+        self.assertFalse(laps[0].get("out_lap"))
         self.assertFalse(laps[1].get("out_lap"))
 
     def test_duplicate_lap_marks_first(self):
@@ -25,7 +25,7 @@ class DetectOutLapsTestCase(unittest.TestCase):
         self.assertFalse(laps[1].get("out_lap"))
         self.assertFalse(laps[2].get("out_lap"))
 
-    def test_lap_gap_marks_new_stint(self):
+    def test_lap_gap_does_not_mark_out_lap(self):
         laps = [
             {"car_number": "20", "lap_number": 1, "lap_time": 140.0},
             {"car_number": "20", "lap_number": 2, "lap_time": 139.0},
@@ -33,10 +33,8 @@ class DetectOutLapsTestCase(unittest.TestCase):
             {"car_number": "20", "lap_number": 6, "lap_time": 139.0},
         ]
         detect_out_laps(laps)
-        self.assertTrue(laps[0]["out_lap"])   # lap 1
-        self.assertFalse(laps[1].get("out_lap"))  # lap 2
-        self.assertTrue(laps[2]["out_lap"])   # lap 5 (new stint)
-        self.assertFalse(laps[3].get("out_lap"))  # lap 6
+        for l in laps:
+            self.assertFalse(l.get("out_lap"), f"Lap {l['lap_number']} should not be out_lap")
 
 
 class DetectInLapsTestCase(unittest.TestCase):
