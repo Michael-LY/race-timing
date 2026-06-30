@@ -110,7 +110,7 @@ class SwissTimingOutLapDetectionTestCase(unittest.TestCase):
         self.assertFalse(laps[2].get("out_lap"))
 
     def test_no_duplicates_no_out_laps(self):
-        """Normal lap sequence: no out laps detected without duplicates."""
+        """Normal lap sequence: lap 1 is out lap, rest are not."""
         laps = [
             {"car_number": "10", "lap_number": 1, "lap_time": 105.0},
             {"car_number": "10", "lap_number": 2, "lap_time": 103.0},
@@ -118,12 +118,12 @@ class SwissTimingOutLapDetectionTestCase(unittest.TestCase):
         ]
         self.parser._detect_out_laps(laps)
 
-        self.assertFalse(laps[0].get("out_lap"))
+        self.assertTrue(laps[0].get("out_lap"))
         self.assertFalse(laps[1].get("out_lap"))
         self.assertFalse(laps[2].get("out_lap"))
 
     def test_out_lap_detection_is_per_car(self):
-        """Duplicate Lap 1 in one car doesn't affect another car."""
+        """Each car's first Lap 1 is marked as out_lap."""
         laps = [
             {"car_number": "74", "lap_number": 1, "lap_time": 136.0},
             {"car_number": "74", "lap_number": 1, "lap_time": 139.0},
@@ -136,11 +136,11 @@ class SwissTimingOutLapDetectionTestCase(unittest.TestCase):
         car10 = [l for l in laps if l["car_number"] == "10"]
         self.assertTrue(car74[0].get("out_lap"))
         self.assertFalse(car74[1].get("out_lap"))
-        self.assertFalse(car10[0].get("out_lap"))
+        self.assertTrue(car10[0].get("out_lap"))
         self.assertFalse(car10[1].get("out_lap"))
 
     def test_lap_number_gap_does_not_mark_out_lap(self):
-        """Gap in lap numbers alone does NOT mark out lap (only duplicates do)."""
+        """Gap in lap numbers alone does NOT mark out lap beyond lap 1."""
         laps = [
             {"car_number": "20", "lap_number": 1, "lap_time": 140.0},
             {"car_number": "20", "lap_number": 2, "lap_time": 139.0},
@@ -150,12 +150,14 @@ class SwissTimingOutLapDetectionTestCase(unittest.TestCase):
         ]
         self.parser._detect_out_laps(laps)
 
-        # No duplicates → no out laps
-        for l in laps:
-            self.assertFalse(l.get("out_lap"), f"Lap {l['lap_number']} should not be out_lap")
+        self.assertTrue(laps[0].get("out_lap"))   # lap 1
+        self.assertFalse(laps[1].get("out_lap"))  # lap 2
+        self.assertFalse(laps[2].get("out_lap"))  # lap 3
+        self.assertFalse(laps[3].get("out_lap"))  # lap 5
+        self.assertFalse(laps[4].get("out_lap"))  # lap 6
 
     def test_duplicate_non_lap1_not_marked(self):
-        """Duplicate lap 2 (or other) should NOT be marked as out_lap."""
+        """Duplicate lap 2 should NOT be marked as out_lap."""
         laps = [
             {"car_number": "30", "lap_number": 1, "lap_time": 140.0},
             {"car_number": "30", "lap_number": 2, "lap_time": 139.0},
@@ -163,8 +165,10 @@ class SwissTimingOutLapDetectionTestCase(unittest.TestCase):
             {"car_number": "30", "lap_number": 3, "lap_time": 137.0},
         ]
         self.parser._detect_out_laps(laps)
-        for l in laps:
-            self.assertFalse(l.get("out_lap"), f"Lap {l['lap_number']} should not be out_lap")
+        self.assertTrue(laps[0].get("out_lap"))    # lap 1
+        self.assertFalse(laps[1].get("out_lap"))   # lap 2
+        self.assertFalse(laps[2].get("out_lap"))   # lap 2 dup
+        self.assertFalse(laps[3].get("out_lap"))   # lap 3
 
 
 class SwissTimingInLapDetectionTestCase(unittest.TestCase):

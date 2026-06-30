@@ -11,7 +11,7 @@ class DetectOutLapsTestCase(unittest.TestCase):
             {"car_number": "10", "lap_number": 2, "lap_time": 103.0},
         ]
         detect_out_laps(laps)
-        self.assertFalse(laps[0].get("out_lap"))
+        self.assertTrue(laps[0].get("out_lap"))
         self.assertFalse(laps[1].get("out_lap"))
 
     def test_duplicate_lap_marks_first(self):
@@ -33,8 +33,10 @@ class DetectOutLapsTestCase(unittest.TestCase):
             {"car_number": "20", "lap_number": 6, "lap_time": 139.0},
         ]
         detect_out_laps(laps)
-        for l in laps:
-            self.assertFalse(l.get("out_lap"), f"Lap {l['lap_number']} should not be out_lap")
+        self.assertTrue(laps[0].get("out_lap"))   # lap 1
+        self.assertFalse(laps[1].get("out_lap"))  # lap 2
+        self.assertFalse(laps[2].get("out_lap"))  # lap 5
+        self.assertFalse(laps[3].get("out_lap"))  # lap 6
 
     def test_duplicate_non_lap1_not_marked(self):
         """Duplicate lap 2 (or other) should NOT be marked as out_lap."""
@@ -45,8 +47,10 @@ class DetectOutLapsTestCase(unittest.TestCase):
             {"car_number": "30", "lap_number": 3, "lap_time": 137.0},
         ]
         detect_out_laps(laps)
-        for l in laps:
-            self.assertFalse(l.get("out_lap"), f"Lap {l['lap_number']} should not be out_lap")
+        self.assertTrue(laps[0].get("out_lap"))    # lap 1
+        self.assertFalse(laps[1].get("out_lap"))   # lap 2
+        self.assertFalse(laps[2].get("out_lap"))   # lap 2 duplicate
+        self.assertFalse(laps[3].get("out_lap"))   # lap 3
 
 
 class DetectInLapsTestCase(unittest.TestCase):

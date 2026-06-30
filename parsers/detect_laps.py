@@ -61,14 +61,10 @@ def _to_seconds(time_str: str) -> float | None:
 
 
 def detect_out_laps(laps: list[dict]) -> None:
-    """Detect out laps from duplicate Lap 1 entries in Swiss Timing data.
+    """Detect out laps: every car's first Lap 1 is an out lap.
 
-    Some Swiss Timing CSVs have a data error where a stint starts with
-    two consecutive entries for Lap 1. The first is the out lap (leaving
-    pits), the second is the real Lap 1.
-
-    Only duplicate Lap 1 is detected — other duplicate lap numbers are
-    ignored as they may be valid data.
+    For duplicate Lap 1 entries (Swiss Timing data error), the first
+    Lap 1 is marked. For single Lap 1 entries, that Lap 1 is marked.
     """
     car_groups: dict[str, list[dict]] = {}
     for l in laps:
@@ -76,9 +72,10 @@ def detect_out_laps(laps: list[dict]) -> None:
 
     for car_num, car_laps in car_groups.items():
         car_laps.sort(key=lambda x: x["lap_number"])
-        for i in range(1, len(car_laps)):
-            if car_laps[i]["lap_number"] == 1 and car_laps[i - 1]["lap_number"] == 1:
-                car_laps[i - 1]["out_lap"] = True
+        for l in car_laps:
+            if l["lap_number"] == 1:
+                l["out_lap"] = True
+                break
 
 
 def detect_in_laps(laps: list[dict]) -> None:
