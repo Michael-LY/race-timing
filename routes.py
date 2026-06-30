@@ -1004,6 +1004,140 @@ def session_delete(session_id):
     return redirect(url_for("main.event_detail", event_id=event_id))
 
 
+@bp.route("/sessions/<int:session_id>/refresh-flags", methods=["POST"])
+@admin_required
+def session_refresh_flags(session_id):
+    """Re-apply out_lap and in_lap detection to existing session laps."""
+    from parsers.detect_laps import detect_out_laps, detect_in_laps
+
+    session = Session.query.get_or_404(session_id)
+    laps = LapRecord.query.filter_by(session_id=session.id).all()
+
+    # Convert to dict format for detection functions
+    laps_dicts = []
+    for l in laps:
+        laps_dicts.append({
+            "car_number": l.car_number,
+            "lap_number": l.lap_number,
+            "lap_time": l.lap_time,
+            "out_lap": False,
+            "in_lap": False,
+            "track_limit": l.track_limit,
+            "session_time": l.session_time,
+        })
+
+    # Reset and re-detect
+    detect_out_laps(laps_dicts)
+    detect_in_laps(laps_dicts)
+
+    # Write back to DB
+    for l in laps:
+        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        l.out_lap = d["out_lap"]
+        l.in_lap = d["in_lap"]
+
+    # Re-compute is_best (exclude out_lap, in_lap, track_limit)
+    best_times: dict[str, float] = {}
+    for d in laps_dicts:
+        if d.get("lap_time") and d["lap_time"] > 0 and not d.get("out_lap") and not d.get("in_lap") and not d.get("track_limit"):
+            key = d["car_number"]
+            if key not in best_times or d["lap_time"] < best_times[key]:
+                best_times[key] = d["lap_time"]
+
+    for l in laps:
+        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        is_best = False
+        if l.lap_time and l.lap_time > 0 and not d.get("out_lap") and not d.get("in_lap") and not l.track_limit:
+            key = l.car_number
+            if key in best_times and l.lap_time == best_times[key]:
+                is_best = True
+        l.is_best = is_best
+
+    db.session.commit()
+    _invalidate_analytics_cache(session_id)
+
+    n_out = sum(1 for d in laps_dicts if d.get("out_lap"))
+    n_in = sum(1 for d in laps_dicts if d.get("in_lap"))
+    flash(f'已刷新 {session.name}: {n_out} 个 out lap, {n_in} 个 in lap', "success")
+    return redirect(url_for("main.session_detail", session_id=session.id))
+
+
+@bp.route("/sessions/<int:session_id>/upload-tlw", methods=["GET", "POST"])
+@admin_required
+def session_upload_tlw(session_id):
+    """Upload TLW file for an existing session to add track_limit data."""
+    from parsers.detect_laps import parse_tlw_file, apply_tlw
+    from werkzeug.utils import secure_filename
+
+    session = Session.query.get_or_404(session_id)
+
+    if request.method == "POST":
+        tlw_file = request.files.get("tlw_file")
+        if not tlw_file or not tlw_file.filename:
+            flash("请选择 TLW 文件", "danger")
+            return redirect(url_for("main.session_upload_tlw", session_id=session.id))
+
+        # Save uploaded file
+        filename = secure_filename(tlw_file.filename)
+        upload_folder = current_app.config["UPLOAD_FOLDER"]
+        filepath = os.path.join(upload_folder, f"tlw_{session_id}_{filename}")
+        tlw_file.save(filepath)
+
+        # Parse TLW
+        warnings = parse_tlw_file(filepath)
+        if not warnings:
+            flash("TLW 文件为空或格式不正确", "danger")
+            return redirect(url_for("main.session_upload_tlw", session_id=session.id))
+
+        # Load existing laps
+        laps = LapRecord.query.filter_by(session_id=session.id).all()
+        laps_dicts = []
+        for l in laps:
+            laps_dicts.append({
+                "car_number": l.car_number,
+                "lap_number": l.lap_number,
+                "lap_time": l.lap_time,
+                "out_lap": l.out_lap,
+                "in_lap": l.in_lap,
+                "track_limit": False,
+                "session_time": l.session_time,
+            })
+
+        # Apply TLW
+        apply_tlw(laps_dicts, warnings)
+
+        # Write back track_limit
+        for l in laps:
+            d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+            l.track_limit = d.get("track_limit", False)
+
+        # Re-compute is_best
+        best_times = {}
+        for d in laps_dicts:
+            if d.get("lap_time") and d["lap_time"] > 0 and not d.get("out_lap") and not d.get("in_lap") and not d.get("track_limit"):
+                key = d["car_number"]
+                if key not in best_times or d["lap_time"] < best_times[key]:
+                    best_times[key] = d["lap_time"]
+
+        for l in laps:
+            d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+            is_best = False
+            if l.lap_time and l.lap_time > 0 and not d.get("out_lap") and not d.get("in_lap") and not l.track_limit:
+                key = l.car_number
+                if key in best_times and l.lap_time == best_times[key]:
+                    is_best = True
+            l.is_best = is_best
+
+        db.session.commit()
+        _invalidate_analytics_cache(session_id)
+
+        n_tl = sum(1 for d in laps_dicts if d.get("track_limit"))
+        flash(f'已上传 TLW: 匹配 {n_tl} 个 track limit lap', "success")
+        return redirect(url_for("main.session_detail", session_id=session.id))
+
+    return render_template("upload_tlw.html", session=session)
+
+
 # ---------------------------------------------------------------------------
 # Event-level car configuration editor
 # ---------------------------------------------------------------------------
