@@ -1138,6 +1138,303 @@ def session_upload_tlw(session_id):
     return render_template("upload_tlw.html", session=session)
 
 
+@bp.route("/sessions/<int:session_id>/reupload", methods=["GET", "POST"])
+@admin_required
+def session_reupload(session_id):
+    """Re-upload a CSV file to update existing session data."""
+    from werkzeug.utils import secure_filename
+    from parsers import get_parser
+
+    session = Session.query.get_or_404(session_id)
+    event = session.event
+    parser_key = event.time_keeper.parser_module if event.time_keeper else ""
+
+    # Determine available file types based on parser
+    if parser_key == "swiss_timing":
+        file_types = [
+            {"key": "sector", "label": "SectorListCSV (Lap Data)"},
+            {"key": "classification", "label": "ResultListCSV (Standings)"},
+            {"key": "pitstops", "label": "PitStopsCsv (Pit Stops)"},
+            {"key": "tlw", "label": "TLWlistMessage (Track Limits)"},
+        ]
+    elif parser_key == "tsl_timing":
+        file_types = [
+            {"key": "sector", "label": "Sector Analysis (Lap Data)"},
+            {"key": "classification", "label": "Classification (Standings)"},
+        ]
+    else:
+        flash("No time keeper format assigned to this event", "danger")
+        return redirect(url_for("main.session_detail", session_id=session.id))
+
+    if request.method == "POST":
+        file_type = request.form.get("file_type", "")
+        csv_file = request.files.get("csv_file")
+
+        if not csv_file or not csv_file.filename:
+            flash("Please select a CSV file", "danger")
+            return redirect(url_for("main.session_reupload", session_id=session.id))
+
+        if not allowed_file(csv_file.filename):
+            flash(f"'{csv_file.filename}' is not a CSV file", "danger")
+            return redirect(url_for("main.session_reupload", session_id=session.id))
+
+        # Save uploaded file
+        ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        filename = secure_filename(csv_file.filename)
+        upload_folder = current_app.config["UPLOAD_FOLDER"]
+        filepath = os.path.join(upload_folder, f"{ts}_reupload_{file_type}_{filename}")
+        csv_file.save(filepath)
+
+        parser = get_parser(parser_key)
+        if not parser:
+            flash("Parser not found", "danger")
+            return redirect(url_for("main.session_reupload", session_id=session.id))
+
+        try:
+            if file_type == "sector":
+                _reupload_sector(session, parser, parser_key, filepath)
+                flash("Lap data updated successfully", "success")
+            elif file_type == "classification":
+                _reupload_classification(session, parser, parser_key, filepath)
+                flash("Standings updated successfully", "success")
+            elif file_type == "pitstops":
+                _reupload_pitstops(session, parser, filepath)
+                flash("Pit stop data updated successfully", "success")
+            elif file_type == "tlw":
+                _reupload_tlw(session, filepath)
+                flash("Track limit data updated successfully", "success")
+            else:
+                flash(f"Unknown file type: {file_type}", "danger")
+                return redirect(url_for("main.session_reupload", session_id=session.id))
+        except Exception as e:
+            flash(f"Error processing file: {e}", "danger")
+            return redirect(url_for("main.session_reupload", session_id=session.id))
+
+        _invalidate_analytics_cache(session_id)
+        return redirect(url_for("main.session_detail", session_id=session.id))
+
+    return render_template("reupload.html", session=session, file_types=file_types)
+
+
+def _reupload_sector(session, parser, parser_key, filepath):
+    """Re-upload sector CSV: replace all lap records."""
+    data = parser.parse(sector_path=filepath)
+    laps_data = data.get("laps", [])
+
+    # Build car_model map from existing standings
+    car_model_map = {}
+    for s in session.standings:
+        cn = str(s.car_number)
+        if s.car_model:
+            car_model_map[cn] = s.car_model
+
+    # Delete existing laps
+    LapRecord.query.filter_by(session_id=session.id).delete()
+
+    # Compute best times (exclude out_lap, in_lap, track_limit)
+    best_times = {}
+    for l in laps_data:
+        if l.get("lap_time") and l["lap_time"] > 0 and not l.get("out_lap") and not l.get("in_lap") and not l.get("track_limit"):
+            key = l["car_number"]
+            if key not in best_times or l["lap_time"] < best_times[key]:
+                best_times[key] = l["lap_time"]
+
+    # Insert new laps
+    for l in laps_data:
+        is_best = False
+        if l.get("lap_time") and l["lap_time"] > 0 and not l.get("out_lap") and not l.get("in_lap") and not l.get("track_limit"):
+            key = l["car_number"]
+            if key in best_times and l["lap_time"] == best_times[key]:
+                is_best = True
+
+        lap_cm = l.get("car_model", "") or car_model_map.get(str(l.get("car_number", "")), "")
+
+        lap = LapRecord(
+            session_id=session.id,
+            car_number=l.get("car_number", ""),
+            driver_name=l.get("driver_name", ""),
+            category=l.get("category", ""),
+            car_model=lap_cm,
+            model_color=model_to_color(lap_cm),
+            lap_number=l.get("lap_number", 0),
+            lap_time=l.get("lap_time"),
+            sector_1=l.get("sector_1"),
+            sector_2=l.get("sector_2"),
+            sector_3=l.get("sector_3"),
+            gap=l.get("gap"),
+            speed=l.get("speed"),
+            speed_trap_1=l.get("speed_trap_1"),
+            speed_trap_2=l.get("speed_trap_2"),
+            speed_trap_3=l.get("speed_trap_3"),
+            speed_trap_4=l.get("speed_trap_4"),
+            position=l.get("position"),
+            is_best=is_best,
+            out_lap=l.get("out_lap", False),
+            in_lap=l.get("in_lap", False),
+            track_limit=l.get("track_limit", False),
+            time_out_lap=l.get("time_out_lap"),
+            time_in_lap=l.get("time_in_lap"),
+            time_of_day=l.get("time_of_day", ""),
+            session_time=l.get("session_time"),
+        )
+        db.session.add(lap)
+
+    db.session.commit()
+
+
+def _reupload_classification(session, parser, parser_key, filepath):
+    """Re-upload classification CSV: replace all standings."""
+    if parser_key == "swiss_timing":
+        data = parser.parse(sector_path=None, classification_path=filepath)
+    else:
+        data = parser.parse(classification_path=filepath)
+
+    standings_data = data.get("standings", [])
+
+    # Delete existing standings
+    Standing.query.filter_by(session_id=session.id).delete()
+
+    # Insert new standings
+    for s in standings_data:
+        standing = Standing(
+            session_id=session.id,
+            position=s.get("position", 0),
+            car_number=s.get("car_number", ""),
+            team_name=s.get("team_name", ""),
+            class_name=s.get("class_name", ""),
+            nationality=s.get("nationality", ""),
+            total_time=s.get("total_time"),
+            gap=s.get("gap"),
+            diff=s.get("diff"),
+            gap_text=s.get("gap_text", "") or "",
+            diff_text=s.get("diff_text", "") or "",
+            laps_completed=s.get("laps_completed"),
+            fastest_lap=s.get("fastest_lap"),
+            fastest_lap_no=s.get("fastest_lap_no"),
+            fastest_lap_speed=s.get("fastest_lap_speed"),
+            pit_stops=s.get("pit_stops", 0),
+            is_classified=s.get("is_classified", True),
+            car_model=s.get("car_model", ""),
+            model_color=model_to_color(s.get("car_model", "")),
+        )
+        db.session.add(standing)
+
+    db.session.commit()
+
+    # Update car_model on existing laps from new standings
+    car_model_map = {}
+    for s in standings_data:
+        cn = str(s.get("car_number", ""))
+        cm = s.get("car_model", "")
+        if cn and cm:
+            car_model_map[cn] = cm
+
+    if car_model_map:
+        laps = LapRecord.query.filter_by(session_id=session.id).all()
+        for l in laps:
+            cm = car_model_map.get(l.car_number, "")
+            if cm:
+                l.car_model = cm
+                l.model_color = model_to_color(cm)
+        db.session.commit()
+
+
+def _reupload_pitstops(session, parser, filepath):
+    """Re-upload pitstops CSV: update in_lap/out_lap flags on existing laps."""
+    pitstops = parser._parse_pitstops(filepath)
+    laps = LapRecord.query.filter_by(session_id=session.id).all()
+
+    # Convert to dicts
+    laps_dicts = []
+    for l in laps:
+        laps_dicts.append({
+            "car_number": l.car_number,
+            "lap_number": l.lap_number,
+            "lap_time": l.lap_time,
+            "out_lap": False,
+            "in_lap": False,
+            "track_limit": l.track_limit,
+            "session_time": l.session_time,
+            "driver_name": l.driver_name,
+        })
+
+    # Reset and re-apply
+    parser._apply_pitstops(laps_dicts, pitstops)
+
+    # Write back
+    for l in laps:
+        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        l.out_lap = d["out_lap"]
+        l.in_lap = d["in_lap"]
+
+    # Re-compute is_best
+    best_times = {}
+    for d in laps_dicts:
+        if d.get("lap_time") and d["lap_time"] > 0 and not d.get("out_lap") and not d.get("in_lap") and not d.get("track_limit"):
+            key = d["car_number"]
+            if key not in best_times or d["lap_time"] < best_times[key]:
+                best_times[key] = d["lap_time"]
+
+    for l in laps:
+        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        is_best = False
+        if l.lap_time and l.lap_time > 0 and not d.get("out_lap") and not d.get("in_lap") and not l.track_limit:
+            key = l.car_number
+            if key in best_times and l.lap_time == best_times[key]:
+                is_best = True
+        l.is_best = is_best
+
+    db.session.commit()
+
+
+def _reupload_tlw(session, filepath):
+    """Re-upload TLW CSV: update track_limit flags on existing laps."""
+    from parsers.detect_laps import parse_tlw_file, apply_tlw
+
+    warnings = parse_tlw_file(filepath)
+    if not warnings:
+        flash("TLW file is empty or has incorrect format", "danger")
+        return
+
+    laps = LapRecord.query.filter_by(session_id=session.id).all()
+    laps_dicts = []
+    for l in laps:
+        laps_dicts.append({
+            "car_number": l.car_number,
+            "lap_number": l.lap_number,
+            "lap_time": l.lap_time,
+            "out_lap": l.out_lap,
+            "in_lap": l.in_lap,
+            "track_limit": False,
+            "session_time": l.session_time,
+        })
+
+    apply_tlw(laps_dicts, warnings)
+
+    for l in laps:
+        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        l.track_limit = d.get("track_limit", False)
+
+    # Re-compute is_best
+    best_times = {}
+    for d in laps_dicts:
+        if d.get("lap_time") and d["lap_time"] > 0 and not d.get("out_lap") and not d.get("in_lap") and not d.get("track_limit"):
+            key = d["car_number"]
+            if key not in best_times or d["lap_time"] < best_times[key]:
+                best_times[key] = d["lap_time"]
+
+    for l in laps:
+        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        is_best = False
+        if l.lap_time and l.lap_time > 0 and not d.get("out_lap") and not d.get("in_lap") and not l.track_limit:
+            key = l.car_number
+            if key in best_times and l.lap_time == best_times[key]:
+                is_best = True
+        l.is_best = is_best
+
+    db.session.commit()
+
+
 # ---------------------------------------------------------------------------
 # Event-level car configuration editor
 # ---------------------------------------------------------------------------

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Re-upload CSV - {{ session.name }}{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto">
+    <div class="card rounded-lg mb-4">
+        <div class="card-header rounded-t-lg">Re-upload CSV — {{ session.name }}</div>
+        <div class="p-4">
+            <p class="text-sm text-theme-secondary mb-4">
+                Upload a CSV file to update existing session data. Only the selected file type will be processed.
+            </p>
+            <form method="POST" enctype="multipart/form-data" id="reuploadForm">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">File Type</label>
+                    <select name="file_type" id="fileType" class="themed-select w-full px-3 py-2 rounded-lg text-sm border border-theme">
+                        {% for ft in file_types %}
+                        <option value="{{ ft.key }}" {% if loop.first %}selected{% endif %}>{{ ft.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1" id="fileLabel">CSV File</label>
+                    <input type="file" name="csv_file" accept=".csv,.txt" id="csvFile"
+                           class="block w-full text-sm text-theme-primary border border-theme rounded-lg cursor-pointer focus:ring-2 focus:ring-blue-500">
+                    <p class="text-xs text-theme-secondary mt-1" id="fileHint"></p>
+                </div>
+
+                <div id="warningBox" class="hidden mb-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-sm">
+                    <p id="warningText"></p>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium" id="submitBtn">Upload</button>
+                    <a href="{{ url_for('main.session_detail', session_id=session.id) }}" class="btn-ghost px-4 py-2 rounded-lg text-sm font-medium">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const fileTypes = {{ file_types | tojson }};
+const hints = {
+    sector: "SectorListCSV / Sector Analysis — replaces all lap records (lap times, sectors, speed traps).",
+    classification: "ResultListCSV / Classification — replaces all standings (positions, gaps, fastest laps).",
+    pitstops: "PitStopsCsv — updates in_lap/out_lap flags and driver stint assignment on existing laps.",
+    tlw: "TLWlistMessage — matches track limit warnings to laps by race time and flags them.",
+    messages: "MessageListCSV — race control messages (not stored in DB, for reference only)."
+};
+const warnings = {
+    sector: "Warning: This will delete ALL existing lap records for this session and replace them with new data.",
+    classification: "Warning: This will delete ALL existing standings for this session and replace them with new data.",
+    pitstops: "This will update pit in/out flags on existing laps. No data will be deleted.",
+    tlw: "This will flag track limit laps based on the uploaded TLW file.",
+    messages: "Messages are not stored in the database."
+};
+
+const fileType = document.getElementById('fileType');
+const fileLabel = document.getElementById('fileLabel');
+const fileHint = document.getElementById('fileHint');
+const warningBox = document.getElementById('warningBox');
+const warningText = document.getElementById('warningText');
+
+function updateUI() {
+    const val = fileType.value;
+    fileHint.textContent = hints[val] || '';
+    if (warnings[val]) {
+        warningText.textContent = warnings[val];
+        warningBox.classList.remove('hidden');
+    } else {
+        warningBox.classList.add('hidden');
+    }
+}
+
+fileType.addEventListener('change', updateUI);
+updateUI();
+</script>
+{% endblock %}
