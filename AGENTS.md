@@ -20,7 +20,8 @@ python -m unittest tests.test_standings_sorting.TestName.test_method  # single t
 - **routes.py** — All routes in a single `Blueprint("main")`. Auth, event CRUD, upload CSV, session detail (5 views), analytics API, car config editor, admin refresh flags, CSV reupload.
 - **parsers/** — `BaseParser` ABC. Two parsers: `TSLTimingParser` (2-file CSV) and `SwissTimingParser` (up to 5 files). `detect_laps.py` — standalone functions for out_lap/in_lap/TLW detection, reused by parser and admin refresh.
 - **templates/** — 18 Jinja2 templates, no frontend build. CDN: Tailwind CSS, Chart.js 4.4, Lucide icons.
-- **static/** — `css/theme.css` (light/dark), `js/theme.js`, `js/charts.js` (13 chart types), `js/table-sort.js`.
+- **static/** — `css/theme.css` (light/dark), `js/theme.js`, `js/charts.js` (13 chart types with decimation), `js/table-sort.js`.
+- **API endpoints** — `/api/sessions/<id>/laps` (lazy-load lap table), `/api/sessions/<id>/drivers` (lazy-load driver table), `/api/sessions/<id>/analytics` (chart data with 5-min cache).
 
 ## Key fields on LapRecord
 
@@ -66,6 +67,13 @@ python -m unittest tests.test_standings_sorting.TestName.test_method  # single t
 - No DB migration framework — `db.create_all()` + inline `ALTER TABLE`.
 - All UI text must be in English (no Chinese in templates or flash messages).
 - CSRF token: template uses `{{ csrf_token }}` (variable), form field name is `_csrf_token`.
+
+## Performance patterns
+
+- **AJAX lazy loading**: Lap-by-lap and drivers tables load via AJAX endpoints, not inline Jinja2. JS builds rows client-side. Initial page load is fast; data loads on tab click.
+- **Chart.js decimation**: Enabled globally with LTTB algorithm, max 200 samples per dataset. Animations disabled for datasets >1000 points.
+- **Event delegation**: AJAX-loaded tables use event delegation on container (`#driverCard`) instead of attaching handlers to rows at page load. Direct `querySelectorAll` on dynamic rows returns nothing.
+- **`car_colors` in AJAX responses**: When adding new AJAX-loaded tables, include `car_colors` in the API response and set `data-car-color` on `<tr>` elements — otherwise the Color toggle button won't work.
 
 ## Color system
 
