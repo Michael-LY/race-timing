@@ -9,6 +9,13 @@ const COLORS = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#06b6d4',
 const chartInstances = {};
 let cachedData = null;
 
+// Performance: enable decimation for large datasets
+Chart.defaults.plugins.decimation = {
+    enabled: true,
+    algorithm: 'lttb',
+    samples: 200,
+};
+
 const CHART_TITLES = {
     lapTime: 'Lap Times',
     delta: 'Delta to Best',
@@ -374,11 +381,15 @@ const renderers = {
             tension: 0.1, pointRadius: 2, spanGaps: false,
         })).concat(bestLine);
 
+        const totalPoints = datasets.reduce((sum, ds) => sum + ds.data.length, 0);
+        const animate = totalPoints < 1000;
+
         chartInstances.lapTime = new Chart(ctx, {
             type: 'line',
             data: { datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
+                animation: animate,
                 interaction: { mode: 'nearest', intersect: false },
                 plugins: {
                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
@@ -421,11 +432,15 @@ const renderers = {
             tension: 0.1, pointRadius: 2, spanGaps: false,
         }));
 
+        const totalPoints = datasets.reduce((sum, ds) => sum + ds.data.length, 0);
+        const animate = totalPoints < 1000;
+
         chartInstances.delta = new Chart(ctx, {
             type: 'line',
             data: { datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
+                animation: animate,
                 interaction: { mode: 'nearest', intersect: false },
                 plugins: {
                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
@@ -691,11 +706,15 @@ const renderers = {
             tension: 0, pointRadius: 3,
         }));
 
+        const totalPoints = datasets.reduce((sum, ds) => sum + ds.data.length, 0);
+        const animate = totalPoints < 1000;
+
         chartInstances.position = new Chart(ctx, {
             type: 'line',
             data: { datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
+                animation: animate,
                 interaction: { mode: 'nearest', intersect: false },
                 plugins: {
                     legend: { labels: { color: tc.text, font: { family: 'JetBrains Mono', size: 10 } } },
