@@ -1621,27 +1621,161 @@ def session_edit(session_id):
 
 
 # ---------------------------------------------------------------------------
-# API — lap data for charts
+# API — lazy-loaded table data
 # ---------------------------------------------------------------------------
+
 @bp.route("/api/sessions/<int:session_id>/laps")
 def api_session_laps(session_id):
+    """Return lap data for lazy-loading the lap-by-lap table."""
     session = Session.query.get_or_404(session_id)
-    laps = []
-    for l in session.laps:
-        laps.append({
-            "car_number": l.car_number,
-            "driver_name": l.driver_name,
-            "lap_number": l.lap_number,
-            "lap_time": l.lap_time,
-            "sector_1": l.sector_1,
-            "sector_2": l.sector_2,
-            "sector_3": l.sector_3,
-            "is_best": l.is_best,
-            "out_lap": l.out_lap,
-            "in_lap": l.in_lap,
-            "session_time": l.session_time,
+    laps = session.laps
+
+    car_filter = request.args.get("car", "").strip()
+
+    # Group by car
+    car_groups: dict[str, list[LapRecord]] = {}
+    for l in laps:
+        car_groups.setdefault(l.car_number, []).append(l)
+
+    # Compute per-car bests (for highlighting)
+    per_car_bests = {}
+    for car_num, car_laps in car_groups.items():
+        cv = [l for l in car_laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
+        per_car_bests[car_num] = {
+            "s1": min((l.sector_1 for l in cv if l.sector_1 and l.sector_1 > 0 and not l.out_lap), default=None),
+            "s2": min((l.sector_2 for l in cv if l.sector_2 and l.sector_2 > 0), default=None),
+            "s3": min((l.sector_3 for l in cv if l.sector_3 and l.sector_3 > 0 and not l.in_lap), default=None),
+        }
+
+    # Compute stint bests
+    stint_bests = {}
+    for car_num, car_laps in car_groups.items():
+        stints = []
+        current = []
+        for l in sorted(car_laps, key=lambda x: x.lap_number):
+            if l.out_lap and current:
+                stints.append(current)
+                current = []
+            current.append(l)
+        if current:
+            stints.append(current)
+
+        for stint in stints:
+            valid_stint = [l for l in stint if l.lap_time and l.lap_time > 0 and not l.track_limit]
+            if not valid_stint:
+                continue
+            clean_stint = [l for l in valid_stint if not l.out_lap and not l.in_lap]
+            best_lap = min(clean_stint, key=lambda l: l.lap_time) if clean_stint else min(valid_stint, key=lambda l: l.lap_time)
+            best_s1 = min((l for l in valid_stint if l.sector_1 and l.sector_1 > 0 and not l.out_lap), key=lambda l: l.sector_1, default=None)
+            best_s2 = min((l for l in valid_stint if l.sector_2 and l.sector_2 > 0), key=lambda l: l.sector_2, default=None)
+            best_s3 = min((l for l in valid_stint if l.sector_3 and l.sector_3 > 0 and not l.in_lap), key=lambda l: l.sector_3, default=None)
+
+            for l in valid_stint:
+                flags = stint_bests.setdefault(l.id, {})
+                flags["lap"] = l.id == best_lap.id
+                flags["s1"] = best_s1 and l.id == best_s1.id
+                flags["s2"] = best_s2 and l.id == best_s2.id
+                flags["s3"] = best_s3 and l.id == best_s3.id
+
+    # Overall bests
+    valid_all = [l for l in laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
+    clean_all = [l for l in valid_all if not l.out_lap and not l.in_lap]
+    best_lap = min(clean_all, key=lambda l: l.lap_time) if clean_all else None
+    best_s1_lap = min((l for l in valid_all if l.sector_1 and l.sector_1 > 0 and not l.out_lap), key=lambda l: l.sector_1, default=None)
+    best_s2_lap = min((l for l in valid_all if l.sector_2 and l.sector_2 > 0), key=lambda l: l.sector_2, default=None)
+    best_s3_lap = min((l for l in valid_all if l.sector_3 and l.sector_3 > 0 and not l.in_lap), key=lambda l: l.sector_3, default=None)
+    overall = {
+        "lap_time": best_lap.lap_time if best_lap else None,
+        "lap_car": best_lap.car_number if best_lap else "",
+        "s1": best_s1_lap.sector_1 if best_s1_lap else None,
+        "s1_car": best_s1_lap.car_number if best_s1_lap else "",
+        "s2": best_s2_lap.sector_2 if best_s2_lap else None,
+        "s2_car": best_s2_lap.car_number if best_s2_lap else "",
+        "s3": best_s3_lap.sector_3 if best_s3_lap else None,
+        "s3_car": best_s3_lap.car_number if best_s3_lap else "",
+    }
+
+    # Build lap data
+    result_laps = []
+    for car_num in sorted(car_groups.keys()):
+        if car_filter and car_num != car_filter:
+            continue
+        for l in sorted(car_groups[car_num], key=lambda x: x.lap_number):
+            result_laps.append({
+                "id": l.id,
+                "car_number": l.car_number,
+                "driver_name": l.driver_name,
+                "lap_number": l.lap_number,
+                "lap_time": l.lap_time,
+                "sector_1": l.sector_1,
+                "sector_2": l.sector_2,
+                "sector_3": l.sector_3,
+                "speed_trap_4": l.speed_trap_4,
+                "speed": l.speed,
+                "out_lap": l.out_lap,
+                "in_lap": l.in_lap,
+                "track_limit": l.track_limit,
+                "is_best": l.is_best,
+                "stint_bests": stint_bests.get(l.id, {}),
+            })
+
+    return jsonify({
+        "laps": result_laps,
+        "per_car_bests": per_car_bests,
+        "overall": overall,
+        "car_groups": {cn: len(cls) for cn, cls in car_groups.items()},
+    })
+
+
+@bp.route("/api/sessions/<int:session_id>/drivers")
+def api_session_drivers(session_id):
+    """Return driver analysis data for lazy-loading the drivers table."""
+    session = Session.query.get_or_404(session_id)
+    laps = session.laps
+
+    driver_groups: dict[str, list[LapRecord]] = {}
+    for l in laps:
+        name = l.driver_name.strip() if l.driver_name else "Unknown"
+        driver_groups.setdefault(name, []).append(l)
+
+    drivers = []
+    for name, d_laps in driver_groups.items():
+        valid = [l for l in d_laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
+        clean = [l for l in valid if not l.out_lap and not l.in_lap]
+        best_lap = min(clean, key=lambda l: l.lap_time) if clean else None
+        best_s1_lap = min((l for l in valid if l.sector_1 and l.sector_1 > 0 and not l.out_lap), key=lambda l: l.sector_1, default=None)
+        best_s2_lap = min((l for l in valid if l.sector_2 and l.sector_2 > 0), key=lambda l: l.sector_2, default=None)
+        best_s3_lap = min((l for l in valid if l.sector_3 and l.sector_3 > 0 and not l.in_lap), key=lambda l: l.sector_3, default=None)
+        best_s1 = best_s1_lap.sector_1 if best_s1_lap else None
+        best_s2 = best_s2_lap.sector_2 if best_s2_lap else None
+        best_s3 = best_s3_lap.sector_3 if best_s3_lap else None
+        theoretical = (best_s1 + best_s2 + best_s3) if (best_s1 and best_s2 and best_s3) else None
+        drivers.append({
+            "driver_name": name,
+            "car_number": d_laps[0].car_number if d_laps else "",
+            "total_laps": len(valid),
+            "best_lap": best_lap.lap_time if best_lap else None,
+            "best_s1": best_s1,
+            "best_s2": best_s2,
+            "best_s3": best_s3,
+            "theoretical": theoretical,
         })
-    return jsonify({"session_name": session.name, "session_type": session.session_type, "laps": laps})
+    drivers.sort(key=lambda d: d["best_lap"] if d["best_lap"] else 99999)
+
+    # Overall bests
+    all_valid = [l for l in laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
+    clean_all = [l for l in all_valid if not l.out_lap and not l.in_lap]
+    _, overall_best_s1_lap, overall_best_s2_lap, overall_best_s3_lap = _best_sectors(all_valid) if all_valid else (None, None, None, None)
+    overall_s1 = overall_best_s1_lap.sector_1 if overall_best_s1_lap else None
+    overall_s2 = overall_best_s2_lap.sector_2 if overall_best_s2_lap else None
+    overall_s3 = overall_best_s3_lap.sector_3 if overall_best_s3_lap else None
+
+    return jsonify({
+        "drivers": drivers,
+        "overall_s1": overall_s1,
+        "overall_s2": overall_s2,
+        "overall_s3": overall_s3,
+    })
 
 
 # ---------------------------------------------------------------------------

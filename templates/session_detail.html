@@ -249,15 +249,15 @@
             <small class="ml-1 hidden sm:inline"><span class="inline-block w-3 h-3 rounded bg-green"></span> Car best</small>
             <small class="ml-1 hidden sm:inline"><span class="inline-block w-3 h-3 rounded bg-orange"></span> Stint best</small>
         </span>
-        <select class="themed-select px-2 py-1 text-xs w-full sm:w-auto" id="carFilter">
+        <select class="themed-select px-2 py-1 text-xs w-full sm:w-auto" id="carFilter" onchange="loadLapTable()">
             <option value="">All Cars</option>
-            {% for cn in car_groups %}
-            <option value="{{ cn }}">#{{ cn }}</option>
-            {% endfor %}
         </select>
     </div>
     <div class="overflow-x-auto p-2 sm:p-0" style="max-height: 65vh; overflow-y: auto;">
-        <table class="themed-table lap-table">
+        <div id="lapTableLoading" class="text-center py-8 text-theme-secondary">
+            <svg class="animate-spin inline-block w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>Loading laps...
+        </div>
+        <table class="themed-table lap-table" id="lapTable" style="display:none;">
             <thead>
                 <tr>
                     <th class="sortable text-left sticky-col sticky-col-1">Car</th>
@@ -273,47 +273,7 @@
                     <th class="sortable text-left">Best</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for car_num, car_laps in car_groups.items() %}
-                {% set pcb = per_car_bests.get(car_num, {}) %}
-                {% for l in car_laps %}
-                {% set sb = stint_bests.get(l.id, {}) %}
-                {% set is_overall_lap = overall.lap_car == l.car_number and overall.lap_time == l.lap_time %}
-                {% set is_overall_s1 = overall.s1_car == l.car_number and overall.s1 == l.sector_1 %}
-                {% set is_overall_s2 = overall.s2_car == l.car_number and overall.s2 == l.sector_2 %}
-                {% set is_overall_s3 = overall.s3_car == l.car_number and overall.s3 == l.sector_3 %}
-                {% set is_car_best_s1 = pcb.s1 == l.sector_1 and l.sector_1 and l.sector_1 > 0 %}
-                {% set is_car_best_s2 = pcb.s2 == l.sector_2 and l.sector_2 and l.sector_2 > 0 %}
-                {% set is_car_best_s3 = pcb.s3 == l.sector_3 and l.sector_3 and l.sector_3 > 0 %}
-                <tr class="lap-row" data-car="{{ l.car_number }}"
-                    {% if l.in_lap %}style="background-color: var(--pit-in-bg);"{% endif %}
-                    {% if l.out_lap %}style="background-color: var(--pit-out-bg);"{% endif %}>
-                    <td class="sticky-col sticky-col-1"><strong>#{{ l.car_number }}</strong></td>
-                    <td class="sticky-col sticky-col-2"><small>{{ l.driver_name }}</small></td>
-                    <td>{{ l.lap_number }}</td>
-                    <td class="best-lap
-                        {% if is_overall_lap %}bg-purple{% elif l.is_best %}bg-green{% elif sb.lap %}bg-orange{% endif %}">
-                        {% if l.lap_time %}{{ "%d:%06.3f"|format(l.lap_time // 60, l.lap_time % 60) }}{% else %}-{% endif %}
-                    </td>
-                    <td class="{% if is_overall_s1 %}bg-purple{% elif is_car_best_s1 %}bg-green{% elif sb.s1 %}bg-orange{% endif %}">
-                        {% if l.sector_1 %}{{ "%.3f"|format(l.sector_1) }}{% else %}-{% endif %}
-                    </td>
-                    <td class="{% if is_overall_s2 %}bg-purple{% elif is_car_best_s2 %}bg-green{% elif sb.s2 %}bg-orange{% endif %}">
-                        {% if l.sector_2 %}{{ "%.3f"|format(l.sector_2) }}{% else %}-{% endif %}
-                    </td>
-                    <td class="{% if is_overall_s3 %}bg-purple{% elif is_car_best_s3 %}bg-green{% elif sb.s3 %}bg-orange{% endif %}">
-                        {% if l.sector_3 %}{{ "%.3f"|format(l.sector_3) }}{% else %}-{% endif %}
-                    </td>
-                    <td>{% if l.speed_trap_4 or l.speed %}{{ "%d"|format(l.speed_trap_4 or l.speed or 0) }}{% else %}-{% endif %}</td>
-                    <td>
-                        {% if l.in_lap %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-400 text-gray-900">IN</span>{% endif %}
-                        {% if l.out_lap %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-cyan-400 text-gray-900">OUT</span>{% endif %}
-                    </td>
-                    <td>{% if l.track_limit %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-400 text-white">TL</span>{% endif %}</td>
-                    <td>{% if l.is_best %}<span class="text-green-600 font-bold">BEST</span>{% endif %}</td>
-                </tr>
-                {% endfor %}
-                {% endfor %}
+            <tbody id="lapTableBody">
             </tbody>
         </table>
     </div>
@@ -329,7 +289,10 @@
         </button>
     </div>
     <div class="overflow-x-auto p-2 sm:p-0">
-        <table class="themed-table driver-table">
+        <div id="driverTableLoading" class="text-center py-8 text-theme-secondary">
+            <svg class="animate-spin inline-block w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>Loading drivers...
+        </div>
+        <table class="themed-table driver-table" id="driverTable" style="display:none;">
             <thead>
                 <tr>
                     <th class="sortable text-left sticky-col sticky-col-1">#</th>
@@ -344,28 +307,7 @@
                     <th class="sortable text-left">Gap</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for d in drivers %}
-                {% set gap = (d.best_lap - drivers[0].best_lap) if d.best_lap and drivers[0].best_lap else None %}
-                <tr data-car-color="{{ car_colors.get(d.car_number, '') }}">
-                    <td class="sticky-col sticky-col-1"><strong>{{ loop.index }}</strong></td>
-                    <td class="sticky-col sticky-col-2"><strong>{{ d.driver_name }}</strong></td>
-                    <td>#{{ d.car_number }}</td>
-                    <td>{{ d.total_laps }}</td>
-                    <td class="best-lap">{% if d.best_lap %}{{ "%d:%06.3f"|format(d.best_lap // 60, d.best_lap % 60) }}{% else %}-{% endif %}</td>
-                    <td class="{% if d.best_s1 == driver_overall_s1 %}bg-purple{% endif %}">
-                        {% if d.best_s1 %}{{ "%.3f"|format(d.best_s1) }}{% else %}-{% endif %}
-                    </td>
-                    <td class="{% if d.best_s2 == driver_overall_s2 %}bg-purple{% endif %}">
-                        {% if d.best_s2 %}{{ "%.3f"|format(d.best_s2) }}{% else %}-{% endif %}
-                    </td>
-                    <td class="{% if d.best_s3 == driver_overall_s3 %}bg-purple{% endif %}">
-                        {% if d.best_s3 %}{{ "%.3f"|format(d.best_s3) }}{% else %}-{% endif %}
-                    </td>
-                    <td>{% if d.theoretical %}{{ "%d:%06.3f"|format(d.theoretical // 60, d.theoretical % 60) }}{% else %}-{% endif %}</td>
-                    <td>{% if gap is not none and gap >= 0 %}+{{ "%.3f"|format(gap) }}{% elif gap is not none %}{{ "%.3f"|format(gap) }}{% else %}-{% endif %}</td>
-                </tr>
-                {% endfor %}
+            <tbody id="driverTableBody">
             </tbody>
         </table>
     </div>
@@ -478,8 +420,8 @@ function showView(name) {
 
 document.getElementById('btnClassification').addEventListener('click', () => showView('classification'));
 document.getElementById('btnLapSummary').addEventListener('click', () => showView('lapSummary'));
-document.getElementById('btnLapDetail').addEventListener('click', () => showView('lapDetail'));
-document.getElementById('btnDrivers').addEventListener('click', () => showView('driver'));
+document.getElementById('btnLapDetail').addEventListener('click', () => { showView('lapDetail'); loadLapTable(); });
+document.getElementById('btnDrivers').addEventListener('click', () => { showView('driver'); loadDriverTable(); });
 document.getElementById('btnChart').addEventListener('click', () => { showView('chart'); loadChart(); });
 
 // ── Mobile view dropdown ──────────────────────────────────────
@@ -496,6 +438,8 @@ function switchView(btnId) {
     if (!mapping) return;
     showView(mapping.name);
     if (btnId === 'btnChart' && typeof loadChart === 'function') loadChart();
+    if (btnId === 'btnLapDetail' && typeof loadLapTable === 'function') loadLapTable();
+    if (btnId === 'btnDrivers' && typeof loadDriverTable === 'function') loadDriverTable();
     // Update dropdown label and active state
     var label = document.getElementById('viewDropdownLabel');
     if (label) label.textContent = mapping.label;
@@ -524,13 +468,159 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// ── Car filter for lap detail ──────────────────────────────────
-document.getElementById('carFilter').addEventListener('change', function() {
-    const car = this.value;
-    document.querySelectorAll('.lap-row').forEach(row => {
-        row.style.display = (!car || row.dataset.car === car) ? '' : 'none';
+// ── Lazy-load lap table ────────────────────────────────────────
+var _lapDataLoaded = false;
+var _lapData = null;
+
+async function loadLapTable() {
+    if (_lapDataLoaded && !_lapData) return;
+    if (_lapDataLoaded) {
+        filterLapTable();
+        return;
+    }
+
+    const sessionId = {{ session.id }};
+    const loading = document.getElementById('lapTableLoading');
+    const table = document.getElementById('lapTable');
+    const tbody = document.getElementById('lapTableBody');
+    const carFilter = document.getElementById('carFilter');
+
+    try {
+        const resp = await fetch('/api/sessions/' + sessionId + '/laps');
+        _lapData = await resp.json();
+        _lapDataLoaded = true;
+
+        // Populate car filter
+        Object.keys(_lapData.car_groups).sort().forEach(cn => {
+            const opt = document.createElement('option');
+            opt.value = cn;
+            opt.textContent = '#' + cn;
+            carFilter.appendChild(opt);
+        });
+
+        loading.style.display = 'none';
+        table.style.display = '';
+        filterLapTable();
+    } catch (e) {
+        loading.innerHTML = '<span class="text-red-500">Failed to load lap data</span>';
+    }
+}
+
+function filterLapTable() {
+    if (!_lapData) return;
+    const tbody = document.getElementById('lapTableBody');
+    const car = document.getElementById('carFilter').value;
+    const data = _lapData;
+    const overall = data.overall;
+    const pcb = data.per_car_bests || {};
+    const sbAll = {};
+
+    // Build stint_bests lookup
+    data.laps.forEach(l => {
+        if (l.stint_bests && Object.keys(l.stint_bests).length > 0) {
+            sbAll[l.id] = l.stint_bests;
+        }
     });
-});
+
+    let html = '';
+    data.laps.forEach(l => {
+        if (car && l.car_number !== car) return;
+        const sb = sbAll[l.id] || {};
+        const isOverallLap = overall.lap_car === l.car_number && overall.lap_time === l.lap_time;
+        const isOverallS1 = overall.s1_car === l.car_number && overall.s1 === l.sector_1;
+        const isOverallS2 = overall.s2_car === l.car_number && overall.s2 === l.sector_2;
+        const isOverallS3 = overall.s3_car === l.car_number && overall.s3 === l.sector_3;
+        const carPcb = pcb[l.car_number] || {};
+        const isCarS1 = carPcb.s1 === l.sector_1 && l.sector_1 && l.sector_1 > 0;
+        const isCarS2 = carPcb.s2 === l.sector_2 && l.sector_2 && l.sector_2 > 0;
+        const isCarS3 = carPcb.s3 === l.sector_3 && l.sector_3 && l.sector_3 > 0;
+
+        var rowStyle = '';
+        if (l.in_lap) rowStyle = 'background-color: var(--pit-in-bg);';
+        else if (l.out_lap) rowStyle = 'background-color: var(--pit-out-bg);';
+
+        var lapTime = l.lap_time ? fmtLapTime(l.lap_time) : '-';
+        var s1 = l.sector_1 ? l.sector_1.toFixed(3) : '-';
+        var s2 = l.sector_2 ? l.sector_2.toFixed(3) : '-';
+        var s3 = l.sector_3 ? l.sector_3.toFixed(3) : '-';
+        var speed = (l.speed_trap_4 || l.speed) ? Math.round(l.speed_trap_4 || l.speed || 0) : '-';
+
+        html += '<tr class="lap-row" data-car="' + l.car_number + '"' + (rowStyle ? ' style="' + rowStyle + '"' : '') + '>'
+            + '<td class="sticky-col sticky-col-1"><strong>#' + l.car_number + '</strong></td>'
+            + '<td class="sticky-col sticky-col-2"><small>' + esc(l.driver_name) + '</small></td>'
+            + '<td>' + l.lap_number + '</td>'
+            + '<td class="best-lap ' + (isOverallLap ? 'bg-purple' : l.is_best ? 'bg-green' : sb.lap ? 'bg-orange' : '') + '">' + lapTime + '</td>'
+            + '<td class="' + (isOverallS1 ? 'bg-purple' : isCarS1 ? 'bg-green' : sb.s1 ? 'bg-orange' : '') + '">' + s1 + '</td>'
+            + '<td class="' + (isOverallS2 ? 'bg-purple' : isCarS2 ? 'bg-green' : sb.s2 ? 'bg-orange' : '') + '">' + s2 + '</td>'
+            + '<td class="' + (isOverallS3 ? 'bg-purple' : isCarS3 ? 'bg-green' : sb.s3 ? 'bg-orange' : '') + '">' + s3 + '</td>'
+            + '<td>' + speed + '</td>'
+            + '<td>' + (l.in_lap ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-400 text-gray-900">IN</span>' : '')
+            + (l.out_lap ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-cyan-400 text-gray-900">OUT</span>' : '') + '</td>'
+            + '<td>' + (l.track_limit ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-400 text-white">TL</span>' : '') + '</td>'
+            + '<td>' + (l.is_best ? '<span class="text-green-600 font-bold">BEST</span>' : '') + '</td>'
+            + '</tr>';
+    });
+    tbody.innerHTML = html;
+}
+
+function fmtLapTime(t) {
+    var m = Math.floor(t / 60);
+    var s = t % 60;
+    return m + ':' + s.toFixed(3).padStart(6, '0');
+}
+
+function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+}
+
+// ── Lazy-load driver table ─────────────────────────────────────
+var _driverDataLoaded = false;
+
+async function loadDriverTable() {
+    if (_driverDataLoaded) return;
+
+    const sessionId = {{ session.id }};
+    const loading = document.getElementById('driverTableLoading');
+    const table = document.getElementById('driverTable');
+    const tbody = document.getElementById('driverTableBody');
+
+    try {
+        const resp = await fetch('/api/sessions/' + sessionId + '/drivers');
+        const data = await resp.json();
+        _driverDataLoaded = true;
+
+        loading.style.display = 'none';
+        table.style.display = '';
+
+        var drivers = data.drivers;
+        var os1 = data.overall_s1;
+        var os2 = data.overall_s2;
+        var os3 = data.overall_s3;
+        var bestLap = drivers.length > 0 ? drivers[0].best_lap : null;
+
+        var html = '';
+        drivers.forEach(function(d, i) {
+            var gap = (d.best_lap && bestLap) ? d.best_lap - bestLap : null;
+            html += '<tr>'
+                + '<td class="sticky-col sticky-col-1"><strong>' + (i + 1) + '</strong></td>'
+                + '<td class="sticky-col sticky-col-2"><strong>' + esc(d.driver_name) + '</strong></td>'
+                + '<td>#' + d.car_number + '</td>'
+                + '<td>' + d.total_laps + '</td>'
+                + '<td class="best-lap">' + (d.best_lap ? fmtLapTime(d.best_lap) : '-') + '</td>'
+                + '<td class="' + (d.best_s1 === os1 ? 'bg-purple' : '') + '">' + (d.best_s1 ? d.best_s1.toFixed(3) : '-') + '</td>'
+                + '<td class="' + (d.best_s2 === os2 ? 'bg-purple' : '') + '">' + (d.best_s2 ? d.best_s2.toFixed(3) : '-') + '</td>'
+                + '<td class="' + (d.best_s3 === os3 ? 'bg-purple' : '') + '">' + (d.best_s3 ? d.best_s3.toFixed(3) : '-') + '</td>'
+                + '<td>' + (d.theoretical ? fmtLapTime(d.theoretical) : '-') + '</td>'
+                + '<td>' + (gap !== null ? (gap >= 0 ? '+' : '') + gap.toFixed(3) : '-') + '</td>'
+                + '</tr>';
+        });
+        tbody.innerHTML = html;
+    } catch (e) {
+        loading.innerHTML = '<span class="text-red-500">Failed to load driver data</span>';
+    }
+}
 
 // ── Classification class filter ─────────────────────────────────
 const classificationClassFilter = document.getElementById('classificationClassFilter');
