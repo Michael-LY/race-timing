@@ -83,6 +83,8 @@ def detect_in_laps(laps: list[dict]) -> None:
 
     A lap is flagged as in_lap if its lap_time exceeds 1.2x the median
     of clean laps (excluding the first lap which is a standing start).
+    The lap immediately following an in_lap is flagged as out_lap,
+    matching the pattern expected by the analytics API for pit stop detection.
     """
     car_groups: dict[str, list[dict]] = {}
     for l in laps:
@@ -97,9 +99,14 @@ def detect_in_laps(laps: list[dict]) -> None:
         if len(clean) < 2:
             continue
         median = clean[(len(clean) - 1) // 2]
-        for l in car_laps:
+        in_lap_indices: set[int] = set()
+        for i, l in enumerate(car_laps):
             if l["lap_number"] > 1 and l.get("lap_time") and l["lap_time"] > median * 1.2:
                 l["in_lap"] = True
+                in_lap_indices.add(i)
+        for i in in_lap_indices:
+            if i + 1 < len(car_laps):
+                car_laps[i + 1]["out_lap"] = True
 
 
 def apply_tlw(laps: list[dict], warnings: list[dict]) -> None:

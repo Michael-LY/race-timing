@@ -59,11 +59,13 @@ class DetectInLapsTestCase(unittest.TestCase):
             {"car_number": "50", "lap_number": 1, "lap_time": 140.0},
             {"car_number": "50", "lap_number": 2, "lap_time": 139.0},
             {"car_number": "50", "lap_number": 3, "lap_time": 170.0},
+            {"car_number": "50", "lap_number": 4, "lap_time": 138.0},
         ]
         detect_in_laps(laps)
         self.assertFalse(laps[0].get("in_lap"))
         self.assertFalse(laps[1].get("in_lap"))
         self.assertTrue(laps[2]["in_lap"])
+        self.assertTrue(laps[3]["out_lap"])
 
 
 class ApplyTlwTestCase(unittest.TestCase):

@@ -176,12 +176,13 @@ class SwissTimingInLapDetectionTestCase(unittest.TestCase):
         self.parser = SwissTimingParser()
 
     def test_slow_lap_marked_as_in_lap(self):
-        """Lap with time > 1.2x median is flagged as in_lap."""
+        """Lap with time > 1.2x median is flagged as in_lap, next lap as out_lap."""
         laps = [
             {"car_number": "50", "lap_number": 1, "lap_time": 140.0},
             {"car_number": "50", "lap_number": 2, "lap_time": 139.0},
             {"car_number": "50", "lap_number": 3, "lap_time": 138.0},
             {"car_number": "50", "lap_number": 4, "lap_time": 170.0},  # > 139 * 1.2 = 166.8
+            {"car_number": "50", "lap_number": 5, "lap_time": 137.0},
         ]
         self.parser._detect_in_laps(laps)
 
@@ -189,6 +190,7 @@ class SwissTimingInLapDetectionTestCase(unittest.TestCase):
         self.assertFalse(laps[1].get("in_lap"))
         self.assertFalse(laps[2].get("in_lap"))
         self.assertTrue(laps[3]["in_lap"])
+        self.assertTrue(laps[4]["out_lap"])
 
     def test_first_lap_never_in_lap(self):
         """First lap is never flagged as in_lap even if slow."""
@@ -218,15 +220,18 @@ class SwissTimingInLapDetectionTestCase(unittest.TestCase):
             {"car_number": "50", "lap_number": 1, "lap_time": 140.0},
             {"car_number": "50", "lap_number": 2, "lap_time": 139.0},
             {"car_number": "50", "lap_number": 3, "lap_time": 170.0},
+            {"car_number": "50", "lap_number": 4, "lap_time": 138.0},
             {"car_number": "60", "lap_number": 1, "lap_time": 140.0},
             {"car_number": "60", "lap_number": 2, "lap_time": 139.0},
         ]
         self.parser._detect_in_laps(laps)
 
         car50_lap3 = next(l for l in laps if l["car_number"] == "50" and l["lap_number"] == 3)
+        car50_lap4 = next(l for l in laps if l["car_number"] == "50" and l["lap_number"] == 4)
         car60_lap1 = next(l for l in laps if l["car_number"] == "60" and l["lap_number"] == 1)
         car60_lap2 = next(l for l in laps if l["car_number"] == "60" and l["lap_number"] == 2)
         self.assertTrue(car50_lap3.get("in_lap"))
+        self.assertTrue(car50_lap4.get("out_lap"))
         self.assertFalse(car60_lap1.get("in_lap"))
         self.assertFalse(car60_lap2.get("in_lap"))
 
