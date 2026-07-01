@@ -1007,24 +1007,34 @@ def session_delete(session_id):
 @bp.route("/sessions/<int:session_id>/refresh-flags", methods=["POST"])
 @admin_required
 def session_refresh_flags(session_id):
-    """Mark Lap 1 as out_lap for each car. Preserves existing flags."""
-    from parsers.detect_laps import detect_out_laps
+    """Re-detect out_lap (Lap 1) and in_lap (heuristic >1.2x median) from lap data."""
+    from parsers.detect_laps import detect_out_laps, detect_in_laps
 
     session = Session.query.get_or_404(session_id)
     laps = LapRecord.query.filter_by(session_id=session.id).all()
 
-    laps_dicts = [{"car_number": l.car_number, "lap_number": l.lap_number, "out_lap": l.out_lap} for l in laps]
+    laps_dicts = []
+    for l in laps:
+        laps_dicts.append({
+            "car_number": l.car_number,
+            "lap_number": l.lap_number,
+            "lap_time": l.lap_time,
+            "out_lap": False,
+            "in_lap": False,
+        })
 
     detect_out_laps(laps_dicts)
+    detect_in_laps(laps_dicts)
 
     for l in laps:
         d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
         l.out_lap = d["out_lap"]
+        l.in_lap = d["in_lap"]
 
     db.session.commit()
     _invalidate_analytics_cache(session_id)
 
-    flash(f"Marked Lap 1 as out lap for {session.name}", "success")
+    flash(f"Refreshed out/in lap flags for {session.name}", "success")
     return redirect(url_for("main.session_detail", session_id=session.id))
 
 
@@ -1960,6 +1970,8 @@ def api_session_analytics(session_id):
             next_lap = sorted_laps[i + 1]
             if curr.in_lap and next_lap.out_lap:
                 pit_time = _calculate_pit_stop_time(curr, next_lap)
+                if pit_time is None and next_lap.lap_time and next_lap.lap_time > 0:
+                    pit_time = next_lap.lap_time
                 pit_stops.append({
                     "car_number": car_num,
                     "driver_name": curr.driver_name or "",

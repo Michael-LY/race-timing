@@ -573,13 +573,13 @@ class SwissTimingParser(BaseParser):
         lap ON WHICH the car entered the pits. The following lap is the
         out-lap (after driving through the pit lane).
         """
-        # Build a set of (car_number, in_lap) for quick lookup
-        pit_in_laps: set[tuple[str, int]] = set()
+        # Build lookup: (car_number, in_lap) -> pitstop data
+        pit_map: dict[tuple[str, int], dict] = {}
         for p in pitstops:
             cn = p["car_number"]
             il = p["in_lap"]
             if cn and il is not None:
-                pit_in_laps.add((str(cn), int(il)))
+                pit_map[(str(cn), int(il))] = p
 
         # Group laps by car
         car_laps: dict[str, list[dict]] = {}
@@ -590,13 +590,21 @@ class SwissTimingParser(BaseParser):
             cl.sort(key=lambda x: x["lap_number"])
             for i, l in enumerate(cl):
                 lap_no = l["lap_number"]
-                # Mark in-lap
-                if (str(car_num), lap_no) in pit_in_laps:
+                key = (str(car_num), lap_no)
+                # Mark in-lap and propagate nett_time
+                if key in pit_map:
                     l["in_lap"] = True
-                # Mark out-lap = lap immediately after an in-lap
-                if i > 0:
-                    prev_lap = cl[i - 1]["lap_number"]
-                    if (str(car_num), prev_lap) in pit_in_laps:
+                    pit = pit_map[key]
+                    nett = pit.get("nett_time")
+                    if nett is not None:
+                        l["time_in_lap"] = 0.0
+                        if i + 1 < len(cl):
+                            cl[i + 1]["out_lap"] = True
+                            cl[i + 1]["time_out_lap"] = nett
+                # Legacy: mark out-lap from previous in-lap (covers data w/o nett_time)
+                if i > 0 and key not in pit_map:
+                    prev_key = (str(car_num), cl[i - 1]["lap_number"])
+                    if prev_key in pit_map:
                         l["out_lap"] = True
 
         self._assign_driver_names_by_stints(laps, pitstops)
