@@ -1770,11 +1770,28 @@ def api_session_drivers(session_id):
     overall_s2 = overall_best_s2_lap.sector_2 if overall_best_s2_lap else None
     overall_s3 = overall_best_s3_lap.sector_3 if overall_best_s3_lap else None
 
+    # Car colors for table row backgrounds
+    car_colors = {}
+    car_model_map = {}
+    for s in session.standings:
+        cn = str(s.car_number)
+        if s.car_model:
+            car_model_map[cn] = s.car_model
+        car_colors[cn] = s.model_color or ""
+    global_model_colors = {g.car_model: g.model_color for g in CarModelColor.query.all() if g.model_color}
+    for cn, cm in car_model_map.items():
+        if cm in global_model_colors:
+            car_colors[cn] = global_model_colors[cm]
+    for cn in car_model_map:
+        if not car_colors.get(cn):
+            car_colors[cn] = model_to_color(car_model_map.get(cn, ""))
+
     return jsonify({
         "drivers": drivers,
         "overall_s1": overall_s1,
         "overall_s2": overall_s2,
         "overall_s3": overall_s3,
+        "car_colors": car_colors,
     })
 
 

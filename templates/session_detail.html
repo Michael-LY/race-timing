@@ -601,9 +601,10 @@ async function loadDriverTable() {
         var bestLap = drivers.length > 0 ? drivers[0].best_lap : null;
 
         var html = '';
+        var carColors = data.car_colors || {};
         drivers.forEach(function(d, i) {
             var gap = (d.best_lap && bestLap) ? d.best_lap - bestLap : null;
-            html += '<tr>'
+            html += '<tr data-car-color="' + esc(carColors[d.car_number] || '') + '">'
                 + '<td class="sticky-col sticky-col-1"><strong>' + (i + 1) + '</strong></td>'
                 + '<td class="sticky-col sticky-col-2"><strong>' + esc(d.driver_name) + '</strong></td>'
                 + '<td>#' + d.car_number + '</td>'
