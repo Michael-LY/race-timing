@@ -783,17 +783,24 @@ function handleRowClick(row) {
     }
 }
 
-// Attach click handler to all colorable rows in all three tables
+// Attach click handler to colorable rows (inline tables)
 document.querySelectorAll(
     '#classificationCard tr[data-car-color], ' +
-    '#lapSummaryCard tr[data-car-color], ' +
-    '#driverCard tr[data-car-color]'
+    '#lapSummaryCard tr[data-car-color]'
 ).forEach(function(row) {
     row.addEventListener('click', function(e) {
         // Skip if clicking interactive elements
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
         handleRowClick(this);
     });
+});
+
+// Event delegation for AJAX-loaded driver rows
+document.getElementById('driverCard').addEventListener('click', function(e) {
+    var row = e.target.closest('tr[data-car-color]');
+    if (!row) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+    handleRowClick(row);
 });
 
 document.querySelectorAll('.car-color-toggle').forEach(function(btn) {
