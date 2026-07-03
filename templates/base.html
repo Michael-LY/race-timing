@@ -104,9 +104,12 @@
             <span class="nav-user flex items-center gap-1">
                 <i data-lucide="user" class="w-4 h-4"></i> {{ current_user.username }}
             </span>
-            <a class="nav-link flex items-center gap-1" href="{{ url_for('main.logout') }}">
-                <i data-lucide="log-out" class="w-4 h-4"></i> Logout
-            </a>
+            <form action="{{ url_for('main.logout') }}" method="POST" class="inline">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="nav-link flex items-center gap-1 cursor-pointer">
+                    <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+                </button>
+            </form>
             {% else %}
             <button id="themeToggle" onclick="toggleTheme()"
                 class="p-1.5 rounded hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
@@ -165,10 +168,13 @@
         </a>
         {% endif %}
         {% if current_user %}
-        <a href="{{ url_for('main.logout') }}" class="bottom-nav-item">
-            <i data-lucide="log-out" class="w-5 h-5"></i>
-            <span>Logout</span>
-        </a>
+        <form action="{{ url_for('main.logout') }}" method="POST" class="bottom-nav-item">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="flex flex-col items-center gap-1 cursor-pointer">
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+                <span>Logout</span>
+            </button>
+        </form>
         {% else %}
         <a href="{{ url_for('main.login') }}" class="bottom-nav-item {% if request.endpoint == 'main.login' %}active{% endif %}">
             <i data-lucide="log-in" class="w-5 h-5"></i>

@@ -9,7 +9,7 @@ from flask import (Blueprint, render_template, request, redirect, url_for,
 from werkzeug.utils import secure_filename
 from models import db, Event, Session, LapRecord, Standing, TimeKeeper, User, CarConfig, CarModelColor
 from parsers import get_parser, list_parsers
-from datetime import datetime
+from datetime import datetime, timezone
 
 # 主蓝图
 bp = Blueprint("main", __name__)
@@ -50,6 +50,7 @@ def model_to_color(model: str) -> str:
 
 def _get_analytics_cache(session_id: int) -> dict | None:
     """获取分析缓存，已过期则返回 None"""
+    if session_id in _analytics_cache:
         ts, data = _analytics_cache[session_id]
         if time.time() - ts < _ANALYTICS_CACHE_TTL:
             return data
@@ -186,7 +187,7 @@ def login():
     return render_template("login.html")
 
 
-@bp.route("/logout")
+@bp.route("/logout", methods=["POST"])
 def logout():
     """注销当前用户"""
     flask_session.pop("user_id", None)
@@ -598,7 +599,7 @@ def upload(event_id):
                 return redirect(url_for("main.upload", event_id=event_id))
 
         # Save files
-        ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
 
         def save_file(uploaded_file, prefix):
             if uploaded_file and uploaded_file.filename:
@@ -642,7 +643,7 @@ def upload(event_id):
             event_id=event.id,
             name=custom_name if custom_name else data.get("session_name", "Untitled"),
             session_type=custom_type if custom_type else data.get("session_type", "Practice"),
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             sort_order=max_sort_order + 1,
         )
         db.session.add(session)
@@ -1044,7 +1045,7 @@ def session_refresh_flags(session_id):
     detect_in_laps(laps_dicts)
 
     for l in laps:
-        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        d = next((d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number), None)
         l.out_lap = d["out_lap"]
         l.in_lap = d["in_lap"]
 
@@ -1101,7 +1102,7 @@ def session_upload_tlw(session_id):
 
         # Write back track_limit
         for l in laps:
-            d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+            d = next((d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number), None)
             l.track_limit = d.get("track_limit", False)
 
         # Re-compute is_best
@@ -1113,7 +1114,7 @@ def session_upload_tlw(session_id):
                     best_times[key] = d["lap_time"]
 
         for l in laps:
-            d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+            d = next((d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number), None)
             is_best = False
             if l.lap_time and l.lap_time > 0 and not d.get("out_lap") and not d.get("in_lap") and not l.track_limit:
                 key = l.car_number
@@ -1172,7 +1173,7 @@ def session_reupload(session_id):
             return redirect(url_for("main.session_reupload", session_id=session.id))
 
         # Save uploaded file
-        ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         filename = secure_filename(csv_file.filename)
         upload_folder = current_app.config["UPLOAD_FOLDER"]
         filepath = os.path.join(upload_folder, f"{ts}_reupload_{file_type}_{filename}")
@@ -1356,7 +1357,7 @@ def _reupload_pitstops(session, parser, filepath):
 
     # Write back
     for l in laps:
-        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        d = next((d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number), None)
         l.out_lap = d["out_lap"]
         l.in_lap = d["in_lap"]
 
@@ -1369,7 +1370,7 @@ def _reupload_pitstops(session, parser, filepath):
                 best_times[key] = d["lap_time"]
 
     for l in laps:
-        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        d = next((d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number), None)
         is_best = False
         if l.lap_time and l.lap_time > 0 and not d.get("out_lap") and not d.get("in_lap") and not l.track_limit:
             key = l.car_number
@@ -1405,7 +1406,7 @@ def _reupload_tlw(session, filepath):
     apply_tlw(laps_dicts, warnings)
 
     for l in laps:
-        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        d = next((d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number), None)
         l.track_limit = d.get("track_limit", False)
 
     # Re-compute is_best
@@ -1417,7 +1418,7 @@ def _reupload_tlw(session, filepath):
                 best_times[key] = d["lap_time"]
 
     for l in laps:
-        d = next(d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number)
+        d = next((d for d in laps_dicts if d["car_number"] == l.car_number and d["lap_number"] == l.lap_number), None)
         is_best = False
         if l.lap_time and l.lap_time > 0 and not d.get("out_lap") and not d.get("in_lap") and not l.track_limit:
             key = l.car_number
