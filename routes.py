@@ -1,3 +1,5 @@
+"""赛道计时应用 - 路由和视图函数"""
+
 import os
 import time
 from functools import wraps
@@ -9,17 +11,19 @@ from models import db, Event, Session, LapRecord, Standing, TimeKeeper, User, Ca
 from parsers import get_parser, list_parsers
 from datetime import datetime
 
+# 主蓝图
 bp = Blueprint("main", __name__)
 
+# 允许上传的文件扩展名
 ALLOWED_EXTENSIONS = {"csv", "txt"}
 
-# Simple in-memory cache for analytics API
-# Key: session_id, Value: (timestamp, data)
+# 分析 API 的简单内存缓存
+# Key: session_id, Value: (时间戳, 数据)
 _analytics_cache: dict[int, tuple[float, dict]] = {}
-_ANALYTICS_CACHE_TTL = 300  # 5 minutes
-_ANALYTICS_CACHE_MAX = 50
+_ANALYTICS_CACHE_TTL = 300  # 5 分钟过期
+_ANALYTICS_CACHE_MAX = 50   # 最多缓存 50 个 session
 
-# Chart color palette (must match static/js/charts.js COLORS array order)
+# 图表调色板（必须与 static/js/charts.js 的 COLORS 数组顺序一致）
 CHART_COLORS = [
     '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
     '#f97316', '#6366f1', '#14b8a6', '#e11d48', '#a855f7', '#0891b2',
@@ -29,7 +33,7 @@ CHART_COLORS = [
 
 
 def model_to_color(model: str) -> str:
-    """Hash a car model name into a chart color (replicates JS getModelColor)."""
+    """将车型名称哈希为图表颜色（与 JS 中的 getModelColor 逻辑一致）"""
     if not model:
         return "#64748b"
     h = 0
@@ -45,7 +49,7 @@ def model_to_color(model: str) -> str:
 
 
 def _get_analytics_cache(session_id: int) -> dict | None:
-    if session_id in _analytics_cache:
+    """获取分析缓存，已过期则返回 None"""
         ts, data = _analytics_cache[session_id]
         if time.time() - ts < _ANALYTICS_CACHE_TTL:
             return data
@@ -54,6 +58,7 @@ def _get_analytics_cache(session_id: int) -> dict | None:
 
 
 def _set_analytics_cache(session_id: int, data: dict) -> None:
+    """设置分析缓存，超出上限时淘汰最旧的"""
     if len(_analytics_cache) >= _ANALYTICS_CACHE_MAX:
         oldest_key = min(_analytics_cache, key=lambda k: _analytics_cache[k][0])
         del _analytics_cache[oldest_key]
@@ -61,14 +66,17 @@ def _set_analytics_cache(session_id: int, data: dict) -> None:
 
 
 def _invalidate_analytics_cache(session_id: int) -> None:
+    """使指定 session 的分析缓存失效"""
     _analytics_cache.pop(session_id, None)
 
 
 def _invalidate_all_analytics_caches() -> None:
+    """清空所有分析缓存"""
     _analytics_cache.clear()
 
 
 def _coerce_position(position):
+    """安全地将位置值转换为整数"""
     try:
         return int(position)
     except (TypeError, ValueError):
@@ -76,6 +84,7 @@ def _coerce_position(position):
 
 
 def get_classification_filter_options(standings):
+    """从成绩数据中提取所有组别名称用于筛选"""
     class_names = []
     seen = set()
     for standing in standings:
@@ -99,6 +108,7 @@ def get_classification_filter_options(standings):
 
 
 def sort_standings_for_display(standings):
+    """对成绩进行显示排序：已完赛按名次排列，未完赛按圈数排列"""
     classified = []
     nc = []
     for standing in standings:
@@ -122,10 +132,10 @@ def sort_standings_for_display(standings):
 
 
 # ---------------------------------------------------------------------------
-# Auth decorators
+# 认证装饰器
 # ---------------------------------------------------------------------------
 def login_required(f):
-    """Redirect to login page if user is not authenticated."""
+    """未登录时重定向到登录页面"""
     @wraps(f)
     def decorated(*args, **kwargs):
         if not flask_session.get("user_id"):
@@ -136,7 +146,7 @@ def login_required(f):
 
 
 def admin_required(f):
-    """Return 403 if user is not an admin."""
+    """非管理员返回 403"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = flask_session.get("user_id")
@@ -152,10 +162,11 @@ def admin_required(f):
 
 
 # ---------------------------------------------------------------------------
-# Auth routes
+# 认证相关路由
 # ---------------------------------------------------------------------------
 @bp.route("/login", methods=["GET", "POST"])
 def login():
+    """登录页面"""
     if flask_session.get("user_id"):
         return redirect(url_for("main.index"))
 
@@ -177,6 +188,7 @@ def login():
 
 @bp.route("/logout")
 def logout():
+    """注销当前用户"""
     flask_session.pop("user_id", None)
     flash("Logged out", "success")
     return redirect(url_for("main.index"))
@@ -186,6 +198,7 @@ def logout():
 @login_required
 @admin_required
 def register():
+    """注册新用户（仅管理员）"""
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
@@ -212,13 +225,13 @@ def register():
 
 
 # ---------------------------------------------------------------------------
-# User management (admin)
+# 用户管理（管理员）
 # ---------------------------------------------------------------------------
 @bp.route("/users")
 @login_required
 @admin_required
 def user_list():
-    """List all users."""
+    """列出所有用户"""
     users = User.query.order_by(User.created_at).all()
     return render_template("users.html", users=users)
 
@@ -227,7 +240,7 @@ def user_list():
 @login_required
 @admin_required
 def user_edit(user_id):
-    """Edit username and admin flag."""
+    """编辑用户名和管理员权限"""
     user = User.query.get_or_404(user_id)
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -250,8 +263,7 @@ def user_edit(user_id):
 @bp.route("/users/<int:user_id>/password", methods=["GET", "POST"])
 @login_required
 def user_password(user_id):
-    """Change password. Admins can change any user's password; regular users
-    can only change their own."""
+    """修改用户密码。管理员可改任意用户密码，普通用户只能改自己的"""
     user = User.query.get_or_404(user_id)
     current_user_id = flask_session.get("user_id")
     current_user_obj = db.session.get(User, current_user_id) if current_user_id else None
@@ -284,7 +296,7 @@ def user_password(user_id):
 @login_required
 @admin_required
 def user_delete(user_id):
-    """Delete a user. Cannot delete yourself."""
+    """删除用户（不能删除自己）"""
     user = User.query.get_or_404(user_id)
     current_user_id = flask_session.get("user_id")
 
@@ -300,12 +312,12 @@ def user_delete(user_id):
 
 
 # ---------------------------------------------------------------------------
-# Global Car Model Colors (admin)
+# 全局车型颜色（管理员）
 # ---------------------------------------------------------------------------
 @bp.route("/car-model-colors", methods=["GET", "POST"])
 @admin_required
 def car_model_colors():
-    """Global admin page to set colors for car models (affects all events)."""
+    """管理全局车型颜色配置"""
     # Collect all known car models from the database
     known_models: set[str] = set()
     for row in Standing.query.with_entities(Standing.car_model).distinct():
@@ -353,11 +365,12 @@ def car_model_colors():
 
 
 def allowed_file(filename):
+    """检查文件扩展名是否允许上传"""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 # ---------------------------------------------------------------------------
-# Home
+# 首页
 # ---------------------------------------------------------------------------
 @bp.route("/")
 def index():
@@ -400,11 +413,12 @@ def index():
 
 
 # ---------------------------------------------------------------------------
-# Create event
+# 创建赛事
 # ---------------------------------------------------------------------------
 @bp.route("/events/new", methods=["GET", "POST"])
 @admin_required
 def event_create():
+    """创建新赛事"""
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         track = request.form.get("track", "").strip()
@@ -437,10 +451,11 @@ def event_create():
 
 
 # ---------------------------------------------------------------------------
-# Event detail
+# 赛事详情
 # ---------------------------------------------------------------------------
 @bp.route("/events/<int:event_id>")
 def event_detail(event_id):
+    """查看赛事详情"""
     event = Event.query.get_or_404(event_id)
     if event.is_hidden:
         user_id = flask_session.get("user_id")
@@ -454,6 +469,7 @@ def event_detail(event_id):
 @bp.route("/events/<int:event_id>/sessions/reorder", methods=["POST"])
 @admin_required
 def reorder_event_sessions(event_id):
+    """调整阶段排序"""
     event = Event.query.get_or_404(event_id)
     raw_ids = request.form.getlist("session_ids")
     session_ids = []
@@ -482,11 +498,12 @@ def reorder_event_sessions(event_id):
 
 
 # ---------------------------------------------------------------------------
-# Delete event
+# 删除赛事
 # ---------------------------------------------------------------------------
 @bp.route("/events/<int:event_id>/delete", methods=["POST"])
 @admin_required
 def event_delete(event_id):
+    """删除赛事"""
     event = Event.query.get_or_404(event_id)
     name = event.name
     db.session.delete(event)
@@ -496,11 +513,12 @@ def event_delete(event_id):
 
 
 # ---------------------------------------------------------------------------
-# Edit event
+# 编辑赛事
 # ---------------------------------------------------------------------------
 @bp.route("/events/<int:event_id>/edit", methods=["GET", "POST"])
 @admin_required
 def event_edit(event_id):
+    """编辑赛事信息"""
     event = Event.query.get_or_404(event_id)
 
     if request.method == "POST":
@@ -541,11 +559,12 @@ def event_edit(event_id):
 
 
 # ---------------------------------------------------------------------------
-# Upload CSV(s)
+# 上传 CSV 文件
 # ---------------------------------------------------------------------------
 @bp.route("/events/<int:event_id>/upload", methods=["GET", "POST"])
 @admin_required
 def upload(event_id):
+    """上传并解析 CSV 文件"""
     event = Event.query.get_or_404(event_id)
     parsers = list_parsers()
     selected_parser = request.form.get(
@@ -752,10 +771,10 @@ def upload(event_id):
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# 辅助函数
 # ---------------------------------------------------------------------------
 def _calculate_pit_stop_time(in_lap, out_lap):
-    """Calculate pit-stop duration from TSL timing timestamps when available."""
+    """从 TSL 时间戳计算进站耗时"""
     in_time = getattr(in_lap, "time_in_lap", None)
     out_time = getattr(out_lap, "time_out_lap", None)
 
@@ -769,12 +788,7 @@ def _calculate_pit_stop_time(in_lap, out_lap):
 
 
 def _best_sectors(valid_laps):
-    """Compute best S1/S2/S3 and best lap from a list of valid laps.
-
-    Out laps are excluded from S1 best and fastest lap.
-    In laps are excluded from S3 best and fastest lap.
-    Returns (best_lap, best_s1_lap, best_s2_lap, best_s3_lap) or None for each.
-    """
+    """计算最佳 S1/S2/S3 和最佳圈速（出站圈不计入 S1，进站圈不计入 S3）"""
     clean = [l for l in valid_laps if not l.out_lap and not l.in_lap]
     best_lap = min(clean, key=lambda l: l.lap_time) if clean else None
     best_s1_lap = min((l for l in valid_laps if l.sector_1 and l.sector_1 > 0 and not l.out_lap), key=lambda l: l.sector_1, default=None)
@@ -784,7 +798,7 @@ def _best_sectors(valid_laps):
 
 
 def _compute_session_stats(laps: list[LapRecord]):
-    """Compute overall and per-car bests across all sectors."""
+    """计算全局及每车的最佳圈速和分段时间"""
     valid = [l for l in laps if l.lap_time and l.lap_time > 0 and not l.track_limit]
 
     best_lap, best_s1_lap, best_s2_lap, best_s3_lap = _best_sectors(valid)
@@ -848,10 +862,10 @@ def _compute_session_stats(laps: list[LapRecord]):
 
 
 # ---------------------------------------------------------------------------
-# Driver analysis helper
+# 车手分析辅助
 # ---------------------------------------------------------------------------
 def _compute_driver_analysis(laps):
-    """Compute per-driver stats and overall sector bests from a list of laps."""
+    """计算各车手的统计数据和整体最佳分段"""
     driver_groups: dict[str, list[LapRecord]] = {}
     for l in laps:
         name = l.driver_name.strip() if l.driver_name else "Unknown"
@@ -887,10 +901,11 @@ def _compute_driver_analysis(laps):
 
 
 # ---------------------------------------------------------------------------
-# Session detail
+# 阶段详情
 # ---------------------------------------------------------------------------
 @bp.route("/sessions/<int:session_id>")
 def session_detail(session_id):
+    """查看阶段详情（圈速表、图表等）"""
     session = Session.query.get_or_404(session_id)
     standings = sort_standings_for_display(session.standings)
     class_options = get_classification_filter_options(standings)
@@ -971,10 +986,11 @@ def session_detail(session_id):
 
 
 # ---------------------------------------------------------------------------
-# Driver Analysis
+# 车手分析
 # ---------------------------------------------------------------------------
 @bp.route("/sessions/<int:session_id>/drivers")
 def driver_analysis(session_id):
+    """车手分析页面"""
     session = Session.query.get_or_404(session_id)
     laps = session.laps
 
@@ -989,11 +1005,12 @@ def driver_analysis(session_id):
 
 
 # ---------------------------------------------------------------------------
-# Delete session
+# 删除阶段
 # ---------------------------------------------------------------------------
 @bp.route("/sessions/<int:session_id>/delete", methods=["POST"])
 @admin_required
 def session_delete(session_id):
+    """删除阶段"""
     session = Session.query.get_or_404(session_id)
     event_id = session.event_id
     name = session.name
@@ -1007,7 +1024,7 @@ def session_delete(session_id):
 @bp.route("/sessions/<int:session_id>/refresh-flags", methods=["POST"])
 @admin_required
 def session_refresh_flags(session_id):
-    """Re-detect out_lap (Lap 1) and in_lap (heuristic >1.2x median) from lap data."""
+    """从圈速数据重新检测出站圈（第 1 圈）和进站圈（>1.2 倍中位数的启发式算法）"""
     from parsers.detect_laps import detect_out_laps, detect_in_laps
 
     session = Session.query.get_or_404(session_id)
@@ -1041,7 +1058,7 @@ def session_refresh_flags(session_id):
 @bp.route("/sessions/<int:session_id>/upload-tlw", methods=["GET", "POST"])
 @admin_required
 def session_upload_tlw(session_id):
-    """Upload TLW file for an existing session to add track_limit data."""
+    """上传赛道限制警告文件以标记违规圈速"""
     from parsers.detect_laps import parse_tlw_file, apply_tlw
     from werkzeug.utils import secure_filename
 
@@ -1117,7 +1134,7 @@ def session_upload_tlw(session_id):
 @bp.route("/sessions/<int:session_id>/reupload", methods=["GET", "POST"])
 @admin_required
 def session_reupload(session_id):
-    """Re-upload a CSV file to update existing session data."""
+    """重新上传 CSV 更新已有数据"""
     from werkzeug.utils import secure_filename
     from parsers import get_parser
 
@@ -1193,7 +1210,7 @@ def session_reupload(session_id):
 
 
 def _reupload_sector(session, parser, parser_key, filepath):
-    """Re-upload sector CSV: replace all lap records."""
+    """重新上传 Sector CSV：替换所有圈速记录"""
     data = parser.parse(sector_path=filepath)
     laps_data = data.get("laps", [])
 
@@ -1259,7 +1276,7 @@ def _reupload_sector(session, parser, parser_key, filepath):
 
 
 def _reupload_classification(session, parser, parser_key, filepath):
-    """Re-upload classification CSV: replace all standings."""
+    """重新上传 Classification CSV：替换所有成绩记录"""
     if parser_key == "swiss_timing":
         data = parser.parse(sector_path=None, classification_path=filepath)
     else:
@@ -1316,7 +1333,7 @@ def _reupload_classification(session, parser, parser_key, filepath):
 
 
 def _reupload_pitstops(session, parser, filepath):
-    """Re-upload pitstops CSV: update in_lap/out_lap flags on existing laps."""
+    """重新上传进站 CSV：更新 in_lap/out_lap 标记"""
     pitstops = parser._parse_pitstops(filepath)
     laps = LapRecord.query.filter_by(session_id=session.id).all()
 
@@ -1364,7 +1381,7 @@ def _reupload_pitstops(session, parser, filepath):
 
 
 def _reupload_tlw(session, filepath):
-    """Re-upload TLW CSV: update track_limit flags on existing laps."""
+    """重新上传 TLW CSV：更新 track_limit 标记"""
     from parsers.detect_laps import parse_tlw_file, apply_tlw
 
     warnings = parse_tlw_file(filepath)
@@ -1412,16 +1429,16 @@ def _reupload_tlw(session, filepath):
 
 
 # ---------------------------------------------------------------------------
-# Event-level car configuration editor
+# 车辆配置编辑器
 # ---------------------------------------------------------------------------
 @bp.route("/events/<int:event_id>/car-config", methods=["GET", "POST"])
 @admin_required
 def event_car_config(event_id):
-    """Admin page to configure car-level settings (model, color, team, class) per event."""
+    """配置每辆车的显示设置"""
     from sqlalchemy import distinct
 
     def _car_chart_color(car_number: str, series_color: str) -> str:
-        """Replicate charts.js getCarColor logic for fallback display."""
+        """复制 charts.js 中 getCarColor 的逻辑作为备用显示"""
         if series_color and len(series_color) == 7 and series_color.startswith("#"):
             return series_color
         try:
@@ -1563,15 +1580,12 @@ def event_car_config(event_id):
 
 
 # ---------------------------------------------------------------------------
-# API — batch update car models
+# API — 批量更新车型
 # ---------------------------------------------------------------------------
 @bp.route("/api/sessions/<int:session_id>/car-models", methods=["POST"])
 @admin_required
 def api_update_car_models(session_id):
-    """Batch update car models for a session.
-    JSON body: { "models": { "car_number": "model_name", ... } }
-    Updates both Standing and LapRecord.
-    """
+    """批量更新车型名称的 API（JSON 请求体：{"models": {"车号": "车型", ...}}）"""
     session = Session.query.get_or_404(session_id)
     data = request.get_json(silent=True)
     if not data or "models" not in data:
@@ -1590,7 +1604,7 @@ def api_update_car_models(session_id):
 
 
 # ---------------------------------------------------------------------------
-# Edit session
+# 编辑阶段
 # ---------------------------------------------------------------------------
 SESSION_TYPES = ["Paid-Test", "Practice", "Bronze-Session", "Pre-Qualifying", "Qualifying", "Warm-up", "Race"]
 SESSION_TYPE_ALIASES = {
@@ -1608,6 +1622,7 @@ def normalize_session_type(session_type: str | None) -> str | None:
 @bp.route("/sessions/<int:session_id>/edit", methods=["GET", "POST"])
 @admin_required
 def session_edit(session_id):
+    """编辑阶段名称和类型"""
     session = Session.query.get_or_404(session_id)
 
     if request.method == "POST":
@@ -1631,12 +1646,12 @@ def session_edit(session_id):
 
 
 # ---------------------------------------------------------------------------
-# API — lazy-loaded table data
+# API — 懒加载表格数据
 # ---------------------------------------------------------------------------
 
 @bp.route("/api/sessions/<int:session_id>/laps")
 def api_session_laps(session_id):
-    """Return lap data for lazy-loading the lap-by-lap table."""
+    """返回圈速数据用于懒加载圈速表"""
     session = Session.query.get_or_404(session_id)
     laps = session.laps
 
@@ -1739,7 +1754,7 @@ def api_session_laps(session_id):
 
 @bp.route("/api/sessions/<int:session_id>/drivers")
 def api_session_drivers(session_id):
-    """Return driver analysis data for lazy-loading the drivers table."""
+    """返回车手分析数据用于懒加载车手表"""
     session = Session.query.get_or_404(session_id)
     laps = session.laps
 
@@ -1806,14 +1821,15 @@ def api_session_drivers(session_id):
 
 
 # ---------------------------------------------------------------------------
-# API — analytics data for charts
+# API — 图表分析数据
 # ---------------------------------------------------------------------------
-# Safety car lap detection threshold: lap_time > median_clean * SC_THRESHOLD → flagged as SC
+# 安全车圈速检测阈值：lap_time > median_clean * SC_THRESHOLD 时标记为 SC 圈
 SC_THRESHOLD = 1.35
 
 
 @bp.route("/api/sessions/<int:session_id>/analytics")
 def api_session_analytics(session_id):
+    """返回图表分析数据"""
     cached = _get_analytics_cache(session_id)
     if cached is not None:
         return jsonify(cached)

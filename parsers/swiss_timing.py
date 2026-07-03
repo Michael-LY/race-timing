@@ -1,8 +1,9 @@
-"""Swiss Timing parser — handles SectorListCSV + optional ResultListCSV, PitStopsCsv,
-TLWlistMessage, and MessageListCSV.
+"""赛道计时应用 - Swiss Timing CSV 解析器
 
-Swiss Timing CSV files use semicolon (;) delimiters and typically use Latin-1
-encoding (Sector/Result/PitStops) or UTF-8 (TLW/Message).
+处理 SectorListCSV + 可选 ResultListCSV, PitStopsCsv, TLWlistMessage, MessageListCSV。
+
+Swiss Timing CSV 使用分号 (;) 分隔，数据文件通常使用 Latin-1 编码，
+消息文件使用 UTF-8 编码。
 """
 
 import csv
@@ -16,37 +17,38 @@ from .base import BaseParser
 
 
 class SwissTimingParser(BaseParser):
-    """Parses Swiss Timing CSV exports.
+    """解析 Swiss Timing 的 CSV 导出文件
 
-    Five file types (only SectorListCSV is required):
+    五种文件类型（仅 SectorListCSV 为必需）：
 
-      SectorListCSV (required):
+      SectorListCSV（必需）：
           Bib;Class;Driver1;...;Car;Lap;Time;Sector1Time;SpeedTrap1;
           Sector2Time;SpeedTrap2;Sector3Time;SpeedTrap3;TopSpeed
-          Note: headers repeat periodically; parser automatically filters them.
+          注意：标题行每 ~12 圈重复一次，解析器会自动过滤。
 
-      ResultListCSV (optional):
+      ResultListCSV（可选）：
           Rank;Bib;ClassName;Driver1;...;CarName;TeamName;...;
           TotalTime;LapCount;GapTime;GapLap;BestLapAverageSpeed;
           BestLapTime;BestLapLapNumber;State
 
-      PitStopsCsv (optional):
+      PitStopsCsv（可选）：
           Nr;Driver in;Day time in;Time in;Driver out;Day time out;
           Time out;Nett Time;Reason;Lap In
 
-      TLWlistMessage (optional):
+      TLWlistMessage（可选）：
           Bib;Date & Time;Race time;TL at Turn;Message
 
-      MessageListCSV (optional):
+      MessageListCSV（可选）：
           TIME;RACE TIME;MESSAGE
     """
 
     name = "Swiss Timing"
     description = (
-        "Swiss Timing — SectorListCSV (required) + optional ResultListCSV, "
+        "Swiss Timing — SectorListCSV（必需）+ 可选 ResultListCSV, "
         "PitStopsCsv, TLWlistMessage, MessageListCSV"
     )
 
+    # 阶段类型关键词检测规则
     SESSION_TYPE_KEYWORDS = {
         "Practice": ["practice", "free practice", "fp", "p "],
         "Qualifying": ["qualifying", "qual", "q ", "qualification"],
@@ -60,15 +62,15 @@ class SwissTimingParser(BaseParser):
         "Warm-up": ["warm-up", "warmup", "warm_up"],
     }
 
-    # ── time parsing ──────────────────────────────────────────────────────
+    # ── 时间解析 ───────────────────────────────────────────────────────────
 
     @staticmethod
     def _to_seconds(val: str) -> float | None:
-        """Parse Swiss Timing time formats: M:SS.fff or H:MM:SS.fff or SS.f"""
+        """解析 Swiss Timing 时间格式：M:SS.fff 或 H:MM:SS.fff 或 SS.f"""
         if not val or not val.strip():
             return None
         val = val.strip()
-        # H:MM:SS.fff (e.g. "3:01:03.675")
+        # H:MM:SS.fff（如 "3:01:03.675"）
         m = re.fullmatch(r"(\d+):(\d{2}):(\d{2})\.(\d+)", val)
         if m:
             return (
@@ -77,7 +79,7 @@ class SwissTimingParser(BaseParser):
                 + int(m.group(3))
                 + int(m.group(4)) / 1000
             )
-        # M:SS.fff (e.g. "1:47.306")
+        # M:SS.fff（如 "1:47.306"）
         m = re.fullmatch(r"(\d+):(\d{2})\.(\d+)", val)
         if m:
             return int(m.group(1)) * 60 + int(m.group(2)) + int(m.group(3)) / 1000
@@ -89,7 +91,7 @@ class SwissTimingParser(BaseParser):
 
     @staticmethod
     def _parse_speed(val: str) -> float | None:
-        """Parse speed value (integer km/h)."""
+        """解析速度值（整数 km/h）"""
         if not val or not val.strip():
             return None
         try:
@@ -99,8 +101,7 @@ class SwissTimingParser(BaseParser):
 
     @staticmethod
     def _detect_encoding(filepath: str) -> str:
-        """Detect file encoding. Swiss Timing uses Latin-1 for data files,
-        UTF-8-sig for message files. Try UTF-8-sig first, fall back to Latin-1."""
+        """检测文件编码：Swiss Timing 数据文件使用 Latin-1，消息文件使用 UTF-8-sig"""
         encodings = ["utf-8-sig", "latin-1"]
         for enc in encodings:
             try:
@@ -111,9 +112,10 @@ class SwissTimingParser(BaseParser):
                 continue
         return "latin-1"
 
-    # ── session-type detection ────────────────────────────────────────────
+    # ── 阶段类型检测 ───────────────────────────────────────────────────────
 
     def _detect_session_type(self, filepath: str) -> str:
+        """从文件名关键词检测阶段类型"""
         name = os.path.basename(filepath).lower()
         for stype, keywords in self.SESSION_TYPE_KEYWORDS.items():
             for kw in keywords:
@@ -121,35 +123,30 @@ class SwissTimingParser(BaseParser):
                     return stype
         return "Practice"
 
-    # ── detect ────────────────────────────────────────────────────────────
+    # ── 格式检测 ───────────────────────────────────────────────────────────
 
     def detect(self, filepath: str) -> bool:
-        """Return True if this looks like a Swiss Timing CSV."""
+        """检测 CSV 是否匹配 Swiss Timing 格式"""
         try:
             enc = self._detect_encoding(filepath)
             with open(filepath, newline="", encoding=enc) as f:
                 content = f.read(2048)
-            # Swiss Timing uses semicolon delimiters and distinctive headers
             if ";" not in content:
                 return False
             lower = content.lower()
-            # SectorListCSV markers
             if "bib" in lower and "sector1time" in lower:
                 return True
-            # ResultListCSV markers
             if "rank" in lower and "bib" in lower and "bestlaptime" in lower:
                 return True
-            # PitStopsCsv markers
             if "driver in" in lower and "nett time" in lower:
                 return True
-            # TLWlistMessage markers
             if "tl at turn" in lower:
                 return True
             return False
         except Exception:
             return False
 
-    # ── parse ─────────────────────────────────────────────────────────────
+    # ── 主解析入口 ─────────────────────────────────────────────────────────
 
     def parse(
         self,
@@ -159,16 +156,16 @@ class SwissTimingParser(BaseParser):
         tlw_path: str = None,
         messages_path: str = None,
     ) -> dict[str, Any]:
-        """Parse Swiss Timing CSV files.
+        """解析 Swiss Timing CSV 文件
 
-        Args:
-            sector_path: Path to SectorListCSV (required)
-            classification_path: Path to ResultListCSV (optional)
-            pitstops_path: Path to PitStopsCsv (optional)
-            tlw_path: Path to TLWlistMessage (optional)
-            messages_path: Path to MessageListCSV (optional)
+        参数：
+            sector_path: SectorListCSV 路径（必需）
+            classification_path: ResultListCSV 路径（可选）
+            pitstops_path: PitStopsCsv 路径（可选）
+            tlw_path: TLWlistMessage 路径（可选）
+            messages_path: MessageListCSV 路径（可选）
 
-        Returns dict with keys: session_name, session_type, laps, standings
+        返回包含 session_name, session_type, laps, standings 的字典
         """
         result: dict[str, Any] = {
             "session_name": "",
@@ -177,50 +174,48 @@ class SwissTimingParser(BaseParser):
             "standings": [],
         }
 
-        # 1. Parse SectorListCSV (required — core lap data)
+        # 1. 解析 SectorListCSV（必需——核心圈速数据）
         if sector_path:
             laps, sec_name, sec_type = self._parse_sector(sector_path)
             result["laps"] = laps
             result["session_name"] = sec_name or result["session_name"]
             result["session_type"] = sec_type or result["session_type"]
         else:
-            raise ValueError("SectorListCSV is required for Swiss Timing parser")
+            raise ValueError("Swiss Timing 解析器需要 SectorListCSV 文件")
 
-        # 2. Parse ResultListCSV (optional — classification)
+        # 2. 解析 ResultListCSV（可选——成绩分类）
         if classification_path:
-            standings, cls_name, cls_type = self._parse_result_list(
-                classification_path
-            )
+            standings, cls_name, cls_type = self._parse_result_list(classification_path)
             result["standings"] = standings
             if cls_name:
                 result["session_name"] = cls_name
             if cls_type:
                 result["session_type"] = cls_type
 
-        # 3. Parse PitStopsCsv (optional — enrich lap pit markers)
+        # 3. 解析 PitStopsCsv（可选——进站标记）
         if pitstops_path:
             pit_laps = self._parse_pitstops(pitstops_path)
             self._apply_pitstops(result["laps"], pit_laps)
         else:
-            # No PitStopsCsv: detect in laps heuristically from sector data
+            # 无 PitStopsCsv：从扇区数据启发式检测进站圈
             self._detect_in_laps(result["laps"])
 
-        # 4. Parse TLWlistMessage (optional — track limit warnings)
+        # 4. 解析 TLWlistMessage（可选——赛道限制警告）
         if tlw_path:
             tlw_warnings = self._parse_tlw(tlw_path)
             result["_tlw_warnings"] = tlw_warnings
             self._apply_tlw(result["laps"], tlw_warnings)
 
-        # 5. Parse MessageListCSV (optional — race control messages)
+        # 5. 解析 MessageListCSV（可选——赛事控制消息）
         if messages_path:
             msgs = self._parse_messages(messages_path)
             result["_messages"] = msgs
 
-        # Build standings from sector data if no ResultListCSV
+        # 无 ResultListCSV 时从圈速数据构建成绩
         if not result["standings"]:
             result["standings"] = self._build_standings_from_laps(result["laps"])
 
-        # Propagate car_model from standings to laps
+        # 将 standings 中的 car_model 传播到 laps
         if result["standings"]:
             model_map: dict[str, str] = {}
             for s in result["standings"]:
@@ -238,28 +233,28 @@ class SwissTimingParser(BaseParser):
 
         return result
 
-    # ── SectorListCSV ─────────────────────────────────────────────────────
+    # ── SectorListCSV 解析 ────────────────────────────────────────────────
 
     def _parse_sector(self, filepath: str) -> tuple[list[dict], str, str]:
-        """Parse SectorListCSV.
+        """解析 SectorListCSV
 
-        Columns: Bib;Class;Driver1;Driver2;Driver3;Driver4;Car;
+        列格式：Bib;Class;Driver1;Driver2;Driver3;Driver4;Car;
                  Lap;Time;Sector1Time;SpeedTrap1;Sector2Time;
                  SpeedTrap2;Sector3Time;SpeedTrap3;TopSpeed
 
-        Header row repeats every ~12 laps — must filter out.
+        标题行每 ~12 圈重复出现，需过滤掉。
         """
         laps = []
         session_name = ""
         session_type = self._detect_session_type(filepath)
         enc = self._detect_encoding(filepath)
 
-        # Try to extract session name from filename
+        # 尝试从文件名提取阶段名称
         base = os.path.splitext(os.path.basename(filepath))[0]
         parts = base.split("_")
         if len(parts) >= 4:
-            # Format: GTWCEU_GT3_R_SectorListCSV_1.0
-            # Parts[2] = session letter (R/Q/P)
+            # 格式：GTWCEU_GT3_R_SectorListCSV_1.0
+            # parts[2] = 阶段字母（R/Q/P）
             session_name = f"{parts[0]} {parts[1]} {parts[2]}"
 
         with open(filepath, newline="", encoding=enc) as f:
@@ -269,7 +264,7 @@ class SwissTimingParser(BaseParser):
         if not rows:
             return [], session_name, session_type
 
-        # Find first header row for column mapping
+        # 找到第一个标题行用于列映射
         header = None
         header_idx = 0
         for i, row in enumerate(rows):
@@ -284,7 +279,7 @@ class SwissTimingParser(BaseParser):
         if header is None:
             return [], session_name, session_type
 
-        # Build column index map
+        # 构建列索引映射
         col = {}
         for idx, name in enumerate(header):
             col[name.lower()] = idx
@@ -295,13 +290,12 @@ class SwissTimingParser(BaseParser):
                     return row[col[alias]].strip()
             return ""
 
-        # Parse all rows, filtering out repeated headers
+        # 解析所有行，过滤重复标题
         for row in rows[header_idx:]:
             if not row or len(row) < 8:
                 continue
             first = row[0].strip().lower()
             if first == "bib":
-                # Repeated header — skip
                 continue
             if not first.isdigit():
                 continue
@@ -315,8 +309,6 @@ class SwissTimingParser(BaseParser):
             except ValueError:
                 continue
 
-            # Detect out/in laps from lap time patterns
-            # A >50% increase vs adjacent laps typically indicates pit stop
             lap_time = self._to_seconds(get_col(row, "time"))
             top_speed = None
             ts_val = get_col(row, "topspeed")
@@ -325,7 +317,7 @@ class SwissTimingParser(BaseParser):
 
             laps.append({
                 "car_number": bib,
-                "driver_name": "",  # resolved after all laps collected
+                "driver_name": "",  # 收集完所有圈后再解析
                 "category": get_col(row, "class"),
                 "lap_number": lap_number,
                 "lap_time": lap_time,
@@ -335,7 +327,7 @@ class SwissTimingParser(BaseParser):
                 "speed_trap_1": self._parse_speed(get_col(row, "speedtrap1")),
                 "speed_trap_2": self._parse_speed(get_col(row, "speedtrap2")),
                 "speed_trap_3": self._parse_speed(get_col(row, "speedtrap3")),
-                "speed_trap_4": top_speed,  # TopSpeed → SpeedTrap4
+                "speed_trap_4": top_speed,
                 "speed": top_speed,
                 "out_lap": False,
                 "in_lap": False,
@@ -348,28 +340,28 @@ class SwissTimingParser(BaseParser):
                 "driver4": get_col(row, "driver4"),
             })
 
-        # Sort by car number then lap number
+        # 按车号 + 圈数排序
         laps.sort(key=lambda x: (str(x["car_number"]).zfill(4), x["lap_number"]))
 
-        # Detect out laps from duplicate lap numbers (Swiss Timing data error)
+        # 检测出站圈（处理 Swiss Timing 的重复圈号问题）
         self._detect_out_laps(laps)
 
-        # Calculate session_time as cumulative lap time per car
+        # 计算每辆车的累计阶段时间
         self._compute_session_times(laps)
 
-        # Assign driver names and detect pit in/out laps
+        # 分配车手姓名
         self._assign_drivers_and_pits(laps)
 
         return laps, session_name, session_type
 
-    # ── ResultListCSV ─────────────────────────────────────────────────────
+    # ── ResultListCSV 解析 ────────────────────────────────────────────────
 
     def _parse_result_list(
         self, filepath: str
     ) -> tuple[list[dict], str, str]:
-        """Parse ResultListCSV.
+        """解析 ResultListCSV
 
-        Columns: Rank;Bib;ClassName;Driver1;...;CarName;TeamName;
+        列格式：Rank;Bib;ClassName;Driver1;...;CarName;TeamName;
                  LicenceHolderName;TotalTime;LapCount;GapTime;GapLap;
                  BestLapAverageSpeed;BestLapTime;BestLapLapNumber;State
         """
@@ -390,7 +382,7 @@ class SwissTimingParser(BaseParser):
         if not rows:
             return [], session_name, session_type
 
-        # Find header
+        # 找到标题行
         header_idx = 0
         for i, row in enumerate(rows):
             if not row:
@@ -471,12 +463,12 @@ class SwissTimingParser(BaseParser):
     # ── PitStopsCsv ────────────────────────────────────────────────────────
 
     def _parse_pitstops(self, filepath: str) -> list[dict]:
-        """Parse PitStopsCsv.
+        """解析 PitStopsCsv
 
-        Columns: Nr;Driver in;Day time in;Time in;Driver out;
+        列格式：Nr;Driver in;Day time in;Time in;Driver out;
                  Day time out;Time out;Nett Time;Reason;Lap In
 
-        Some rows have empty Driver out (car retired during pit stop).
+        部分行的 Driver out 为空（赛车在进站中退赛）
         """
         pitstops = []
         enc = self._detect_encoding(filepath)
@@ -488,7 +480,7 @@ class SwissTimingParser(BaseParser):
         if not rows:
             return pitstops
 
-        for row in rows[1:]:  # skip header
+        for row in rows[1:]:  # 跳过标题行
             if not row or len(row) < 7:
                 continue
 
@@ -515,10 +507,10 @@ class SwissTimingParser(BaseParser):
         return pitstops
 
     def _assign_driver_names_by_stints(self, laps: list[dict], pitstops: list[dict]) -> None:
-        """Assign each lap to the driver active for that stint.
+        """根据进站数据将每圈分配给对应车手
 
-        The lap at which a pit stop occurs stays with the outgoing driver;
-        laps after that stop use the incoming driver from the pit stop row.
+        进站发生的那一圈仍属于出站车手；
+        进站之后的所有圈使用进站记录中的入站车手。
         """
         by_car: dict[str, list[dict]] = {}
         for lap in laps:
@@ -567,13 +559,12 @@ class SwissTimingParser(BaseParser):
     def _apply_pitstops(
         self, laps: list[dict], pitstops: list[dict]
     ) -> None:
-        """Mark in_lap and out_lap on lap records based on pit stop data.
+        """根据进站数据在圈记录上标记 in_lap 和 out_lap
 
-        Swiss Timing PitStopsCsv gives us the "Lap In" number — this is the
-        lap ON WHICH the car entered the pits. The following lap is the
-        out-lap (after driving through the pit lane).
+        Swiss Timing PitStopsCsv 提供了"进站圈号"——赛车实际进入维修区的圈。
+        下一圈是出站圈（通过维修区通道后）。
         """
-        # Build lookup: (car_number, in_lap) -> pitstop data
+        # 构建查找表：(car_number, in_lap) -> pitstop 数据
         pit_map: dict[tuple[str, int], dict] = {}
         for p in pitstops:
             cn = p["car_number"]
@@ -581,7 +572,7 @@ class SwissTimingParser(BaseParser):
             if cn and il is not None:
                 pit_map[(str(cn), int(il))] = p
 
-        # Group laps by car
+        # 按车号分组圈速
         car_laps: dict[str, list[dict]] = {}
         for l in laps:
             car_laps.setdefault(l["car_number"], []).append(l)
@@ -591,7 +582,7 @@ class SwissTimingParser(BaseParser):
             for i, l in enumerate(cl):
                 lap_no = l["lap_number"]
                 key = (str(car_num), lap_no)
-                # Mark in-lap and propagate nett_time
+                # 标记进站圈并传递净时间
                 if key in pit_map:
                     l["in_lap"] = True
                     pit = pit_map[key]
@@ -601,7 +592,7 @@ class SwissTimingParser(BaseParser):
                         if i + 1 < len(cl):
                             cl[i + 1]["out_lap"] = True
                             cl[i + 1]["time_out_lap"] = nett
-                # Legacy: mark out-lap from previous in-lap (covers data w/o nett_time)
+                # 兼容旧数据：从前一个进站圈标记出站圈（处理无 nett_time 的数据）
                 if i > 0 and key not in pit_map:
                     prev_key = (str(car_num), cl[i - 1]["lap_number"])
                     if prev_key in pit_map:
@@ -610,19 +601,19 @@ class SwissTimingParser(BaseParser):
         self._assign_driver_names_by_stints(laps, pitstops)
 
     def _detect_out_laps(self, laps: list[dict]) -> None:
-        """Detect out laps: first lap of each stint."""
+        """检测出站圈：每个 stint 的第一圈"""
         detect_out_laps(laps)
 
     def _detect_in_laps(self, laps: list[dict]) -> None:
-        """Heuristic in-lap detection when no PitStopsCsv is available."""
+        """无 PitStopsCsv 时的启发式进站圈检测"""
         detect_in_laps(laps)
 
     # ── TLWlistMessage ────────────────────────────────────────────────────
 
     def _parse_tlw(self, filepath: str) -> list[dict]:
-        """Parse TLWlistMessage (Track Limit Warnings).
+        """解析 TLWlistMessage（赛道限制警告）
 
-        Columns: Bib;Date & Time;Race time;TL at Turn;Message
+        列格式：Bib;Date & Time;Race time;TL at Turn;Message
         """
         warnings = []
         enc = self._detect_encoding(filepath)
@@ -652,15 +643,15 @@ class SwissTimingParser(BaseParser):
         return warnings
 
     def _apply_tlw(self, laps: list[dict], warnings: list[dict]) -> None:
-        """Match TLW warnings to laps and set track_limit flag."""
+        """将 TLW 警告匹配到圈数并设置 track_limit 标记"""
         apply_tlw(laps, warnings)
 
     # ── MessageListCSV ─────────────────────────────────────────────────────
 
     def _parse_messages(self, filepath: str) -> list[dict]:
-        """Parse MessageListCSV (Race Control Messages).
+        """解析 MessageListCSV（赛事控制消息）
 
-        Columns: TIME;RACE TIME;MESSAGE;(empty)
+        列格式：TIME;RACE TIME;MESSAGE;(empty)
         """
         msgs = []
         enc = self._detect_encoding(filepath)
@@ -695,11 +686,10 @@ class SwissTimingParser(BaseParser):
 
     @staticmethod
     def _compute_session_times(laps: list[dict]) -> None:
-        """Calculate session_time for each lap as cumulative elapsed time.
+        """计算每圈的阶段累计时间
 
-        Swiss Timing CSV doesn't include a session_time column, so it is
-        computed by summing lap_times sequentially per car.
-        session_time for lap N = sum of lap times for laps 1 through N.
+        Swiss Timing CSV 不包含 session_time 列，因此按每辆车累加圈速计算。
+        Lap N 的 session_time = 第 1 圈到第 N 圈的圈速之和。
         """
         car_groups: dict[str, list[dict]] = {}
         for lap in laps:
@@ -715,18 +705,17 @@ class SwissTimingParser(BaseParser):
                 lap["session_time"] = cumulative if lt and lt > 0 else None
 
     def _assign_drivers_and_pits(self, laps: list[dict]) -> None:
-        """Assign driver names from Driver1-4 columns.
+        """从 Driver1-4 列分配车手姓名
 
-        For Swiss Timing, pit in/out detection is handled by
-        _apply_pitstops() when PitStopsCsv is available.
-        This method only sets driver names from the sector data.
+        进站检测由 _apply_pitstops() 在有 PitStopsCsv 时处理，
+        本方法仅从扇区数据设置车手姓名。
         """
         car_groups: dict[str, list[dict]] = {}
         for l in laps:
             car_groups.setdefault(l["car_number"], []).append(l)
 
         for car_num, car_laps in car_groups.items():
-            # Assign the initial stint driver from the first lap's Driver1 field.
+            # 从第一圈的 Driver1 字段获取初始 stint 车手
             first = car_laps[0]
             initial_driver = ""
             for dk in ["driver1", "driver2", "driver3", "driver4"]:
@@ -740,11 +729,11 @@ class SwissTimingParser(BaseParser):
                     l["driver_name"] = initial_driver
 
     def _build_standings_from_laps(self, laps: list[dict]) -> list[dict]:
-        """Build standings from lap data when no ResultListCSV is provided.
+        """从圈速数据构建成绩（无 ResultListCSV 时使用）
 
-        Ranks cars by:
-          1. Most laps completed (descending)
-          2. Shortest total time (for equal laps)
+        排名规则：
+          1. 完成圈数最多（降序）
+          2. 总用时最短（圈数相同时）
         """
         car_data: dict[str, dict] = {}
 

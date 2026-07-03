@@ -1,20 +1,20 @@
-"""Standalone lap detection functions for out_lap, in_lap, and track_limit.
+"""赛道计时应用 - 圈标记检测函数（出站圈/进站圈/赛道限制）
 
-Extracted from SwissTimingParser so they can be reused for retroactive
-DB updates without re-uploading CSV files.
+从 SwissTimingParser 提取为独立函数，可在不重新上传 CSV 的情况下
+对已有数据进行回溯性数据库更新。
 """
 
 import csv
 
 
 def parse_tlw_file(filepath: str) -> list[dict]:
-    """Parse TLWlistMessage CSV file.
+    """解析 TLWlistMessage CSV 文件
 
-    Columns: Bib;Date & Time;Race time;TL at Turn;Message
+    列格式：Bib;Date & Time;Race time;TL at Turn;Message
     """
     warnings = []
 
-    # Detect encoding (try UTF-8-sig first, fall back to Latin-1)
+    # 编码检测：优先 UTF-8-sig，回退 Latin-1
     for enc in ("utf-8-sig", "latin-1"):
         try:
             with open(filepath, newline="", encoding=enc) as f:
@@ -43,7 +43,7 @@ def parse_tlw_file(filepath: str) -> list[dict]:
 
 
 def _to_seconds(time_str: str) -> float | None:
-    """Convert Swiss Timing time string to seconds."""
+    """将 Swiss Timing 时间字符串转换为秒数"""
     if not time_str:
         return None
     try:
@@ -61,10 +61,10 @@ def _to_seconds(time_str: str) -> float | None:
 
 
 def detect_out_laps(laps: list[dict]) -> None:
-    """Detect out laps: every car's first Lap 1 is an out lap.
+    """检测出站圈：每辆车的第一个 Lap 1 标记为出站圈
 
-    For duplicate Lap 1 entries (Swiss Timing data error), the first
-    Lap 1 is marked. For single Lap 1 entries, that Lap 1 is marked.
+    对于重复的 Lap 1 条目（Swiss Timing 数据错误），标记第一个；
+    对于单条 Lap 1 条目，标记该条。
     """
     car_groups: dict[str, list[dict]] = {}
     for l in laps:
@@ -79,12 +79,11 @@ def detect_out_laps(laps: list[dict]) -> None:
 
 
 def detect_in_laps(laps: list[dict]) -> None:
-    """Heuristic in-lap detection when no PitStopsCsv is available.
+    """无 PitStopsCsv 时的启发式进站圈检测
 
-    A lap is flagged as in_lap if its lap_time exceeds 1.2x the median
-    of clean laps (excluding the first lap which is a standing start).
-    The lap immediately following an in_lap is flagged as out_lap,
-    matching the pattern expected by the analytics API for pit stop detection.
+    若 lap_time 超过干净圈中位数的 1.2 倍，则标记为进站圈。
+    进站圈之后的下一圈标记为出站圈，与分析 API 的进站检测预期模式一致。
+    排除第一圈（静止起步）。
     """
     car_groups: dict[str, list[dict]] = {}
     for l in laps:
@@ -110,10 +109,9 @@ def detect_in_laps(laps: list[dict]) -> None:
 
 
 def apply_tlw(laps: list[dict], warnings: list[dict]) -> None:
-    """Match TLW warnings to laps and set track_limit flag.
+    """将 TLW 赛道限制警告匹配到具体圈数并设置 track_limit 标记
 
-    Each warning's race_time (cumulative seconds) is matched to the lap
-    whose session_time range contains it.
+    每条警告的 race_time（累计秒数）与包含该时间的 session_time 范围匹配。
     """
     if not warnings:
         return

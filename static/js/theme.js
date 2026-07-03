@@ -2,6 +2,7 @@
    Race Timing -- Theme Engine
    ============================================================ */
 
+// 立即执行函数：初始化主题，优先读取 localStorage，其次跟随系统偏好
 (function () {
     var saved = localStorage.getItem('race-timing-theme');
     if (!saved) {
@@ -10,13 +11,14 @@
     document.documentElement.setAttribute('data-theme', saved);
 })();
 
+// 切换明/暗主题，更新按钮图标并通知图表重绘
 window.toggleTheme = function () {
     var current = document.documentElement.getAttribute('data-theme');
     var next = current === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('race-timing-theme', next);
 
-    // Update both desktop and mobile toggle buttons
+    // 更新桌面端和移动端两个主题切换按钮的图标
     ['themeToggle', 'themeToggleMobile'].forEach(function (id) {
         var btn = document.getElementById(id);
         if (btn) {
@@ -34,6 +36,7 @@ window.toggleTheme = function () {
     }
 };
 
+// 从 CSS 变量中读取当前主题色，供图表使用
 window.getThemeColors = function () {
     var cs = getComputedStyle(document.documentElement);
     return {
@@ -52,6 +55,7 @@ window.getThemeColors = function () {
     };
 };
 
+// DOM 加载完成后：设置按钮图标，触发展示动画
 document.addEventListener('DOMContentLoaded', function () {
     var theme = document.documentElement.getAttribute('data-theme');
     ['themeToggle', 'themeToggleMobile'].forEach(function (id) {

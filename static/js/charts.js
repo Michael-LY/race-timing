@@ -1,5 +1,5 @@
-// ── Chart rendering for session_detail.html ──────────────────────
-// Depends on: Chart.js, chartjs-plugin-zoom, theme.js (getThemeColors)
+// ── 图表渲染：session_detail.html ────────────────────────────────
+// 依赖：Chart.js, chartjs-plugin-zoom, theme.js (getThemeColors)
 
 const COLORS = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#06b6d4',
                 '#f97316','#6366f1','#14b8a6','#e11d48','#a855f7','#0891b2',
@@ -9,7 +9,7 @@ const COLORS = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#06b6d4',
 const chartInstances = {};
 let cachedData = null;
 
-// Performance: enable decimation for large datasets
+// 性能优化：大数据集启用 LTTB 抽稀算法，最多采样 200 点
 Chart.defaults.plugins.decimation = {
     enabled: true,
     algorithm: 'lttb',
@@ -32,6 +32,7 @@ const CHART_TITLES = {
     strategy: 'Strategy (Stint Map)',
 };
 
+// 将秒数格式化为 m:ss.xxx 格式
 function fmtTime(seconds) {
     if (seconds == null || isNaN(seconds)) return '-';
     const m = Math.floor(seconds / 60);
@@ -39,12 +40,14 @@ function fmtTime(seconds) {
     return m + ':' + s.padStart(6, '0');
 }
 
-// Color mode state
-window.colorMode = 'number'; // 'number' | 'model'
-window._carModelMap = {}; // car_number → car_model
-window._carColorMap = {}; // car_number → series_color (explicit)
-window._carModelColorMap = {}; // car_number → model_color (from DB, derived from model)
+// 颜色模式状态：'number'（按车号）| 'model'（按车型）
+window.colorMode = 'number';
 
+window._carModelMap = {}; // 车号 → 车型
+window._carColorMap = {}; // 车号 → 固定颜色（series_color）
+window._carModelColorMap = {}; // 车号 → 模型颜色（由数据库 model_color 字段决定）
+
+// 从分析数据中构建车号→车型/颜色映射表
 function buildCarModelMap(data) {
     window._carModelMap = {};
     window._carColorMap = {};
@@ -61,6 +64,7 @@ function buildCarModelMap(data) {
     });
 }
 
+// 根据车型名称通过 Java 字符串哈希算法分配颜色
 function getModelColor(model) {
     if (!model) return '#64748b';
     var hash = 0;
@@ -73,24 +77,26 @@ function getModelColor(model) {
 
 function getCarColor(carNum, carModel) {
     if (window.colorMode === 'model') {
-        // By Model: model_color (global/hash) → model name hash
+        // 按车型：优先用数据库中 model_color，否则用型号名称哈希
         var mc = window._carModelColorMap[carNum];
         if (mc && mc.match(/^#[0-9a-f]{6}$/i)) return mc;
         var model = carModel || window._carModelMap[carNum] || '';
         return getModelColor(model);
     }
-    // By Car #: series_color → car number hash
+    // 按车号：优先用固定颜色 series_color，否则用车号哈希
     var explicitColor = window._carColorMap[carNum];
     if (explicitColor && explicitColor.match(/^#[0-9a-f]{6}$/i)) return explicitColor;
     var idx = parseInt(carNum) || 0;
     return COLORS[idx % COLORS.length];
 }
 
+// 转义 HTML 特殊字符（防 XSS）
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// 将十六进制颜色按百分比变亮（正数）或变暗（负数）
 function lightenHex(hex, percent) {
     const num = parseInt(hex.replace('#', ''), 16);
     const amt = Math.round(2.55 * percent);
@@ -100,6 +106,7 @@ function lightenHex(hex, percent) {
     return 'rgb(' + R + ',' + G + ',' + B + ')';
 }
 
+// 返回当前主题的坐标轴刻度样式配置
 function themeScales() {
     const tc = window.getThemeColors ? window.getThemeColors() : { grid: 'rgba(0,0,0,0.1)', gridMajor: 'rgba(0,0,0,0.2)', text: '#64748b' };
     return {
@@ -116,6 +123,7 @@ function themeScales() {
     };
 }
 
+// 返回当前主题的 tooltip 样式配置
 function themeTooltip() {
     const tc = window.getThemeColors ? window.getThemeColors() : { tooltipBg: 'rgba(0,0,0,0.9)', tooltipText: '#fff', accentCyan: '#00e5ff' };
     return {
@@ -130,6 +138,7 @@ function themeTooltip() {
     };
 }
 
+// 图表缩放配置：Y 轴拖拽缩放，Shift+拖拽平移
 function chartZoomOptions() {
     return {
         zoom: {
@@ -151,6 +160,7 @@ function chartZoomOptions() {
     };
 }
 
+// 为图表绑定双击重置缩放事件
 function setupZoomReset(chart) {
     if (!chart || !chart.canvas) return;
     chart.canvas.addEventListener('dblclick', function(e) {
@@ -160,6 +170,7 @@ function setupZoomReset(chart) {
     });
 }
 
+// 异步加载图表数据（从 API 获取），首次渲染时缓存结果
 async function loadChart() {
     const container = document.getElementById('chartCard');
     if (!container) return;
@@ -193,6 +204,7 @@ async function loadChart() {
     renderCheckedCharts(data);
 }
 
+// 过滤出站圈、进站圈、安全车圈和赛道限制圈，只保留有效圈
 function cleanLapTimes(data) {
     return data.lap_times.filter(l => {
         if (l.out_lap || l.in_lap) return false;
@@ -202,15 +214,18 @@ function cleanLapTimes(data) {
     });
 }
 
+// 销毁指定类型的 Chart.js 实例
 function destroyChart(type) {
     if (chartInstances[type]) { chartInstances[type].destroy(); delete chartInstances[type]; }
 }
 
+// 移除指定类型的图表面板 DOM 元素
 function removePanel(type) {
     const panel = document.getElementById('chartPanel-' + type);
     if (panel) panel.remove();
 }
 
+// 确保指定类型的图表面板存在于 DOM 中（不存在则创建）
 function ensurePanel(type) {
     if (document.getElementById('chartPanel-' + type)) return;
     const grid = document.getElementById('chartGrid');
@@ -222,6 +237,7 @@ function ensurePanel(type) {
     grid.appendChild(panel);
 }
 
+// 计算一组数值的五数概括（min, q1, median, q3, max）
 function computeBoxPlot(values) {
     const sorted = [...values].sort((a, b) => a - b);
     const n = sorted.length;
@@ -236,6 +252,7 @@ function computeBoxPlot(values) {
     };
 }
 
+// 为每个车手绘制箱线图（用于 Sector 分段和圈速分布展示）
 function buildDriverBoxChart(ctx, data, field, title, yTitle, chartKey) {
     const ts = themeScales();
     const tt = themeTooltip();
@@ -264,7 +281,7 @@ function buildDriverBoxChart(ctx, data, field, title, yTitle, chartKey) {
         return;
     }
 
-    // Build driver → car_number map for per-car coloring
+    // 建立车手→车号映射，以便按车着色
     var driverCarMap = {};
     (data.lap_times || []).forEach(function(l) {
         if (l.driver_name && l.car_number && !driverCarMap[l.driver_name]) {
@@ -333,6 +350,7 @@ function buildDriverBoxChart(ctx, data, field, title, yTitle, chartKey) {
     setupZoomReset(chartInstances[chartKey]);
 }
 
+// 根据复选框状态批量渲染或移除已选图表
 function renderCheckedCharts(data) {
     buildCarModelMap(data);
     document.querySelectorAll('.chart-cb').forEach(cb => {
@@ -351,6 +369,7 @@ function renderCheckedCharts(data) {
     });
 }
 
+// 各图表类型的渲染函数注册表：按类型名索引
 const renderers = {
     lapTime: function(ctx, data) {
         const ts = themeScales();
@@ -688,7 +707,7 @@ const renderers = {
         }
 
         const pp = data.position_progression;
-        // Pre-build O(1) lookup map for driver names
+        // 预建车号+圈号→车手名的 O(1) 查找表
         const lapDriverMap = {};
         (data.lap_times || []).forEach(l => {
             lapDriverMap[l.car_number + ':' + l.lap_number] = l.driver_name;
@@ -754,7 +773,7 @@ const renderers = {
 
         const labels = entries.map(d => d.driver_name);
         const stdDevs = entries.map(d => d.std_dev);
-        // Build driver → car_number map for per-car coloring
+        // 建立车手→车号映射，以便按车着色
         var consistencyCarMap = {};
         (data.lap_times || []).forEach(function(l) {
             if (l.driver_name && l.car_number && !consistencyCarMap[l.driver_name]) {
@@ -814,7 +833,7 @@ const renderers = {
         setupZoomReset(chartInstances.consistency);
     },
 
-    // ── Strategy Gantt Chart (HTML-based, no Chart.js canvas) ──────
+    // ── 策略甘特图（基于 HTML，非 Chart.js 画布）──────────────
     strategy: function(ctx, data) {
         const container = document.getElementById('chartPanel-strategy');
         if (!container) return;
@@ -833,7 +852,7 @@ const renderers = {
             return;
         }
 
-        // Compute global time range across all stints
+        // 计算所有 stint 的全局时间范围（起止点）
         let globalMin = Infinity, globalMax = -Infinity;
         var hasTime = false;
         carStints.forEach(function(car) {
@@ -855,7 +874,7 @@ const renderers = {
         var duration = globalMax - globalMin;
         if (duration <= 0) duration = 1;
 
-        // Time axis ticks: every 5 minutes
+        // 时间轴刻度：每 5 分钟（300 秒）一个标记
         var tickInterval = 300;
         var firstTick = Math.floor(globalMin / tickInterval) * tickInterval;
         var ticks = [];
@@ -867,7 +886,7 @@ const renderers = {
 
         var html = '<div class="strategy-chart">';
 
-        // ── Time axis ──
+        // ── 时间轴 ──
         html += '<div class="strategy-time-axis">';
         for (var ti = 0; ti < ticks.length; ti++) {
             var pct = ((ticks[ti] - globalMin) / duration * 100).toFixed(1);
@@ -875,7 +894,7 @@ const renderers = {
         }
         html += '</div>';
 
-        // ── Car rows ──
+        // ── 每辆车一行 ──
         for (var ci = 0; ci < carStints.length; ci++) {
             var car = carStints[ci];
             var baseColor = getCarColor(car.car_number);
@@ -893,7 +912,7 @@ const renderers = {
                 var width = ((stint.end_time - stint.start_time) / duration * 100).toFixed(1);
                 if (width < 0.5) width = 0.5;
 
-                // Alternate color lightness per stint
+                // 交替 stint 颜色深浅，方便区分相邻 stint
                 var stintColor = lightenHex(baseColor, (si % 2 === 0) ? 0 : -15);
 
                 html += '<div class="strategy-block" style="left:' + left + '%;width:' + width + '%;background:' + stintColor + ';"';
@@ -902,7 +921,7 @@ const renderers = {
                 html += '<div class="strategy-block-stats">' + stint.lap_count + ' laps &middot; ' + fmtTime(stint.fastest_lap) + '</div>';
                 html += '</div>';
 
-                // Pit stop label centered in the gap between stint blocks
+                // 进站标签：居中显示在两个 stint 块的间隔中
                 if (si > 0 && stint.pit_time != null && stint.pit_time > 0) {
                     var prevStint = car.stints[si - 1];
                     var prevEndPct = prevStint.end_time != null ? ((prevStint.end_time - globalMin) / duration * 100) : 0;
@@ -921,7 +940,7 @@ const renderers = {
 
         chartContainer.innerHTML = html;
 
-        // Set minimum height based on number of cars
+        // 根据车辆数量设置最小高度
         var rowCount = carStints.length;
         chartContainer.style.minHeight = Math.max(100, rowCount * 56 + 40) + 'px';
 
@@ -929,7 +948,7 @@ const renderers = {
     },
 };
 
-// Checkbox change → render/remove charts
+// 复选框变化 → 渲染或移除对应图表
 document.querySelectorAll('.chart-cb').forEach(cb => {
     cb.addEventListener('change', () => {
         if (!cachedData) { loadChart(); return; }
@@ -937,12 +956,12 @@ document.querySelectorAll('.chart-cb').forEach(cb => {
     });
 });
 
-// Theme change → re-render charts
+// 主题切换 → 重新渲染所有图表
 window.updateChartTheme = function() {
     if (cachedData) renderCheckedCharts(cachedData);
 };
 
-// Color mode toggle
+// 颜色模式切换（按车号 / 按车型）
 window.toggleColorMode = function() {
     window.colorMode = (window.colorMode === 'number') ? 'model' : 'number';
     var btn = document.getElementById('colorModeToggle');
@@ -950,12 +969,12 @@ window.toggleColorMode = function() {
         btn.textContent = (window.colorMode === 'number') ? 'By Car #' : 'By Model';
         btn.classList.toggle('btn-ghost-active', window.colorMode === 'model');
     }
-    // Update all existing chart colors in-place (more reliable than destroy+recreate)
+    // 原地更新所有现有图表颜色（比销毁重建更可靠）
     updateAllChartColors();
 };
 
 function updateAllChartColors() {
-    // Rebuild color maps from cached data so getCarColor uses new mode
+    // 从缓存数据重建颜色映射表，使 getCarColor 使用新模式
     if (!cachedData) return;
     buildCarModelMap(cachedData);
 
@@ -963,7 +982,7 @@ function updateAllChartColors() {
         var chart = chartInstances[type];
         if (!chart) return;
 
-        // Strategy is HTML-based (not a Chart.js instance), needs full re-render
+        // 策略图是 HTML 渲染（非 Chart.js 实例），需要整块重绘
         if (type === 'strategy') {
             renderers.strategy(null, cachedData);
             return;
@@ -993,7 +1012,7 @@ function updateAllChartColors() {
             return;
         }
 
-        // boxPlot: datasets[2] (boxLow) and datasets[3] (boxHigh) have per-car colors
+        // boxPlot：datasets[2]（箱体下半段）和 datasets[3]（箱体上半段）需按车着色
         if (type === 'boxPlot') {
             if (cachedData.per_car) {
                 var carColors = cachedData.per_car
@@ -1012,31 +1031,30 @@ function updateAllChartColors() {
             return;
         }
 
-        // Driver box charts (driverS1/S2/S3/driverLap): same boxPlot structure but
-        // colors driven by driver→car_number mapping
-        // Consistency chart: single dataset with per-bar color arrays
+        // 车手箱线图（driverS1/S2/S3/driverLap）：结构与 boxPlot 相同，但颜色由车手→车号映射驱动
+        // consistency 图表：单一数据集，每根柱子有独立颜色
         var driverTypes = ['driverS1', 'driverS2', 'driverS3', 'driverLap', 'consistency'];
         if (driverTypes.indexOf(type) !== -1) {
-            // Build driver→car_number map from cachedData.lap_times
+            // 从缓存数据建立车手→车号映射
             var drvCarMap = {};
             (cachedData.lap_times || []).forEach(function(l) {
                 if (l.driver_name && l.car_number && !drvCarMap[l.driver_name]) {
                     drvCarMap[l.driver_name] = l.car_number;
                 }
             });
-            // Rebuild colors in chart label order
+            // 按图表标签顺序重建颜色数组
             var newDriverColors = (chart.data.labels || []).map(function(label) {
                 var cn = drvCarMap[label] || '';
                 return getCarColor(cn);
             });
             if (type === 'consistency') {
-                // Single dataset
+                // 单一数据集，每根柱子独立着色
                 if (chart.data.datasets[0]) {
                     chart.data.datasets[0].backgroundColor = newDriverColors.map(function(c) { return c + '99'; });
                     chart.data.datasets[0].borderColor = newDriverColors;
                 }
             } else {
-                // Driver box: datasets[2] (boxLow) and datasets[3] (boxHigh)
+                // 车手箱线图：datasets[2]（箱体下半段）和 datasets[3]（箱体上半段）
                 if (chart.data.datasets[2]) {
                     chart.data.datasets[2].backgroundColor = newDriverColors.map(function(c) { return c + '99'; });
                     chart.data.datasets[2].borderColor = newDriverColors;
@@ -1050,8 +1068,8 @@ function updateAllChartColors() {
             return;
         }
 
-        // lapTime / delta / position: one dataset per car, label = '#{carNum}'
-        // Extract car number from label, recolor
+        // lapTime / delta / position：每辆车一个 dataset，label 格式为 '#{车号}'
+        // 从 label 提取车号，重新着色
         var changed = false;
         chart.data.datasets.forEach(function(ds) {
             var label = ds.label || '';

@@ -1,4 +1,7 @@
-"""TSL Timing parser — handles Classification + Sector Analysis CSV pair."""
+"""赛道计时应用 - TSL Timing CSV 解析器
+
+处理 Classification + Sector Analysis CSV 文件对。
+"""
 
 import csv
 import os
@@ -9,14 +12,14 @@ from .base import BaseParser
 
 
 class TSLTimingParser(BaseParser):
-    """Parses TSL Timing CSV exports.
+    """解析 TSL Timing CSV 导出文件
 
-    Two files expected:
-      - Classification:  Pos, No., Name, Class, Nationality, Total Time, Gap, Diff,
-                         Laps, Fastest Lap, Fast Lap No., Fast Lap Avg. Speed, Pit Stops
-      - Sector Analysis: pos, nr, driver_or_team, out_lap, time_out_lap, in_lap, time_in_lap,
-                         time_of_day, lapnumber, laptime, sector_1_time, sector_2_time,
-                         sector_3_time, speedTrap_1..4_Speed, class, session_time, driver_name
+    两种文件：
+      - Classification（成绩）：Pos, No., Name, Class, Nationality, Total Time, Gap, Diff,
+                                 Laps, Fastest Lap, Fast Lap No., Fast Lap Avg. Speed, Pit Stops
+      - Sector Analysis（圈速）：pos, nr, driver_or_team, out_lap, time_out_lap, in_lap, time_in_lap,
+                                 time_of_day, lapnumber, laptime, sector_1_time, sector_2_time,
+                                 sector_3_time, speedTrap_1..4_Speed, class, session_time, driver_name
     """
 
     name = "TSL Timing"
@@ -66,7 +69,7 @@ class TSLTimingParser(BaseParser):
 
     @staticmethod
     def _parse_speed(val: str) -> float | None:
-        """Parse speed string like '202.62 km/h' or '225.94'."""
+        """解析速度字符串，如 '202.62 km/h' 或 '225.94'"""
         if not val or not val.strip():
             return None
         val = val.strip()
@@ -85,6 +88,7 @@ class TSLTimingParser(BaseParser):
     # ── session-type detection ────────────────────────────────────
 
     def _detect_session_type(self, filepath: str) -> str:
+        """从文件名关键词检测阶段类型"""
         name = os.path.basename(filepath).lower()
         for stype, keywords in self.SESSION_TYPE_KEYWORDS.items():
             for kw in keywords:
@@ -95,7 +99,7 @@ class TSLTimingParser(BaseParser):
     # ── detect ────────────────────────────────────────────────────
 
     def detect(self, filepath: str) -> bool:
-        """Return True if this looks like a TSL Classification or Sector Analysis CSV."""
+        """检测 CSV 是否匹配 TSL Timing 格式（Classification 或 Sector Analysis）"""
         try:
             with open(filepath, newline="", encoding="utf-8-sig") as f:
                 reader = csv.reader(f)
@@ -113,12 +117,11 @@ class TSLTimingParser(BaseParser):
     # ── parse ─────────────────────────────────────────────────────
 
     def parse(self, classification_path: str = None, sector_path: str = None, **kwargs: Any) -> dict[str, Any]:
-        """Parse one or both TSL CSV files.
+        """解析一个或两个 TSL CSV 文件
 
-        Pass paths as keyword arguments. At least one must be provided.
-        Additional kwargs (e.g., pitstops_path) are ignored for TSL compatibility.
-        Returns:
-            session_name, session_type, laps (list), standings (list)
+        通过关键字参数传递文件路径，至少提供一个。
+        TSL 忽略额外的 kwargs（如 pitstops_path）以保持兼容。
+        返回：session_name, session_type, laps（列表）, standings（列表）
         """
         result: dict[str, Any] = {
             "session_name": "",

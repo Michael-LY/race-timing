@@ -2,23 +2,31 @@
    Race Timing -- Theme System (Light / Dark)
    Fonts: JetBrains Mono (data) + Syne (headings)
    ============================================================ */
+/* 亮色/深色双主题系统：通过 CSS 自定义属性实现一键切换 */
 
-/* -- Light Mode (default) -- */
+/* -- 浅色模式（默认） -- */
 :root {
+    /* 背景色：页面主体 */
     --bg-body: #f0f2f7;
+    /* 背景色：表面/卡片 */
     --bg-surface: #ffffff;
     --bg-surface-hover: #f8fafc;
+    /* 导航栏背景色（半透明） */
     --bg-nav: rgba(15, 23, 42, 0.85);
     --bg-card-header: #f1f5f9;
     --bg-input: #ffffff;
+    /* 文字颜色 */
     --text-primary: #0f1729;
     --text-secondary: #64748b;
     --text-muted: #94a3b8;
+    /* 强调色 */
     --accent-cyan: #00e5ff;
     --accent-violet: #7c3aed;
     --accent-cyan-hover: #00b8d4;
+    /* 边框颜色 */
     --border-default: #e2e8f0;
     --border-strong: #cbd5e1;
+    /* 高亮色：全场最佳、车辆、赛段、胜者 */
     --highlight-overall-bg: rgba(124, 58, 237, 0.70);
     --highlight-overall-text: #7c3aed;
     --highlight-car-bg: rgba(16, 185, 129, 0.70);
@@ -30,15 +38,20 @@
     --table-header-text: #64748b;
     --table-row-hover: rgba(0, 229, 255, 0.06);
     --table-stripe: rgba(0, 0, 0, 0.015);
+    /* 图表颜色 */
     --chart-grid: rgba(100, 116, 139, 0.18);
     --chart-grid-major: rgba(100, 116, 139, 0.35);
     --chart-text: #64748b;
     --chart-tooltip-bg: rgba(15, 23, 42, 0.92);
     --chart-tooltip-text: #e2e8f0;
+    /* 进站/出站背景色 */
     --pit-in-bg: rgba(253, 224, 71, 0.18);
     --pit-out-bg: rgba(34, 211, 238, 0.15);
+    /* 车辆颜色背景（半透明） */
     --car-color-bg: rgba(128, 128, 128, 0.60);
+    /* 青蓝色发光阴影 */
     --shadow-glow-cyan: 0 0 20px rgba(0, 229, 255, 0.12);
+    /* 玻璃态效果：背景、边框、模糊、饱和度、内发光、圆角 */
     --glass-bg: rgba(255, 255, 255, 0.55);
     --glass-border: rgba(255, 255, 255, 0.30);
     --glass-blur: 20px;
@@ -50,20 +63,26 @@
     --nc-separator-bg: #f1f5f9;
 }
 
-/* -- Dark Mode -- */
+/* -- 深色模式 -- */
 [data-theme="dark"] {
+    /* 背景色：页面主体 */
     --bg-body: #0a0e1a;
+    /* 背景色：表面/卡片 */
     --bg-surface: #111827;
     --bg-surface-hover: #1a2332;
+    /* 导航栏背景色（半透明） */
     --bg-nav: rgba(10, 14, 26, 0.92);
     --bg-card-header: #1a2332;
     --bg-input: #1e293b;
+    /* 文字颜色 */
     --text-primary: #e2e8f0;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
+    /* 强调色 */
     --accent-cyan: #00e5ff;
     --accent-violet: #a78bfa;
     --accent-cyan-hover: #67e8f9;
+    /* 边框颜色 */
     --border-default: #1e293b;
     --border-strong: #334155;
     --highlight-overall-bg: rgba(167, 139, 250, 0.70);
@@ -77,15 +96,20 @@
     --table-header-text: #94a3b8;
     --table-row-hover: rgba(0, 229, 255, 0.08);
     --table-stripe: rgba(255, 255, 255, 0.015);
+    /* 图表颜色 */
     --chart-grid: rgba(148, 163, 184, 0.12);
     --chart-grid-major: rgba(148, 163, 184, 0.25);
     --chart-text: #94a3b8;
     --chart-tooltip-bg: rgba(17, 24, 39, 0.95);
     --chart-tooltip-text: #e2e8f0;
+    /* 进站/出站背景色 */
     --pit-in-bg: rgba(250, 204, 21, 0.1);
     --pit-out-bg: rgba(34, 211, 238, 0.08);
+    /* 车辆颜色背景（半透明） */
     --car-color-bg: rgba(128, 128, 128, 0.60);
+    /* 青蓝色发光阴影 */
     --shadow-glow-cyan: 0 0 25px rgba(0, 229, 255, 0.15);
+    /* 玻璃态效果 */
     --glass-bg: rgba(17, 24, 39, 0.55);
     --glass-border: rgba(48, 60, 80, 0.45);
     --glass-blur: 24px;
@@ -97,7 +121,7 @@
     --nc-separator-bg: #1a2332;
 }
 
-/* -- Base -- */
+/* -- 基础样式 -- */
 body {
     background: var(--bg-body);
     color: var(--text-primary);
@@ -120,7 +144,7 @@ a:hover { color: var(--accent-cyan-hover); }
     color: var(--text-primary);
 }
 
-/* -- Navbar -- */
+/* -- 导航栏 -- */
 .nav-main {
     background: var(--bg-nav);
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
@@ -151,7 +175,7 @@ a:hover { color: var(--accent-cyan-hover); }
     letter-spacing: -0.02em;
 }
 
-/* -- Cards -- */
+/* -- 卡片 -- */
 .card {
     background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
@@ -191,7 +215,7 @@ a:hover { color: var(--accent-cyan-hover); }
     border-radius: var(--glass-radius) var(--glass-radius) 0 0;
 }
 
-/* -- Tables -- */
+/* -- 表格 -- */
 .themed-table {
     width: 100%;
     font-size: 0.875rem;
@@ -238,7 +262,7 @@ a:hover { color: var(--accent-cyan-hover); }
     font-size: 0.8125rem;
 }
 
-/* -- Sortable Headers -- */
+/* -- 可排序表头 -- */
 .sortable {
     cursor: pointer;
     user-select: none;
@@ -268,7 +292,7 @@ a:hover { color: var(--accent-cyan-hover); }
     color: var(--accent-cyan);
 }
 
-/* -- Highlight Classes -- */
+/* -- 高亮样式 -- */
 .best-lap { font-weight: 700; }
 
 .bg-purple {
@@ -299,7 +323,7 @@ a:hover { color: var(--accent-cyan-hover); }
     background: inherit !important;
 }
 
-/* Car color row background (semi-transparent, applied via JS toggle) */
+/* 车辆颜色行背景（半透明，通过 JS 切换） */
 .car-color-row {
     background: var(--row-car-color, var(--car-color-bg)) !important;
 }
@@ -311,7 +335,7 @@ a:hover { color: var(--accent-cyan-hover); }
     background: var(--nc-separator-bg);
 }
 
-/* -- Session Type Badges -- */
+/* -- 阶段类型徽标 -- */
 .session-badge-Practice { background: #3498db; }
 .session-badge-Qualifying { background: #e67e22; }
 .session-badge-Race { background: #e74c3c; }
@@ -330,7 +354,7 @@ a:hover { color: var(--accent-cyan-hover); }
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.08);
 }
 
-/* -- Buttons -- */
+/* -- 按钮 -- */
 .btn-primary {
     background: linear-gradient(135deg, #0891b2, #0e7490);
     color: #ffffff;
@@ -427,7 +451,7 @@ a:hover { color: var(--accent-cyan-hover); }
     background: rgba(239, 68, 68, 0.08);
 }
 
-/* -- Form Inputs -- */
+/* -- 表单输入 -- */
 .themed-input {
     width: 100%;
     background: var(--glass-bg);
@@ -474,7 +498,7 @@ a:hover { color: var(--accent-cyan-hover); }
     -webkit-backdrop-filter: blur(16px) saturate(180%);
 }
 
-/* -- Alerts / Flash Messages -- */
+/* -- 提示消息 -- */
 .alert-success {
     background: rgba(16, 185, 129, 0.1);
     backdrop-filter: blur(12px);
@@ -508,13 +532,13 @@ a:hover { color: var(--accent-cyan-hover); }
     border-radius: 0.75rem;
 }
 
-/* -- Theme Text Utilities -- */
+/* -- 主题文本工具类 -- */
 .text-theme-primary { color: var(--text-primary); }
 .text-theme-secondary { color: var(--text-secondary); }
 .text-theme-muted { color: var(--text-muted); }
 .bg-theme-surface { background: var(--bg-surface); }
 
-/* -- Stagger Animation -- */
+/* -- 交错动画 -- */
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -531,7 +555,7 @@ a:hover { color: var(--accent-cyan-hover); }
     animation: fadeInUp 0.5s ease forwards;
 }
 
-/* -- Chart Panel -- */
+/* -- 图表面板 -- */
 .chart-panel {
     background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
@@ -572,7 +596,7 @@ a:hover { color: var(--accent-cyan-hover); }
     }
 }
 
-/* -- Scrollbar Hide Utility -- */
+/* -- 隐藏滚动条工具 -- */
 .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -581,7 +605,7 @@ a:hover { color: var(--accent-cyan-hover); }
     display: none;
 }
 
-/* -- Bottom Navigation (mobile, floating) -- */
+/* -- 底部导航栏（移动端浮动） -- */
 .bottom-nav {
     left: 1.25rem;
     right: 1.25rem;
@@ -630,7 +654,7 @@ a:hover { color: var(--accent-cyan-hover); }
     box-shadow: 0 0 16px rgba(0, 229, 255, 0.15);
 }
 
-/* -- Dropdown Menu (mobile, shared by sort + view) -- */
+/* -- 下拉菜单（移动端，排序 + 视图共用） -- */
 .sort-dropdown {
     position: relative;
 }
@@ -690,7 +714,7 @@ a:hover { color: var(--accent-cyan-hover); }
     transform: translateY(0) scale(1);
 }
 
-/* Right-aligned variant (for sort dropdown on event page) */
+/* 右侧对齐变体（用于赛事页面的排序下拉菜单） */
 .sort-dropdown-menu-right {
     left: auto;
     right: 0;
@@ -723,7 +747,7 @@ a:hover { color: var(--accent-cyan-hover); }
     background: rgba(0, 229, 255, 0.12);
 }
 
-/* Staggered dropdown item animation */
+/* 下拉菜单项交错进入动画 */
 .sort-dropdown.open .sort-dropdown-item {
     opacity: 0;
     animation: sort-item-in 0.2s ease forwards;
@@ -744,7 +768,7 @@ a:hover { color: var(--accent-cyan-hover); }
     }
 }
 
-/* -- FAB (Floating Action Button) -- */
+/* -- 浮动操作按钮 -- */
 .fab-container {
     position: fixed;
     bottom: 5.5rem;
@@ -805,7 +829,7 @@ a:hover { color: var(--accent-cyan-hover); }
     pointer-events: auto;
 }
 
-/* Staggered upward animation for each action */
+/* 每个操作按钮交错向上弹出动画 */
 .fab-actions .fab-action {
     opacity: 0;
     transform: translateY(12px) scale(0.7);
@@ -866,16 +890,16 @@ a:hover { color: var(--accent-cyan-hover); }
     border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* Staggered FAB action animations */
+/* FAB 操作按钮的交错动画效果 */
 
-/* -- Mobile Body Padding -- */
+/* -- 移动端内容内边距 -- */
 @media (max-width: 767px) {
     body {
         padding-bottom: 6rem !important;
     }
 }
 
-/* -- Sticky Table Columns -- */
+/* -- 表格粘性列 -- */
 .sticky-col {
     position: sticky;
     z-index: 2;
@@ -910,7 +934,7 @@ a:hover { color: var(--accent-cyan-hover); }
     background: linear-gradient(to right, rgba(0,0,0,0.25), transparent);
 }
 
-/* -- Responsive Card Padding -- */
+/* -- 响应式卡片内边距 -- */
 .card {
     margin-left: 0;
     margin-right: 0;
@@ -942,7 +966,7 @@ input[type="checkbox"] {
     accent-color: var(--accent-cyan);
 }
 
-/* -- Scrollbar (all modes) -- */
+/* -- 滚动条样式（所有模式） -- */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -973,7 +997,7 @@ input[type="checkbox"] {
     background: var(--text-muted);
 }
 
-/* -- Dark Mode: native form controls -- */
+/* -- 深色模式：原生表单控件 -- */
 [data-theme="dark"] input[type="file"] {
     color-scheme: dark;
 }
@@ -1001,7 +1025,7 @@ input[type="checkbox"] {
     cursor: pointer;
 }
 
-/* -- Strategy Gantt Chart -- */
+/* -- 策略甘特图 -- */
 .strategy-chart {
     position: relative;
     overflow-x: auto;

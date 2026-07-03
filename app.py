@@ -1,3 +1,5 @@
+"""赛道计时应用 - Flask 应用工厂"""
+
 import os
 import secrets
 
@@ -9,12 +11,14 @@ from models import db, TimeKeeper, User
 
 
 def create_app():
+    """创建并配置 Flask 应用实例"""
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = SQLALCHEMY_TRACK_MODIFICATIONS
     app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
     app.config["SECRET_KEY"] = SECRET_KEY
 
+    # 确保上传目录和数据库目录存在
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     db_dir = SQLALCHEMY_DATABASE_URI.replace("sqlite:///", "")
     if db_dir:
@@ -22,6 +26,7 @@ def create_app():
 
     db.init_app(app)
 
+    # 启动时自动建表 + 运行内联迁移（兼容旧数据库）
     with app.app_context():
         db.create_all()
         _ensure_session_sort_order_column()
@@ -35,24 +40,24 @@ def create_app():
         _seed_time_keepers()
         _seed_admin()
 
-    # Context processor: inject current_user and csrf_token into all templates
+    # 上下文处理器：向所有模板注入 current_user 和 csrf_token
     @app.context_processor
     def inject_globals():
         user_id = flask_session.get("user_id")
         user = None
         if user_id:
             user = db.session.get(User, user_id)
-        # Eagerly generate CSRF token so it's always available
+        # 提前生成 CSRF token，确保模板中始终可用
         if "_csrf_token" not in flask_session:
             flask_session["_csrf_token"] = secrets.token_hex(32)
         return dict(current_user=user, csrf_token=flask_session["_csrf_token"])
 
-    # CSRF protection for all POST requests
+    # 全局 CSRF 保护：拦截所有 POST 请求（除 /api/ 端点外）
     @app.before_request
     def csrf_protect():
         if request.method != "POST":
             return
-        # Skip CSRF for API endpoints (token-based, no session)
+        # /api/ 端点使用 token 认证，跳过 CSRF
         if request.path.startswith("/api/"):
             return
         token = request.form.get("_csrf_token") or request.headers.get("X-CSRF-Token")
@@ -62,7 +67,7 @@ def create_app():
     from routes import bp
     app.register_blueprint(bp)
 
-    # Template filter: extract ISO week number from a date
+    # 模板过滤器：从日期中提取 ISO 周数
     @app.template_filter("isoweek")
     def _iso_week_filter(date):
         if date is None:
@@ -73,7 +78,7 @@ def create_app():
 
 
 def _verify_csrf_token(token: str) -> bool:
-    """Verify a CSRF token against the session token."""
+    """验证 CSRF token 是否与会话中的 token 匹配"""
     expected = flask_session.get("_csrf_token")
     if not expected or not token:
         return False
@@ -81,6 +86,7 @@ def _verify_csrf_token(token: str) -> bool:
 
 
 def _ensure_session_sort_order_column():
+    """确保 sessions 表有 sort_order 列（内联迁移）"""
     inspector = inspect(db.engine)
     if "sessions" not in inspector.get_table_names():
         return
@@ -92,6 +98,7 @@ def _ensure_session_sort_order_column():
 
 
 def _ensure_lap_record_time_columns():
+    """确保 lap_records 表有 time_out_lap / time_in_lap 列"""
     inspector = inspect(db.engine)
     if "lap_records" not in inspector.get_table_names():
         return
@@ -106,14 +113,13 @@ def _ensure_lap_record_time_columns():
 
 
 def _ensure_car_model_columns():
+    """确保 standings 和 lap_records 表有 car_model 列"""
     inspector = inspect(db.engine)
-    # standings.car_model
     if "standings" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("standings")}
         if "car_model" not in columns:
             with db.engine.begin() as connection:
                 connection.execute(text("ALTER TABLE standings ADD COLUMN car_model VARCHAR(100) DEFAULT ''"))
-    # lap_records.car_model
     if "lap_records" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("lap_records")}
         if "car_model" not in columns:
@@ -122,14 +128,13 @@ def _ensure_car_model_columns():
 
 
 def _ensure_series_color_columns():
+    """确保 standings 和 lap_records 表有 series_color 列"""
     inspector = inspect(db.engine)
-    # standings.series_color
     if "standings" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("standings")}
         if "series_color" not in columns:
             with db.engine.begin() as connection:
                 connection.execute(text("ALTER TABLE standings ADD COLUMN series_color VARCHAR(20) DEFAULT ''"))
-    # lap_records.series_color
     if "lap_records" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("lap_records")}
         if "series_color" not in columns:
@@ -138,6 +143,7 @@ def _ensure_series_color_columns():
 
 
 def _ensure_model_color_columns():
+    """确保 standings / lap_records / car_configs 表有 model_color 列"""
     inspector = inspect(db.engine)
     for table in ("standings", "lap_records", "car_configs"):
         if table in inspector.get_table_names():
@@ -148,6 +154,7 @@ def _ensure_model_color_columns():
 
 
 def _ensure_gap_text_columns():
+    """确保 standings 表有 gap_text / diff_text 列"""
     inspector = inspect(db.engine)
     if "standings" in inspector.get_table_names():
         columns = {column["name"] for column in inspector.get_columns("standings")}
@@ -160,6 +167,7 @@ def _ensure_gap_text_columns():
 
 
 def _ensure_event_is_hidden_column():
+    """确保 events 表有 is_hidden 列"""
     inspector = inspect(db.engine)
     if "events" not in inspector.get_table_names():
         return
@@ -170,6 +178,7 @@ def _ensure_event_is_hidden_column():
 
 
 def _ensure_track_limit_column():
+    """确保 lap_records 表有 track_limit 列"""
     inspector = inspect(db.engine)
     if "lap_records" not in inspector.get_table_names():
         return
@@ -180,6 +189,7 @@ def _ensure_track_limit_column():
 
 
 def _seed_time_keepers():
+    """将注册的解析器写入 TimeKeeper 表"""
     from parsers import PARSER_REGISTRY
     for key, parser in PARSER_REGISTRY.items():
         if not TimeKeeper.query.filter_by(name=parser.name).first():
@@ -188,7 +198,7 @@ def _seed_time_keepers():
 
 
 def _seed_admin():
-    """Create default admin account if no users exist."""
+    """无用户时创建默认管理员账号 admin / admin123"""
     if User.query.count() == 0:
         admin = User(username="admin", is_admin=True)
         admin.set_password("admin123")

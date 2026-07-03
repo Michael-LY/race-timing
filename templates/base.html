@@ -1,16 +1,19 @@
 <!DOCTYPE html>
+<!-- HTML5 文档类型声明 -->
 <html lang="en">
+<!-- 页面根元素，语言设为英语 -->
 <head>
+    <!-- ============ 头部区域 ============ -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Race Result Analysis{% endblock %}</title>
 
-    <!-- Fonts: JetBrains Mono (data) + Syne (headings) -->
+    <!-- 字体：JetBrains Mono (等宽数据字体) + Syne (标题字体) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS CDN -->
+    <!-- Tailwind CSS CDN (通过 CDN 加载，无需构建步骤) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
     tailwind.config = {
@@ -31,10 +34,10 @@
     }
     </script>
 
-    <!-- Theme engine (in <head> for FOUC prevention) -->
+    <!-- 主题引擎（放在 <head> 中以防止 FOUC——闪白问题） -->
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 
-    <!-- Icons & Charts -->
+    <!-- 图标库 (Lucide) 与图表库 (Chart.js + Zoom 插件) -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
@@ -44,14 +47,15 @@
     }
     </script>
 
-    <!-- Theme CSS -->
+    <!-- 自定义主题样式（浅色/深色模式） -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
 
     {% block head %}{% endblock %}
+    <!-- ========== 头部结束 ========== -->
 </head>
 <body class="pt-12 md:pt-14 pb-16 md:pb-0">
 
-<!-- Mobile Header (brand + theme toggle only) -->
+<!-- ============ 移动端顶栏：仅品牌 Logo + 主题切换按钮 ============ -->
 <header class="nav-main fixed top-0 w-full z-50 md:hidden">
     <div class="flex items-center justify-between h-12 px-4">
         <a class="nav-brand text-base tracking-tight flex items-center gap-1.5 no-underline text-white shrink-0" href="{{ url_for('main.index') }}">
@@ -65,7 +69,7 @@
     </div>
 </header>
 
-<!-- Desktop Navbar (hidden on mobile — bottom nav replaces it) -->
+<!-- ============ 桌面端导航栏（移动端隐藏，由底部导航代替） ============ -->
 <nav class="nav-main fixed top-0 w-full z-50 hidden md:block">
     <div class="container flex items-center justify-between h-14">
         <a class="nav-brand text-lg tracking-tight flex items-center gap-1.5 no-underline text-white shrink-0" href="{{ url_for('main.index') }}">
@@ -117,7 +121,9 @@
     </div>
 </nav>
 
+<!-- ============ 主内容区域 ============ -->
 <div class="container">
+    <!-- Flash 消息提示（成功/危险/警告/信息，支持关闭） -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -137,10 +143,11 @@
         {% endif %}
     {% endwith %}
 
+    <!-- 子模板内容占位 -->
     {% block content %}{% endblock %}
 </div>
 
-<!-- Bottom Navigation (mobile only) -->
+<!-- ============ 移动端底部导航栏（仅在手机端显示） ============ -->
 <nav class="bottom-nav fixed bottom-0 left-0 right-0 z-50 md:hidden">
     <div class="flex items-center justify-around h-16 px-2">
         <a href="{{ url_for('main.index') }}" class="bottom-nav-item {% if request.endpoint == 'main.index' %}active{% endif %}">
@@ -171,6 +178,7 @@
     </div>
 </nav>
 
+<!-- ============ JavaScript：图标渲染 + 子模板脚本 ============ -->
 <script>lucide.createIcons();</script>
 {% block scripts %}{% endblock %}
 </body>
