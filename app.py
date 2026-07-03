@@ -6,7 +6,7 @@ import secrets
 from flask import Flask, session as flask_session, request, abort
 from sqlalchemy import inspect, text
 
-from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS, UPLOAD_FOLDER, SECRET_KEY
+from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS, UPLOAD_FOLDER, SECRET_KEY, MAX_CONTENT_LENGTH
 from models import db, TimeKeeper, User
 
 
@@ -17,6 +17,7 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = SQLALCHEMY_TRACK_MODIFICATIONS
     app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
     app.config["SECRET_KEY"] = SECRET_KEY
+    app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 
     # 确保上传目录和数据库目录存在
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
